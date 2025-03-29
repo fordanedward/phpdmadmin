@@ -4,7 +4,6 @@
   import { initializeApp } from 'firebase/app';
   import { firebaseConfig } from '$lib/firebaseConfig';
   import { Card, Tabs, TabItem } from 'flowbite-svelte';
-  import Sidebar from '../sidenav/+page.svelte';
   import { AngleLeftOutline, AngleRightOutline } from 'flowbite-svelte-icons';
   import { Modal } from 'flowbite-svelte';
   import { writable } from 'svelte/store';
@@ -1005,514 +1004,469 @@ function validateAppointmentData() {
 }
 
 </script>
-
-<Sidebar {isCollapsed} {toggleSidebar} {logout} />
-<div class="container1">
+<!-- 
+  Main Wrapper for this section of the page. 
+  This div should be placed inside your main application's content area, 
+  next to (not overlapping) your main sidebar.
+-->
+<div class="px-4 md:px-6 pb-4 md:pb-6 pt-0 space-y-6">
+  
   {#if loading}
     <p>Loading data...</p>
   {:else}
-    <Card class="w-full p-4 shadow-lg">
-      <div class="card-content1">
-        <div>
-          <p class="text-gray-500 text-sm">Total Appointment This Month</p>
-          <p class="text-2xl font-bold text-gray-900">{totalAppointments}</p>
-        </div>
-        <div>
-          <p class="text-gray-500 text-sm">Pending Appointment This Month</p>
-          <p class="text-2xl font-bold text-gray-900">{pendingAppointments}</p>
-        </div>
-        <div>
-          <p class="text-gray-500 text-sm">Completed Appointment This Month</p>
-          <p class="text-2xl font-bold text-gray-900">{completedAppointments}</p>
-        </div>
-      </div>
-    </Card>
-    <div class="appointment-container1">
-      <div class="appointment-header flex flex-col justify-between items-center">
-        <p class="appointment-title">
-          {#if currentSection === 0}
-            Pending Appointments
-          {:else if currentSection === 1}
-          Pending Reschedule Requests
-          {:else if currentSection === 2}
-          Pending Cancellation requests
-          {/if}
-        </p>
-    
-        <div class="icon-buttons flex space-x-4 mt-4">
-          <!-- Button for Pending Appointments -->
-          <button
-            class="icon-button"
-            on:click={() => (currentSection = 0)}
-            aria-label="Pending Appointments"
-          >
-            <img
-              src="./images/pending-appointment.png"
-              alt="Pending Appointments"
-              class="icon {currentSection === 0 ? 'active' : ''}"
-            />
-          </button>
-    
-          <!-- Button for Pending Cancellation Requests -->
-          <button
-            class="icon-button"
-            on:click={() => (currentSection = 1)}
-            aria-label="Pending Reschedule Requests"
-          >
-            <img
-              src="./images/pending-reschedule.png"
-              alt="Pending Reschedule Requests"
-              class="icon {currentSection === 1 ? 'active' : ''}"
-            />
-          </button>
-    
-          <!-- Button for Pending Reschedule Requests -->
-          <button
-            class="icon-button"
-            on:click={() => (currentSection = 2)}
-            aria-label="Pending Cancellation Requests"
-          >
-            <img
-              src="./images/pending-cancellation.png"
-              alt="Pending Cancellation Requests"
-              class="icon {currentSection === 2 ? 'active' : ''}"
-            />
-          </button>
-        </div>
-      </div>
-    
-    
+    <!-- Use Flexbox for Desktop layout, Stacking on Mobile -->
+    <div class="flex flex-col lg:flex-row gap-6">
+
+      <!-- Main Content Area (Accepted Appointments) - Takes more space -->
+      <div class="flex-grow lg:w-2/3 order-2 lg:order-1"> 
+        <div class="bg-white p-4 rounded-lg shadow-md"> 
+          <h2 class="text-xl font-semibold mb-4">Accepted Appointments</h2>
       
-      {#if currentSection === 0}
-      <!-- Pending Appointments Section -->
-      <div class="pending-appointments">
-        <!-- svelte-ignore a11y_invalid_attribute -->
-        <a class="view-all" href="/allstatus">View All</a>
-    
-        {#if pendingAppointmentsList.length > 0}
-          {#each pendingAppointmentsList as appointment}
-          {#if appointment.status === 'pending'} 
-            <div class="appointment-card">
-              <div class="patient-info">
-                {#each patientProfiles as profile (profile.id)}
-                  {#if profile.id === appointment.patientId}
-                  <div class="patient-details">
-                    <p class="patient-name">{profile.name} {profile.lastName}</p>
-                    <p class="patient-age">{profile.age} years old</p>
-                    <p class="appointment-details">{appointment.date} at {appointment.time}</p>
-                    <p class="service">
-                      Service: {appointment.service}
-                    </p>
-                    {#if appointment.subServices && appointment.subServices.length > 0}
-                      <p class="sub-services">
-                        Sub-services: {appointment.subServices.join(', ')}
-                      </p>
-                    {/if}
+          <!-- Tabs for Filtering -->
+          <div class="tabs mb-4 border-b border-gray-200">
+            
+            <button
+              type="button"
+              class="tab-item px-4 py-2 mr-1 rounded-t-md {currentView === 'today' ? 'bg-blue-500 text-white' : 'text-blue-500 hover:bg-blue-100'}"
+              on:click={() => currentView = 'today'}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              class="tab-item px-4 py-2 mr-1 rounded-t-md {currentView === 'week' ? 'bg-blue-500 text-white' : 'text-blue-500 hover:bg-blue-100'}"
+              on:click={() => currentView = 'week'}
+            >
+              This Week
+            </button>
+            <button
+              type="button"
+              class="tab-item px-4 py-2 rounded-t-md {currentView === 'month' ? 'bg-blue-500 text-white' : 'text-blue-500 hover:bg-blue-100'}"
+              on:click={() => currentView = 'month'}
+            >
+              This Month
+            </button>
+          </div>
+      
+          <!-- Display Appointments if any -->
+          {#if filterAppointments(currentView).length > 0}
+            <div class="space-y-4">
+              {#each filterAppointments(currentView) as appointment}
+              
+                <article class="border border-gray-300 rounded-lg p-4 bg-white shadow"> 
+                  <section class="appointment-details mb-3">
                     
-                  </div>
+                    <p class="font-semibold text-gray-800">
+                      {#each patientProfiles as profile (profile.id)}
+                        {#if profile.id === appointment.patientId}
+                          {profile.name} {profile.lastName} <span class="text-sm font-normal text-gray-600">({profile.age} years old)</span>
+                        {/if}
+                      {/each}
+                    </p>
+        
+                    <div class="my-1">
+                      <p class="text-sm text-gray-700">
+                        <strong>{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong>
+                        <span class="text-gray-600"> | {appointment.time}</span>
+                      </p>
+                    </div>
+        
+                    <p class="text-sm text-gray-600 mt-1">Service: {appointment.service}</p>
+                    {#if appointment.subServices && appointment.subServices.length > 0}
+                      <p class="text-sm text-gray-600">Sub-services: {appointment.subServices.join(', ')}</p>
+                    {/if}
+        
+               
+                    <div class="remarks-container mt-2">
+                      <label for="remarks-{appointment.id}" class="text-sm font-medium text-gray-700 mb-1 block">Remarks:</label>
+                      <input
+                        type="text"
+                        id="remarks-{appointment.id}"
+                        class="remarks-input w-full border border-gray-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                        bind:value={appointment.remarks}
+                        placeholder="Enter remarks here"
+                        aria-label="Enter remarks for {appointment.date} at {appointment.time}"
+                      />
+                    </div>
+                  </section>
+
+                 
+                   <div class="appointment-buttons flex flex-wrap gap-2 justify-end mt-3">
+                     {#if appointment.status === 'Completed'}
+                       <button class="bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-1 rounded shadow" on:click={() => showAppointmentModal(appointment)}>
+                         Add Appointment
+                       </button>
+                     {:else}
+                       <button
+                         on:click={() => openModal(appointment.id)}
+                         class="bg-green-100 hover:bg-green-200 text-green-700 text-sm px-3 py-1 rounded disabled:opacity-50"
+                         disabled={prescriptionAdded}
+                       >
+                         Add Prescription
+                       </button>
+                       <button
+                         class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm px-3 py-1 rounded"
+                         on:click={() => handleCompletedAppointment(appointment.id, 'Completed', appointment.remarks || '')}
+                       >
+                         Completed
+                       </button>
+                       <button
+                         class="bg-red-100 hover:bg-red-200 text-red-700 text-sm px-3 py-1 rounded"
+                         on:click={() => handleCompletedAppointment(appointment.id, 'Missed', appointment.remarks || '')}
+                       >
+                         Missed
+                       </button>
+                     {/if}
+                   </div>
+                </article>
+              {/each}
+            </div>
+          {:else}
+            <div class="no-appointments text-center py-10 text-gray-500">
+              <p>No appointments for the selected period.</p>
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Sidebar-like Content Area (Stats & Pending Lists) -->
+      <div class="w-full lg:w-1/3 order-1 lg:order-2 space-y-6"> 
+        
+        <!-- Stats Card -->
+        <Card class="w-full p-4 shadow-lg bg-white rounded-lg">
+          <div class="card-content1 space-y-3"> 
+            <div>
+              <p class="text-gray-500 text-sm">Total Appointment This Month</p>
+              <p class="text-2xl font-bold text-gray-900">{totalAppointments}</p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-sm">Pending Appointment This Month</p>
+              <p class="text-2xl font-bold text-gray-900">{pendingAppointments}</p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-sm">Completed Appointment This Month</p>
+              <p class="text-2xl font-bold text-gray-900">{completedAppointments}</p>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Pending Items Container -->
+        <div class="appointment-container1 bg-white p-4 rounded-lg shadow-md space-y-4" style="max-height: 70vh; overflow-y: auto;">
+          <div class="appointment-header text-center space-y-3"> 
+            <p class="appointment-title text-lg font-semibold">
+              {#if currentSection === 0}
+                Pending Appointments
+              {:else if currentSection === 1}
+                Pending Reschedule Requests
+              {:else if currentSection === 2}
+                Pending Cancellation requests
+              {/if}
+            </p>
+        
+            <div class="icon-buttons flex justify-center space-x-6 pt-2">
+              <button
+                class="icon-button p-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 {currentSection === 0 ? 'bg-blue-100 ring-2 ring-blue-500' : ''}"
+                on:click={() => (currentSection = 0)}
+                aria-label="Pending Appointments"
+              >
+                <img src="./images/pending-appointment.png" alt="Pending Appointments" class="icon w-8 h-8" /> 
+              </button>
+              <button
+                class="icon-button p-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 {currentSection === 1 ? 'bg-blue-100 ring-2 ring-blue-500' : ''}"
+                on:click={() => (currentSection = 1)}
+                aria-label="Pending Reschedule Requests"
+              >
+                <img src="./images/pending-reschedule.png" alt="Pending Reschedule Requests" class="icon w-8 h-8" />
+              </button>
+              <button
+                class="icon-button p-1 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 {currentSection === 2 ? 'bg-blue-100 ring-2 ring-blue-500' : ''}"
+                on:click={() => (currentSection = 2)}
+                aria-label="Pending Cancellation Requests"
+              >
+                <img src="./images/pending-cancellation.png" alt="Pending Cancellation Requests" class="icon w-8 h-8" />
+              </button>
+            </div>
+          </div>
+        
+          <!-- Divider -->
+          <hr class="my-4"> 
+
+          <!-- View All Link common position -->
+          <div class="text-right mb-2">
+             <a class="view-all text-sm text-blue-600 hover:underline" href="/allstatus">View All</a>
+          </div>
+
+          <!-- Conditional Sections for Pending Items -->
+          {#if currentSection === 0}
+            <div class="pending-appointments space-y-3">
+              {#if pendingAppointmentsList.filter(a => a.status === 'pending').length > 0}
+                {#each pendingAppointmentsList as appointment}
+                  {#if appointment.status === 'pending'} 
+                    <!-- Use Tailwind for card styling -->
+                    <div class="appointment-card border border-gray-200 rounded-md p-3 shadow-sm">
+                      <div class="patient-info mb-2">
+                        {#each patientProfiles as profile (profile.id)}
+                          {#if profile.id === appointment.patientId}
+                            <div class="patient-details text-sm">
+                              <p class="patient-name font-semibold text-gray-800">{profile.name} {profile.lastName}</p>
+                              <p class="patient-age text-gray-600">{profile.age} years old</p>
+                              <p class="appointment-details text-gray-600">{appointment.date} at {appointment.time}</p>
+                              <p class="service text-gray-600 mt-1">
+                                Service: {appointment.service}
+                              </p>
+                              {#if appointment.subServices && appointment.subServices.length > 0}
+                                <p class="sub-services text-gray-600">
+                                  Sub-services: {appointment.subServices.join(', ')}
+                                </p>
+                              {/if}
+                            </div>
+                          {/if}
+                        {/each}
+                      </div>
+                      <div class="appointment-buttons flex gap-2 justify-end">
+                       
+                        <button class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs px-3 py-1 rounded" on:click={() => updatePendingAppointmentStatus(appointment.id, 'Accepted')}>
+                          Accept
+                        </button>
+                        <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => openReasonModal(appointment.id)}>
+                          Reject
+                        </button>
+                      </div>
+                    </div>
                   {/if}
                 {/each}
-              </div>
-    
-              <div class="appointment-buttons">
-                <button class="bg-blue-100 text-blue-500 px-3 py-1 rounded" on:click={() => updatePendingAppointmentStatus(appointment.id, 'Accepted')}>
-                  Accept
-                </button>
-                <button
-            class="bg-red-100 text-red-500 px-3 py-1 rounded"
-            on:click={() => openReasonModal(appointment.id)}
-          >
-            Reject
-          </button>
-              </div>
-            </div>
-            {/if}
-          {/each}
-          
-        {:else}
-          <p class="text-center text-gray-500">No pending appointment requests available.</p>
-        {/if}
-      </div>
-
-      {:else if currentSection === 1}
-      <a class="view-all" href="/allstatus">View All</a>
-      <!-- Reschedule Requests Section -->
-      <div class="reschedule-requests">
-        {#if pendingAppointmentsList.filter(a => a.status === 'Reschedule Requested').length > 0}
-          {#each pendingAppointmentsList as appointment}
-            {#if appointment.status === 'Reschedule Requested'}
-              <div class="appointment-card bg-white shadow-md rounded p-4 mb-4">
-                <!-- Patient Info -->
-                <div class="patient-info">
-                  {#each patientProfiles as profile (profile.id)}
-                    {#if profile.id === appointment.patientId}
-                      <div class="patient-details">
-                        <p class="patient-name text-lg font-semibold">
-                          {profile.name} {profile.lastName}
-                        </p>
-                        <p class="patient-age text-gray-600">
-                          {profile.age} years old
-                        </p>
-                        <p class="text-gray-600">
-                          Requesting to reschedule
-                        </p>
-                        <p class="text-sm text-gray-500">
-                       Requested Schedule: {appointment.date} at {appointment.time}
-                        </p>
-                        <p class="service text-sm text-gray-500">
-                          Service: {appointment.service}
-                        </p>
-                        {#if appointment.subServices && appointment.subServices.length > 0}
-                          <p class="sub-services text-sm text-gray-500">
-                            Sub-services: {appointment.subServices.join(', ')}
-                          </p>
-                        {/if}
-                      </div>
-                    {/if}
-                  {/each}
-                </div>
-                <!-- Actions -->
-                <div class="appointment-buttons">
-                  <button
-                    class="bg-green-100 text-green-500 px-3 py-1 rounded hover:bg-green-600"
-                    on:click={() => acceptReschedule(appointment.id)}
-                  >
-                    Accept
-                  </button>
-                  <button
-                  class="bg-red-100 text-red-500 px-3 py-1 rounded hover:bg-red-600"
-                  on:click={() => rejectReschedule(appointment.id, appointment.date, appointment.time)}
-                >
-                  Reject
-                </button>
-                
-                </div>
-              </div>
-            {/if}
-          {/each}
-       
-      
-    {:else}
-      <p class="text-gray-500 text-center">No reschedule requests available.</p>
-    {/if}
-  </div>
-    {:else}
-    
-   <!-- Pending Cancellations Section -->
-   <div class="pending-cancellations">
-    <!-- svelte-ignore a11y_invalid_attribute -->
-    <a class="view-all" href="/allstatus">View All</a>
-
-
-    {#if pendingAppointmentsList.filter(appointment => appointment.cancellationStatus === 'requested').length > 0}
-      {#each pendingAppointmentsList as appointment}
-        {#if appointment.cancellationStatus === 'requested'} <!-- Display only pending cancellations -->
-          <div class="appointment-card">
-            <div class="patient-info">
-                  {#each patientProfiles as profile (profile.id)}
-                    {#if profile.id === appointment.patientId}
-                      <div class="patient-details">
-                        <p class="patient-name">{profile.name} {profile.lastName}</p>
-                        <p class="patient-age">{profile.age} years old</p>
-                        <p class="appointment-details">{appointment.date} at {appointment.time}</p>
-                        <p class="service">Service: {appointment.service}</p>
-                        <p class="sub-service">Sub-services: {appointment.subServices.join(', ')}</p>
-                        <p class="cancellation-reason">Cancellation Reason: {appointment.cancelReason}</p>
-                      </div>
-                    {/if}
-                  {/each}
-                </div>
-        
-                <div class="appointment-buttons">
-                  <button
-                    class="bg-green-100 text-green-500 px-3 py-1 rounded"
-                    on:click={() => confirmStatusChange(appointment.id, 'Approved')}
-                  >
-                    Approved
-                  </button>
-                  <button
-                    class="bg-red-100 text-red-500 px-3 py-1 rounded"
-                    on:click={() => confirmStatusChange(appointment.id, 'Declined')}
-                  >
-                    Decline
-                  </button>
-                </div>
-                
-              </div>
-            {/if}
-          {/each}
-        {:else}
-          <p class="text-center text-gray-500">No pending cancellation requests available.</p>
-        {/if}
-      </div>
-     {/if} 
-    </div>
-  {/if}
-
-   <!-- Reason Modal -->
-{#if showReasonModal}
-<div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-  <div class="bg-white rounded-lg p-6 w-1/3 shadow-lg">
-    <h2 class="text-lg font-semibold mb-4">Reason for Rejection</h2>
-    <textarea
-      class="w-full border rounded p-2 mb-4"
-      rows="4"
-      bind:value={rejectionReason}
-      placeholder="Enter the reason for rejection..."
-    ></textarea>
-    <div class="flex justify-end space-x-4">
-      <button
-        class="bg-gray-200 text-gray-800 px-4 py-2 rounded"
-        on:click={() => (showReasonModal = false)}
-      >
-        Cancel
-      </button>
-      <button
-        class="bg-red-500 text-white px-4 py-2 rounded"
-        on:click={confirmRejection}
-      >
-        Submit
-      </button>
-    </div>
-  </div>
-</div>
-{/if}
-
-  </div>
-  
-  <div class="container">
-    <div class="container">
-      <div class="appointments-section">
-        <h2>Accepted Appointments</h2>
-    
-        <!-- Tabs for Filtering -->
-        <div class="tabs">
-          <button
-            type="button"
-            class="tab-item {currentView === 'today' ? 'active' : ''}"
-            on:click={() => currentView = 'today'}
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            class="tab-item {currentView === 'week' ? 'active' : ''}"
-            on:click={() => currentView = 'week'}
-          >
-            This Week
-          </button>
-          <button
-            type="button"
-            class="tab-item {currentView === 'month' ? 'active' : ''}"
-            on:click={() => currentView = 'month'}
-          >
-            This Month
-          </button>
-        </div>
-    
-        <!-- Display Appointments if any -->
-        {#if filterAppointments(currentView).length > 0}
-          {#each filterAppointments(currentView) as appointment}
-            <article class="appointment-card1">
-              <section class="appointment-details">
-                <!-- Patient Info Section -->
-                <p class="appointment-patient">
-                  {#each patientProfiles as profile (profile.id)}
-                    {#if profile.id === appointment.patientId}
-                      <strong>{profile.name} {profile.lastName}</strong> ({profile.age} years old)
-                    {/if}
-                  {/each}
-                </p>
-    
-                <!-- Date & Time Section -->
-                <div style="margin-bottom: 10px;">
-                  <p style="margin: 5px 0 0; font-size: 0.95em; color: #555;">
-                    <strong>{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong>
-                    <span> | {appointment.time}</span>
-                  </p>
-                </div>
-    
-                <!-- Service Information -->
-                <p class="appointment-service">Service: {appointment.service}</p>
-                {#if appointment.subServices && appointment.subServices.length > 0}
-                  <p class="appointment-service">Sub-services: {appointment.subServices.join(', ')}</p>
-                {/if}
-    
-                <!-- Remarks Input -->
-                <div class="remarks-container">
-                  <label for="remarks-{appointment.id}" class="remarks-label">Remarks:</label>
-                  <input
-                    type="text"
-                    id="remarks-{appointment.id}"
-                    class="remarks-input"
-                    bind:value={appointment.remarks}
-                    placeholder="Enter remarks here"
-                    aria-label="Enter remarks for {appointment.date} at {appointment.time}"
-                  />
-                </div>
-              </section>
-            </article>
-    
-            <!-- Action Buttons (Add Prescription, Completed, Missed) -->
-            <div class="appointment-buttons">
-              {#if appointment.status === 'Completed'}
-                <!-- Ipakita lang ang button na "Add Appointment" kung 'Completed' ang status -->
-                <div class="add-appointment-button">
-                  <button class="bg-green-500 text-white px-4 py-2 rounded" on:click={() => showAppointmentModal(appointment)}>
-                    Add Appointment
-                  </button>
-                </div>
               {:else}
-                <!-- Show these buttons if the status is not 'Completed' -->
-                <button
-                  on:click={() => openModal(appointment.id)}
-                  class="bg-green-100 text-green-500 px-3 py-1 rounded"
-                  disabled={prescriptionAdded}
-                >
-                  Add Prescription
-                </button>
-                <button
-                  class="bg-blue-100"
-                  on:click={() => handleCompletedAppointment(appointment.id, 'Completed', appointment.remarks || '')}
-                >
-                  Completed
-                </button>
-                <button
-                  class="bg-red-100"
-                  on:click={() => handleCompletedAppointment(appointment.id, 'Missed', appointment.remarks || '')}
-                >
-                  Missed
-                </button>
+                <p class="text-center text-sm text-gray-500 py-4">No pending appointment requests available.</p>
               {/if}
             </div>
-            
     
-          {/each}
-        {:else}
-          <div class="no-appointments">
-            <p>No appointments for the selected period.</p>
-          </div>
-        {/if}
+          {:else if currentSection === 1}
+            <div class="reschedule-requests space-y-3">
+              {#if pendingAppointmentsList.filter(a => a.status === 'Reschedule Requested').length > 0}
+                {#each pendingAppointmentsList as appointment}
+                  {#if appointment.status === 'Reschedule Requested'}
+                    <div class="appointment-card border border-gray-200 rounded-md p-3 shadow-sm">
+                      <div class="patient-info mb-2">
+                        {#each patientProfiles as profile (profile.id)}
+                          {#if profile.id === appointment.patientId}
+                            <div class="patient-details text-sm">
+                              <p class="patient-name font-semibold text-gray-800">{profile.name} {profile.lastName}</p>
+                              <p class="patient-age text-gray-600">{profile.age} years old</p>
+                              <p class="text-gray-600 italic">Requesting to reschedule</p>
+                              <p class="text-gray-600">Requested: {appointment.date} at {appointment.time}</p>
+                              <p class="service text-gray-600 mt-1">Service: {appointment.service}</p>
+                              {#if appointment.subServices && appointment.subServices.length > 0}
+                                <p class="sub-services text-gray-600">Sub-services: {appointment.subServices.join(', ')}</p>
+                              {/if}
+                            </div>
+                          {/if}
+                        {/each}
+                      </div>
+                      <div class="appointment-buttons flex gap-2 justify-end">
+                        <button class="bg-green-100 hover:bg-green-200 text-green-700 text-xs px-3 py-1 rounded" on:click={() => acceptReschedule(appointment.id)}>
+                          Accept
+                        </button>
+                        <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => rejectReschedule(appointment.id, appointment.date, appointment.time)}>
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  {/if}
+                {/each}
+              {:else}
+                <p class="text-center text-sm text-gray-500 py-4">No reschedule requests available.</p>
+              {/if}
+            </div>
+
+          {:else if currentSection === 2}
+            <div class="pending-cancellations space-y-3">
+              {#if pendingAppointmentsList.filter(appointment => appointment.cancellationStatus === 'requested').length > 0}
+                {#each pendingAppointmentsList as appointment}
+                  {#if appointment.cancellationStatus === 'requested'}
+                    <div class="appointment-card border border-gray-200 rounded-md p-3 shadow-sm">
+                      <div class="patient-info mb-2">
+                        {#each patientProfiles as profile (profile.id)}
+                          {#if profile.id === appointment.patientId}
+                            <div class="patient-details text-sm">
+                              <p class="patient-name font-semibold text-gray-800">{profile.name} {profile.lastName}</p>
+                              <p class="patient-age text-gray-600">{profile.age} years old</p>
+                              <p class="appointment-details text-gray-600">{appointment.date} at {appointment.time}</p>
+                              <p class="service text-gray-600 mt-1">Service: {appointment.service}</p>
+                              {#if appointment.subServices && appointment.subServices.length > 0}
+                                <p class="sub-service text-gray-600">Sub-services: {appointment.subServices.join(', ')}</p>
+                              {/if}
+                              <p class="cancellation-reason text-gray-600 mt-1">Reason: <span class="italic">{appointment.cancelReason || 'No reason provided'}</span></p>
+                            </div>
+                          {/if}
+                        {/each}
+                      </div>
+                      <div class="appointment-buttons flex gap-2 justify-end">
+                        <button class="bg-green-100 hover:bg-green-200 text-green-700 text-xs px-3 py-1 rounded" on:click={() => confirmStatusChange(appointment.id, 'Approved')}>
+                          Approved
+                        </button>
+                        <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => confirmStatusChange(appointment.id, 'Declined')}>
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  {/if}
+                {/each}
+              {:else}
+                <p class="text-center text-sm text-gray-500 py-4">No pending cancellation requests available.</p>
+              {/if}
+            </div>
+          {/if} 
+          
+        </div>
+
+      </div> <!-- End Sidebar-like Content Area -->
+
+    </div> <!-- End Flex Container -->
+  {/if}
+
+  <!-- Modals (Keep As Is - Fixed positioning is correct for modals) -->
+  
+  <!-- Reason Modal -->
+  {#if showReasonModal}
+    <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+      <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-lg mx-4">
+        <h2 class="text-lg font-semibold mb-4">Reason for Rejection</h2>
+        <textarea
+          class="w-full border rounded p-2 mb-4 focus:ring-blue-500 focus:border-blue-500"
+          rows="4"
+          bind:value={rejectionReason}
+          placeholder="Enter the reason for rejection..."
+        ></textarea>
+        <div class="flex justify-end space-x-4">
+          <button
+            class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
+            on:click={() => (showReasonModal = false)}
+          >
+            Cancel
+          </button>
+          <button
+            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+            on:click={confirmRejection}
+          >
+            Submit
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-  <!-- Modal -->
- 
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  {#if showModal}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="modal-overlay-new-appointment" on:click={hideAppointmentModal}>
-    <div class="modal-content-new-appointment" on:click|stopPropagation>
-      <h3>
-        Add Follow-up Appointment for 
-        {selectedAppointment 
-          ? (() => {
-              const patientProfile = patientProfiles.find(profile => profile.id === selectedAppointment?.patientId);
-              return patientProfile ? `${patientProfile.name} ${patientProfile.lastName}` : 'Patient';
-            })() 
-          : 'Patient'}
-      </h3>
-
-      <!-- Modal form or other content here -->
-   
-     
-  
-      <form on:submit|preventDefault={addNewAppointment}>
-        <label for="date">Date:</label>
-        <input 
-          type="date" 
-          id="date" 
-          name="date" 
-          bind:value={date} 
-          required 
-          on:change={loadAvailableSlots} 
-          min={new Date().toISOString().split('T')[0]}
-        />
-     
-      
-        
-        <label for="newTime">Select a new time:</label>
-        <select id="newTime" bind:value={newTime} required>
-          <option value="" disabled selected>Select a time</option>
-          {#each availableSlots as slot}
-            <option value={slot}>{slot}</option>
-          {/each}
-        </select>
-        
-  
-        <label for="service">Service:</label>
-        <input 
-          type="text" 
-          id="service" 
-          name="service" 
-          bind:value={appointmentService} 
-          required 
-        />
-  
-        <label for="subServices">Sub-services:</label>
-        <input 
-          type="text" 
-          id="subServices" 
-          name="subServices" 
-          bind:value={subServices} 
-          placeholder="Enter sub-services here"
-        />
-  
-        <label for="remarks">Remarks:</label>
-        <input 
-          type="text" 
-          id="remarks" 
-          name="remarks" 
-          bind:value={remarks} 
-          placeholder="Enter remarks here"
-        />
-        
-        
-        <button type="submit" class="submit-btn">Add Appointment</button>
-        <button type="button" class="cancel-btn" on:click={hideAppointmentModal}>Cancel</button>
-      </form>
-    </div>
-  </div>
   {/if}
-  
-  
-<!-- Modal with Overlay (Appears when isModalOpen is true) -->
-{#if isModalOpen}
-  <div class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center" role="dialog" aria-labelledby="modal-title" aria-hidden={!isModalOpen}>
-    <div class="modal-content bg-white p-6 rounded shadow-lg relative w-full max-w-md" tabindex="-1">
-      
-      <!-- Close Button -->
-      <button 
-        class="absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl font-bold"
-        on:click={closeModal}
-        aria-label="Close Modal"
-      >
-        &times;
-      </button>
 
-      <h2 id="modal-title" class="text-lg font-bold mb-4">
-        Add Prescription for 
-        {selectedAppointment 
-          ? (() => {
-              const patientProfile = patientProfiles.find(profile => profile.id === selectedAppointment?.patientId);
-              return patientProfile ? `${patientProfile.name} ${patientProfile.lastName}` : 'Patient';
-            })() 
-          : 'Patient'}
-      </h2>
-
-      <div class="space-y-8">
-        <!-- Left Side (Prescription Form) -->
-        <form on:submit|preventDefault={submitPrescription} class="w-full space-y-4">
-          <div class="mb-4">
-            <label for="dateVisited" class="block text-sm font-medium mb-1">Date Visited</label>
-            <input id="dateVisited" type="date" bind:value={dateVisited} required class="border rounded p-2 w-full focus:ring-2 focus:ring-green-500" />
+  <!-- Add Follow-up Appointment Modal -->
+  {#if showModal}
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="modal-overlay-new-appointment fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" tabindex="0" aria-modal="true" on:click={hideAppointmentModal} on:keydown={(e) => e.key === 'Escape' && hideAppointmentModal()}>
+      <div class="modal-content-new-appointment bg-white p-6 rounded-lg shadow-lg w-full max-w-lg mx-4" role="document" on:click|stopPropagation>
+        <h3 class="text-xl font-semibold mb-4 text-center">
+          Add Follow-up Appointment for 
+          {selectedAppointment 
+            ? (() => {
+                const patientProfile = patientProfiles.find(profile => profile.id === selectedAppointment?.patientId);
+                return patientProfile ? `${patientProfile.name} ${patientProfile.lastName}` : 'Patient';
+              })() 
+            : 'Patient'}
+        </h3>
+        <form on:submit|preventDefault={addNewAppointment} class="space-y-4">
+          <div>
+            <label for="date" class="block text-sm font-medium text-gray-700">Date:</label>
+            <input 
+              type="date" 
+              id="date" 
+              name="date" 
+              bind:value={date} 
+              required 
+              on:change={loadAvailableSlots} 
+              min={new Date().toISOString().split('T')[0]}
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
+          <div>
+            <label for="newTime" class="block text-sm font-medium text-gray-700">Select a new time:</label>
+            <select id="newTime" bind:value={newTime} required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="" disabled>Select a time</option>
+              {#each availableSlots as slot}
+                <option value={slot}>{slot}</option>
+              {/each}
+            </select>
+          </div>
+          <div>
+            <label for="service" class="block text-sm font-medium text-gray-700">Service:</label>
+            <input 
+              type="text" 
+              id="service" 
+              name="service" 
+              bind:value={appointmentService} 
+              required 
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label for="subServices" class="block text-sm font-medium text-gray-700">Sub-services (optional, comma-separated):</label>
+            <input 
+              type="text" 
+              id="subServices" 
+              name="subServices" 
+              bind:value={subServices} 
+              placeholder="e.g., Cleaning, Consultation"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label for="remarks" class="block text-sm font-medium text-gray-700">Remarks (optional):</label>
+            <input 
+              type="text" 
+              id="remarks" 
+              name="remarks" 
+              bind:value={remarks} 
+              placeholder="Enter remarks here"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div class="flex justify-end space-x-3 pt-4">
+            <button type="button" class="cancel-btn bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md" on:click={hideAppointmentModal}>Cancel</button>
+            <button type="submit" class="submit-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Add Appointment</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {/if}
 
-          <div class="mb-4">
-            <label for="availableMedicine" class="block text-sm font-medium mb-1">Available Medicines</label>
-            <select id="availableMedicine" bind:value={selectedMedicine} class="border rounded p-2 w-full focus:ring-2 focus:ring-green-500">
+  <!-- Prescription Modal -->
+  {#if isModalOpen}
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div class="modal-overlay fixed inset-0 h-dvh bg-black bg-opacity-50 flex justify-center items-center z-50" role="dialog" tabindex="0" aria-labelledby="modal-title" aria-modal="true" on:click={closeModal} on:keydown={(e) => e.key === 'Escape' && closeModal()}>
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <div class="modal-content bg-white p-6 rounded-lg shadow-lg relative w-full max-w-lg mx-4" role="document" on:click|stopPropagation>
+        <button 
+          class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold"
+          on:click={closeModal}
+          aria-label="Close Modal"
+        >
+          ×
+        </button>
+        <h2 id="modal-title" class="text-xl font-bold mb-5">
+          Add Prescription for 
+          {selectedAppointment 
+            ? (() => {
+                const patientProfile = patientProfiles.find(profile => profile.id === selectedAppointment?.patientId);
+                return patientProfile ? `${patientProfile.name} ${patientProfile.lastName}` : 'Patient';
+              })() 
+            : 'Patient'}
+        </h2>
+        <form on:submit|preventDefault={submitPrescription} class="space-y-4">
+          <div>
+            <label for="dateVisited" class="block text-sm font-medium text-gray-700 mb-1">Date Visited</label>
+            <input id="dateVisited" type="date" bind:value={dateVisited} required class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" />
+          </div>
+          <div>
+            <label for="availableMedicine" class="block text-sm font-medium text-gray-700 mb-1">Available Medicines</label>
+            <select id="availableMedicine" bind:value={selectedMedicine} class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500">
               <option value="" disabled>Select a medicine</option>
               {#each availableMedicines as med}
                 <option value={med}>
@@ -1520,576 +1474,78 @@ function validateAppointmentData() {
                 </option>
               {/each}
             </select>
-          </div>
 
-          <div class="mb-4">
-            <label for="manualMedication" class="block text-sm font-medium mb-1">Medication</label>
-            <input id="manualMedication" type="text" bind:value={medication} class="border rounded p-2 w-full focus:ring-2 focus:ring-green-500" />
           </div>
-
-          <div class="mb-4">
-            <label for="qtyRefills" class="block text-sm font-medium mb-1">Qty/Refills</label>
-            <input id="qtyRefills" type="number" bind:value={qtyRefills} class="border rounded p-2 w-full focus:ring-2 focus:ring-green-500" />
+          <div>
+            <label for="manualMedication" class="block text-sm font-medium text-gray-700 mb-1">Medication</label>
+            <input id="manualMedication" type="text" bind:value={medication} placeholder="Or type medication manually" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" />
           </div>
-
-          <div class="mb-4">
-            <label for="instructions" class="block text-sm font-medium mb-1">Instructions</label>
-            <textarea id="instructions" bind:value={instructions} class="border rounded p-2 w-full focus:ring-2 focus:ring-green-500"></textarea>
+          <div>
+            <label for="qtyRefills" class="block text-sm font-medium text-gray-700 mb-1">Qty/Refills</label>
+            <input id="qtyRefills" type="number" bind:value={qtyRefills} class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" />
+          </div>
+          <div>
+            <label for="instructions" class="block text-sm font-medium text-gray-700 mb-1">Instructions</label>
+            <textarea id="instructions" bind:value={instructions} rows="3" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500"></textarea>
+          </div>
+          <div>
+            <label for="prescriber" class="block text-sm font-medium text-gray-700 mb-1">Prescriber</label>
+            <select
+              id="prescriber"
+              bind:value={prescriber}
+              class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="" disabled>Select prescriber</option>
+              <option value="Alfred Domingo">Alfred Domingo</option>
+              <option value="Fernalyn Domingo">Fernalyn Domingo</option>
+            </select>
+          </div>
+          <div class="flex justify-end pt-4">
+         
+            <button
+              type="submit" 
+              class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              Submit Prescription
+            </button>
           </div>
         </form>
-
-        <div class="mb-4">
-          <label for="prescriber" class="block text-sm font-medium mb-1">Prescriber</label>
-          <select
-            id="prescriber"
-            bind:value={prescriber}
-            class="border rounded p-2 w-full focus:ring-2 focus:ring-green-500"
-          >
-            <option value="Alfred Domingo">Alfred Domingo</option>
-            <option value="Fernalyn Domingo">Fernalyn Domingo</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Submit Prescription -->
-      <div class="flex justify-end mt-6">
-        <button
-          type="button"
-          class="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
-          on:click={() => {
-            addSelectedMedicine();
-            addManualMedicine();
-            submitPrescription();
-          }}
-        >
-          Submit Prescription
-        </button>
       </div>
     </div>
-  </div>
-{/if}
+  {/if}
 
-
+</div>
 
 <style>
-/* Icon Buttons Styling */
-.icon-buttons {
-  display: flex;
-  justify-content: space-around;
-  width: 100%;  /* Ensure the icons are evenly spaced */
-}
 
-.icon-buttons img.icon {
-  width: 40px;  /* Adjust the icon size */
-  height: 40px; /* Adjust the icon size */
-  cursor: pointer;
-  transition: transform 0.3s ease;
-}
-
-/* Hover effect for icons */
-.icon-buttons img.icon:hover {
-  transform: scale(1.1);  /* Slightly enlarge the icon on hover */
-}
-
-/* Active icon border styling */
-.icon-buttons img.icon.active {
-  border: 4px solid #0288d1;  /* Green border for the active icon */
-  border-radius: 50%;  /* Make the border circular */
-  padding: 2px;  /* Add padding to create space for the border */
-}
-
-  /* Position both containers on the right side and adjust width */
-  .container1 {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-    width: 320px; /* Adjusted width */
-    background-color: transparent;
-    max-height: 94vh; /* Increased max-height to 90% of the viewport height */
-    overflow-y: auto; /* Allows scrolling if the content overflows */
-    margin-bottom: 20px; /* Added margin to avoid overlapping with bottom content */
-    box-shadow: 0 -4px 0 #0288d1, 0 2px 4px rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
-  }
-
-  .card-content1 {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    text-align: left;
-    margin-right: 0;
-    padding: 10px;
-  }
-
-  .appointment-container1 {
-    background-color: transparent;
-    padding: 12px;
-    border-radius: 10px;
-    box-shadow: 0 -4px 0 #0288d1, 0 2px 4px rgba(0, 0, 0, 0.1);
-    max-height: 90vh; /* Increased max-height to 90% of the viewport height */
-    overflow-y: auto; /* Ensures the container becomes scrollable if the content overflows */
-    margin-bottom: 20px; /* Adds some space between the container and next content */
-  }
-
-  .appointment-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
- 
-/* Appointment Title Styling */
-.appointment-title {
-  font-size: 15px;
-  font-weight: bold;
-  text-align: center;  /* Center-align the title */
-}
-
-/* Add margin above the icons for spacing */
-.icon-buttons {
-  margin-top: 16px;  /* Adjust spacing between title and icons */
-}
-
-  .view-all {
-    font-size: 0.75rem;
-    color: #3182ce;
+  .icon-buttons img.icon {
+    /* width: 40px; height: 40px; */ /* Use Tailwind w- h- classes instead */
     cursor: pointer;
-    text-decoration: underline;
+    transition: transform 0.2s ease;
   }
-
-  .appointment-card {
-  margin-bottom: 12px; /* Slightly increased spacing for better separation */
-  padding: 12px 16px; /* Increased padding for more balanced layout */
-  font-size: 0.9rem;
-  border-radius: 8px;
-  background-color: #fff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(49, 130, 206, 0.5); /* Consistent border */
-  min-height: 100px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.appointment-card:hover {
-  transform: translateY(-2px); /* Subtle hover effect */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.patient-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.patient-name {
-  font-size: 1rem;
-  font-weight: bold;
-  color: #333;
-}
-
-.service {
-  margin-top: 6px;
-  color: #555;
-  font-size: 0.875rem;
-}
-
-.appointment-buttons {
-  display: flex;
-  gap: 12px; /* Increased gap for better separation */
-  justify-content: flex-end;
-  margin-top: 10px;
-}
-
-.appointment-buttons button {
-  padding: 8px 16px;
-  border-radius: 50px;
-  cursor: pointer;
-  border: none;
-  font-size: 0.9rem;
-  font-weight: 600;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.appointment-buttons button:hover {
-  background-color: #3182ce;
-  color: #fff;
-}
-
-.container {
-  position: fixed;
-  top: 0;
-  left: 230px;
-  height: 700px;
-  width: 57%;
-  overflow-y: scroll;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1), 0 2px 4px #0288d1;
-  scrollbar-width: thin; /* Visible but minimal scrollbar for Firefox */
-  scrollbar-color: #aaa #f9fafb;
-}
-
-.container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.container::-webkit-scrollbar-thumb {
-  background-color: #aaa; /* Custom thumb color */
-  border-radius: 4px;
-}
-
-.container::-webkit-scrollbar-track {
-  background-color: #f9fafb;
-}
-
-.appointments-section {
-  padding: 20px;
-  background-color: #f9fafb;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-}
-
-@media (max-width: 768px) {
-  .container {
-    left: 0;
-    width: 100%;
-    height: auto;
-    top: 0;
-    padding: 10px;
+  .icon-buttons img.icon:hover {
+    transform: scale(1.1);
   }
-
-  .appointment-card {
-    padding: 10px;
-  }
-
-  .appointment-buttons button {
-    padding: 6px 12px;
-    font-size: 0.8rem;
-  }
-}
-
-  .appointment-buttons button {
-    padding: 8px 16px;
-    border-radius: 50px;
-    cursor: pointer;
-    border: none;
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin-bottom: 10px;
-  }
-  /* Style for the active tab */
-  .appointments-section .tab-item {
-  padding: 10px 20px;
-  cursor: pointer;
-  border-radius: 50px;
-  transition: background-color 0.3s ease;
-  display: inline-block; /* Makes it look tab-like */
-  text-align: center;
-  color: black; /* Default inactive text color */
-  margin-bottom: 10px;
-}
-
-.appointments-section .tab-item.active {
-  background: linear-gradient(90deg, #08B8F3, #005b80); /* Gradient background */
-  color: white; /* Active text color */
-}
-
-.appointments-section .tab-item:not(.active):hover {
-  background-color: #ddd; /* Hover effect for inactive tabs */
-}
-
-.view-all {
-  color: #3182ce; /* Blue color for the link */
-  text-decoration: none; /* Removes the underline */
-  font-weight: bold; /* Makes the text bold */
-  font-size: 16px; /* Adjusts the font size */
-  transition: color 0.3s ease; /* Smooth transition for color on hover */
-}
-
-.view-all:hover {
-  color: #2563eb; /* Darker blue on hover */
-  text-decoration: none; /* Underline on hover */
-}
-
-
-  .bg-blue-100 {
-    background-color: #e0f7fa;
-    color: #0288d1;
-  }
-
-  .bg-red-100 {
-    background-color: #ffebee;
-    color: #d32f2f;
-  }
-
-  .no-appointments {
-    text-align: center;
-    padding: 15px;
-    font-size: 1.2rem;
-    color: #555;
-    background-color: #f4f4f4;
-    border-radius: 8px;
-    max-height: 90%;
-    min-height: 300px;
-    bottom: 20px;
-  }
-
-  /* Modal Overlay Styling */
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5); /* Transparent black background */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999; /* Make sure modal is on top */
-  }
-
-  .modal-content {
-    background-color: white;
-    padding: 20px;
-    border-radius: 8px;
-    width: 80%;
-    max-width: 500px;
-    z-index: 10000; /* Ensure the content stays above the overlay */
-  }
-
-  /* Prevent modal from closing when clicking inside the modal content */
-  .modal-content {
-    cursor: default;
-  }
-
-  /* Optional: Add a smooth transition effect */
-  .modal-overlay {
-    transition: visibility 0.3s ease-in-out;
-  }
-
-  /* Media Queries for Responsiveness */
-  @media (max-width: 1024px) {
-    .container1 {
-      width: 270px; /* Adjust width for medium-sized screens */
-      top: 10px;
-      right: 10px;
-    }
-
-    .container {
-      left: 15px;
-      width: 100%;
-      min-height: 500px;
-    }
-
-    .appointment-buttons {
-      flex-direction: column; /* Stack the buttons vertically */
-      gap: 10px;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .container1 {
-      width: 100%; /* Take full width for small screens */
-      top: 10px;
-      right: 0;
-      bottom: 0;
-    }
-
-    .container {
-      left: 0;
-      width: 100%;
-      min-height: 450px;
-    }
-
-    .appointment-card {
-      padding: 10px;
-      font-size: 0.8rem;
-    }
-
-    .appointment-buttons button {
-      padding: 6px 12px;
-      font-size: 0.85rem;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .container1 {
-      width: 100%;
-      bottom: 0;
-      right: 0;
-      z-index: 100;
-    }
-
-    .container {
-      left: 0;
-      width: 100%;
-      min-height: 400px;
-    }
-
-    .appointment-buttons {
-      flex-direction: column; /* Stack buttons for smaller screens */
-    }
-
-    .appointment-card {
-      padding: 8px;
-      font-size: 0.75rem;
-    }
-  }
-  .appointment-card1 {
-  border: 1px solid #b0bec5; 
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 0; /* Tanggalin ang margin sa ibaba */
-  background-color: #ffffff;
-}
-
-.appointment-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0; /* Tanggalin ang gap sa pagitan ng mga elements */
-}
-
-.appointment-patient {
-  font-size: 1.1em;
-  color: #2c3e50;
-  font-weight: 500;
-  margin-bottom: 0; /* Tanggalin ang margin sa ibaba */
-}
-
-.appointment-service {
-  font-size: 1em;
-  color: #34495e;
-  margin-bottom: 0; /* Tanggalin ang margin sa ibaba */
-}
-
-.remarks-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0; /* Tanggalin ang gap sa pagitan ng remarks at input */
-}
-
-.remarks-input {
-  padding: 8px; /* I-adjust ang padding kung kinakailangan */
-  border: 1px solid #bdc3c7;
-  border-radius: 6px;
-  font-size: 1em;
-  width: 100%;
-  background-color: #f8f9fa;
-  margin-bottom: 0; /* Tanggalin ang margin sa ibaba */
-}
-
-.appointment-buttons {
-  display: flex;
-  gap: 5px; /* Konting gap para hindi magdikit ang buttons */
-  margin-top: 10px; /* Magdagdag ng kaunting space sa ibabaw ng buttons */
-}
-
-/* Modal Overlay - Semi-transparent background */
-/* Modal Overlay for New Appointment */
-.modal-overlay-new-appointment  {
-  position: fixed; /* Makes it overlay on the entire screen */
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999; /* Ensure modal is on top */
-  overflow: hidden; /* Prevents any scrolling */
-  pointer-events: auto; /* Prevent interaction with background */
-}
-
-/* Modal Content Box for New Appointment */
-.modal-content-new-appointment {
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  width: 80%;
-  max-width: 500px;
-  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-  animation: fadeIn 0.3s ease;
-  position: relative; /* Prevents affecting other elements */
-}
-
-/* Modal Header */
-.modal-content-new-appointment h3 {
-  font-size: 24px;
-  color: #333;
   
-  margin-bottom: 10px;
-  text-align: center;
+  .modal-overlay {
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
-/* Modal Description */
 
-/* Form Labels */
-.modal-content-new-appointment label {
-  display: block;
-  font-size: 14px;
-  font-weight: bold;
-  color: #444;
-  margin-bottom: 6px;
-}
-
-/* Form Inputs */
-.modal-content-new-appointment input {
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 16px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #333;
-}
-
-/* Button Styling */
-.submit-btn,
-.cancel-btn {
-  padding: 10px 15px;
-  font-size: 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  width: 48%;
-  margin-top: 10px;
-}
-
-/* Submit Button (Green) */
-.submit-btn {
-  background-color: #4caf50;
-  color: #fff;
-}
-
-/* Cancel Button (Red) */
-.cancel-btn {
-  background-color: #f44336;
-  color: #fff;
-}
-
-/* Button Hover Effects */
-.submit-btn:hover {
-  background-color: #45a049;
-}
-
-.cancel-btn:hover {
-  background-color: #e53935;
-}
-
-/* Fade-in Animation */
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
+   .appointment-container1::-webkit-scrollbar {
+     width: 6px;
+   }
+   .appointment-container1::-webkit-scrollbar-thumb {
+     background-color: #cbd5e1; /* gray-300 */
+     border-radius: 3px;
+   }
+   .appointment-container1::-webkit-scrollbar-track {
+     background-color: #f1f5f9; /* slate-100 */
+   }
+   .appointment-container1 {
+     scrollbar-width: thin;
+     scrollbar-color: #cbd5e1 #f1f5f9;
+   }
 
 </style>

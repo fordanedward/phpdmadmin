@@ -1,5 +1,4 @@
 <script lang="ts">
-    import Sidebar from '../sidenav/+page.svelte'; // Import the Sidebar component
     import { onMount } from 'svelte';
     import { firebaseConfig } from "$lib/firebaseConfig"; // Import Firebase config
     import { initializeApp } from 'firebase/app';
@@ -281,9 +280,7 @@
 </style>
 
 <div class="dashboard">
-    <Sidebar {isCollapsed} {toggleSidebar} {logout} />
-
-    <div class="content" style="margin-left: {isCollapsed ? '-1rem' : '-2.4em'};">
+  
         {#if isLoading}
             <p>Loading patients...</p>
         {:else if error}
@@ -350,4 +347,3 @@
             </div>
         {/if}
     </div>
-</div>

@@ -1,6 +1,5 @@
 <script lang="ts">
     import { Button, Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell } from 'flowbite-svelte'; 
-    import Sidebar from '../sidenav/+page.svelte'; 
     import { onMount } from 'svelte';
     import { firebaseConfig } from "$lib/firebaseConfig"; 
     import { initializeApp } from 'firebase/app';
@@ -328,9 +327,7 @@ onMount(async () => {
 
 
 <div class="dashboard">
-    <Sidebar {isCollapsed} {toggleSidebar} {logout} />
-
-    <div class="content" style="margin-left: {isCollapsed ? '-1rem' : '-2.4em'};">
+    
 
   
         <div class="container">
@@ -525,7 +522,7 @@ onMount(async () => {
 </div>
 {/if}
 
-    </div>
+
     <style>
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css');
         :global(.dashboard) {

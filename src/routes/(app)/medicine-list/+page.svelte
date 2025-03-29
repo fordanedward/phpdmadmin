@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Sidebar from '../sidenav/+page.svelte';
   import { onMount } from "svelte";
   import { getFirestore, doc, setDoc, collection, getDocs, updateDoc, deleteDoc, getDoc } from "firebase/firestore";
   import { firebaseConfig } from "$lib/firebaseConfig";
@@ -9,13 +8,7 @@
 
   let isCollapsed = false;
 
-  function toggleSidebar() {
-    isCollapsed = !isCollapsed;
-  }
 
-  function logout() {
-    window.location.href = "/"; // Redirect to main landing page
-  }
 
   type Medicine = {
     id: string;
@@ -598,7 +591,7 @@ textarea:focus {
 
 <div class="dashboard">
     <!-- Sidebar -->
-    <Sidebar {isCollapsed} {toggleSidebar} {logout} />
+ 
 
     <div class="container">
       <h1 class="text-2xl font-semibold mb-4 margin-top:10px">Manage Medicines</h1>
