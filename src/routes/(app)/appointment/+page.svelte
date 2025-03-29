@@ -1091,33 +1091,33 @@ function validateAppointmentData() {
                   </section>
 
                  
-                   <div class="appointment-buttons flex flex-wrap gap-2 justify-end mt-3">
-                     {#if appointment.status === 'Completed'}
-                       <button class="bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-1 rounded shadow" on:click={() => showAppointmentModal(appointment)}>
-                         Add Appointment
-                       </button>
-                     {:else}
-                       <button
-                         on:click={() => openModal(appointment.id)}
-                         class="bg-green-100 hover:bg-green-200 text-green-700 text-sm px-3 py-1 rounded disabled:opacity-50"
-                         disabled={prescriptionAdded}
-                       >
-                         Add Prescription
-                       </button>
-                       <button
-                         class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm px-3 py-1 rounded"
-                         on:click={() => handleCompletedAppointment(appointment.id, 'Completed', appointment.remarks || '')}
-                       >
-                         Completed
-                       </button>
-                       <button
-                         class="bg-red-100 hover:bg-red-200 text-red-700 text-sm px-3 py-1 rounded"
-                         on:click={() => handleCompletedAppointment(appointment.id, 'Missed', appointment.remarks || '')}
-                       >
-                         Missed
-                       </button>
-                     {/if}
-                   </div>
+                  <div class="appointment-buttons flex flex-wrap gap-2 justify-end mt-3">
+                    {#if appointment.status === 'Completed'}
+                      <button class="bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-1 rounded shadow" on:click={() => showAppointmentModal(appointment)}>
+                        Add Appointment
+                      </button>
+                    {:else}
+                      <button
+                        on:click={() => openModal(appointment.id)}
+                        class="bg-green-100 hover:bg-green-200 text-green-700 text-sm px-3 py-1 rounded"
+                        
+                      >
+                        Add Prescription
+                      </button>
+                      <button
+                        class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm px-3 py-1 rounded"
+                        on:click={() => handleCompletedAppointment(appointment.id, 'Completed', appointment.remarks || '')}
+                      >
+                        Completed
+                      </button>
+                      <button
+                        class="bg-red-100 hover:bg-red-200 text-red-700 text-sm px-3 py-1 rounded"
+                        on:click={() => handleCompletedAppointment(appointment.id, 'Missed', appointment.remarks || '')}
+                      >
+                        Missed
+                      </button>
+                    {/if}
+                  </div>
                 </article>
               {/each}
             </div>
