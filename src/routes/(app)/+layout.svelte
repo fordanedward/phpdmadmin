@@ -1,36 +1,39 @@
-<!-- src/routes/+layout.svelte or src/routes/admin/+layout.svelte -->
 <script lang="ts">
-	// ... Ililipat natin ang JS dito mamaya ...
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-    import '../../app.css'; // Dalawang tuldok (..) para umakyat ng dalawang levels
+    import '../../app.css';
 
 	let isCollapsed = false;
 
-	// Load state on mount
+	// Function to check screen width
+	function checkScreenSize() {
+		if (window.innerWidth < 768) {  // Assume mobile screens are <768px
+			isCollapsed = true;
+		} else {
+			const savedState = sessionStorage.getItem('isCollapsed');
+			isCollapsed = savedState === 'true';
+		}
+	}
+
+	// Run on mount
 	onMount(() => {
-		const savedState = sessionStorage.getItem('isCollapsed');
-		isCollapsed = savedState === 'true';
+		checkScreenSize();
+		window.addEventListener('resize', checkScreenSize); // Update on resize
 	});
 
-	// Toggle function now lives here
+	// Toggle function
 	function toggleSidebar() {
 		isCollapsed = !isCollapsed;
-		sessionStorage.setItem('isCollapsed', String(isCollapsed)); // Save as string
+		sessionStorage.setItem('isCollapsed', String(isCollapsed));
 	}
 
-    // Logout function now lives here
-    function logout() {
-		// Add any actual logout logic here (e.g., Firebase sign out)
+	function logout() {
 		console.log('Logging out...');
-		sessionStorage.removeItem('isCollapsed'); // Optional: clear state on logout
-		goto('/'); // Redirect to landing page
+		sessionStorage.removeItem('isCollapsed');
+		goto('/');
 	}
-
-    // You might not need this prop anymore if layout controls visibility
-    // export let hidePatientList = true;
-
 </script>
+
 
 <div class="app-layout">
 	<!-- Sidebar moved here -->
@@ -323,4 +326,14 @@
     .toggle-btn:hover {
         background-color: rgba(0, 0, 0, 0.2);
     }
+	@media (max-width: 768px) {
+    .sidebar {
+        width: 4.22rem; /* Default to collapsed */
+    }
+
+    .content {
+        margin-left: 4.22rem;
+    }
+}
+
 </style>
