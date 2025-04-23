@@ -101,7 +101,7 @@
                  <button on:click={closeSidebarMobile} class="close-sidebar-btn" aria-label="Close Menu">✕</button>
             {/if}
 			<div class="circle-background">
-				<img src={'/images/logo(landing).png'} alt="Logo" />
+				<img src={'/images/logo(landing) copy.png'} alt="Logo" />
 			</div>
 
 			<!-- 	{#if (!isMobile && !isCollapsed) || (isMobile && isSidebarOpen)}
