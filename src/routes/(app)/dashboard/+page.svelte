@@ -2,7 +2,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 
-	// Firebase and Data Libraries
 	import {
 		Timestamp,
 		getFirestore,
@@ -20,17 +19,10 @@
 	import { firebaseConfig } from '$lib/firebaseConfig';
 	import * as XLSX from 'xlsx';
 	import { jsPDF } from 'jspdf';
-	// Import autoTable - this module modifies the jsPDF prototype when imported
-	import autoTable from 'jspdf-autotable';
-	// Import the UserOptions type for type safety
+	import 'jspdf-autotable';
 	import type { UserOptions } from 'jspdf-autotable';
 	import Chart from 'chart.js/auto';
 
-	// Components
-
-
-
-	// --- Constants ---
 	const FIRESTORE_COLLECTIONS = {
 		APPOINTMENTS: 'appointments',
 		PATIENTS: 'patientProfiles',
@@ -55,10 +47,9 @@
 		console.log('Firebase initialized successfully.');
 	} catch (error) {
 		console.error('Firebase initialization failed:', error);
-		// Handle initialization error appropriately
+
 	}
 
-	// --- Interfaces ---
 	interface Patient {
 		id: string;
 		name: string;
@@ -113,7 +104,6 @@
 		count: number;
 	}
 
-	// --- Component State ---
 	let isCollapsed = false;
 	let stats: Stats = {
 		newAppointments: 0, totalPatients: 0, todaysPatients: 0, todaysAppointments: 0,
@@ -141,7 +131,7 @@
 	let lineChartLabels: string[] = [];
 	let lineChartNewAppointmentsData: number[] = [];
 	let lineChartTotalPatientsData: number[] = [];
-	let weeklyAppointmentCounts: DailyAppointmentCount[] = []; // Populated later
+	let weeklyAppointmentCounts: DailyAppointmentCount[] = []; 
 
 	let patientMap = new Map<string, Patient>();
 
@@ -477,68 +467,187 @@
 	}
 
 	function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patient[], prescriptionsData: Prescription[]): void {
-		console.log('Generating PDF Report...');
-		const pdfDoc = new jsPDF();
-		let currentY = 20;
+    console.log('Generating PDF Report...');
+    const pdfDoc = new jsPDF();
+    const reportDate = getTodayString(); // Get today's date
+    let currentY = 15; // Start Y position
 
-		pdfDoc.setFontSize(16); pdfDoc.setFont('helvetica', 'bold');
-		pdfDoc.text('Data Report Summary', pdfDoc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+    // --- Report Title and Generation Date ---
+    pdfDoc.setFontSize(16); pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.text('Data Report Summary', pdfDoc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
+    currentY += 8; // Move down
 
-		// Prescriptions
-		if (prescriptionsData.length > 0) {
-			pdfDoc.setFontSize(12); pdfDoc.setFont('helvetica', 'bold'); pdfDoc.text('Prescriptions', 10, currentY); currentY += 7;
-			const body = prescriptionsData.flatMap(pres => pres.medicines.map(med => [ pres.patientName || 'Unknown', med.medicine || 'N/A', med.dosage || 'N/A', med.instructions || 'N/A', pres.prescriber || 'N/A' ]));
-			if (body.length > 0) {
-				pdfDoc.autoTable({ head: [['Patient Name', 'Medicine', 'Dosage', 'Instructions', 'Prescriber']], body: body, startY: currentY, theme: 'striped', headStyles: { fillColor: [41, 128, 185], textColor: 255 } });
-				currentY = pdfDoc.lastAutoTable.finalY + 10;
-			} else { currentY += 5; }
-		}
+    pdfDoc.setFontSize(10); pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.text(`Generated on: ${reportDate}`, pdfDoc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
+    currentY += 10; // Add more space before the first table
 
-		// Appointments
-		if (appointmentsData.length > 0) {
-			pdfDoc.setFontSize(12); pdfDoc.setFont('helvetica', 'bold'); pdfDoc.text('Appointments', 10, currentY); currentY += 7;
-			pdfDoc.autoTable({ head: [['Patient Name', 'Date', 'Time', 'Service', 'Subservice', 'Status']], body: appointmentsData.map(appt => [ appt.patientName || 'Unknown', appt.date || 'N/A', appt.time || 'N/A', appt.service || 'N/A', appt.subServices?.join(', ') || 'N/A', appt.status || 'N/A' ]), startY: currentY, theme: 'grid', headStyles: { fillColor: [39, 174, 96], textColor: 255 } });
-			currentY = pdfDoc.lastAutoTable.finalY + 10;
-		}
+    // --- Prescriptions Section ---
+    if (prescriptionsData.length > 0) {
+        pdfDoc.setFontSize(12); pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.text('Prescriptions', 10, currentY);
+        currentY += 7; // Space after title
+        const body = prescriptionsData.flatMap(pres =>
+            pres.medicines.map(med => [
+                pres.patientName || 'Unknown',
+                med.medicine || 'N/A',
+                med.dosage || 'N/A',
+                med.instructions || 'N/A',
+                pres.prescriber || 'N/A'
+            ])
+        );
+        if (body.length > 0) {
+			(pdfDoc as any).autoTable({ // Use pdfDoc.autoTable with type assertion
+                head: [['Patient Name', 'Medicine', 'Dosage', 'Instructions', 'Prescriber']],
+                body: body,
+                startY: currentY,
+                theme: 'striped', // Good visual structure
+                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' }, // Clear header
+				didDrawPage: (data: { pageCount: number; pageNumber: number; settings: UserOptions; }) => { // Handle page breaks if needed
+					// You can add headers/footers per page here if necessary
+				}
+            });
+            // Get the Y position after the table
+            currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
+        } else {
+             pdfDoc.setFontSize(10); pdfDoc.setFont('helvetica', 'italic');
+             pdfDoc.text('No prescription data available.', 10, currentY);
+             currentY += 10;
+        }
+    }
 
-		// Patients
-		if (patientsData.length > 0) {
-			pdfDoc.setFontSize(12); pdfDoc.setFont('helvetica', 'bold'); pdfDoc.text('Patients', 10, currentY); currentY += 7;
-			pdfDoc.autoTable({ head: [['Name', 'Age', 'Birthday', 'Gender', 'Phone']], body: patientsData.map(p => [ `${p.name} ${p.lastName}`.trim(), p.age ?? 'N/A', p.birthday || 'N/A', p.gender || 'N/A', p.phone || 'N/A' ]), startY: currentY, theme: 'plain', headStyles: { fillColor: [88, 86, 214], textColor: 255 } });
-			// currentY = pdfDoc.lastAutoTable.finalY + 10; // Only if more sections follow
-		}
+    // --- Appointments Section ---
+    if (appointmentsData.length > 0) {
+        // Check if adding this table will exceed the page height, add new page if needed
+        if (currentY > pdfDoc.internal.pageSize.height - 30) { // Check approx height needed
+           pdfDoc.addPage();
+           currentY = 20; // Reset Y for new page
+        }
 
-		pdfDoc.save('Data_Report.pdf');
-		console.log('PDF Report Saved.');
-	}
+        pdfDoc.setFontSize(12); pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.text('Appointments', 10, currentY);
+        currentY += 7;
+		pdfDoc.autoTable({
+            head: [['Patient Name', 'Date', 'Time', 'Service', 'Subservice', 'Status']],
+            body: appointmentsData.map(appt => [
+                appt.patientName || 'Unknown',
+                appt.date || 'N/A',
+                appt.time || 'N/A',
+                appt.service || 'N/A',
+                appt.subServices?.join(', ') || 'N/A',
+                appt.status || 'N/A'
+            ]),
+            startY: currentY,
+            theme: 'grid', // Grid lines for structure
+            headStyles: { fillColor: [39, 174, 96], textColor: 255, fontStyle: 'bold' }
+        });
+        currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
+    }
+
+    // --- Patients Section ---
+    if (patientsData.length > 0) {
+        if (currentY > pdfDoc.internal.pageSize.height - 30) {
+           pdfDoc.addPage();
+           currentY = 20;
+        }
+
+        pdfDoc.setFontSize(12); pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.text('Patients', 10, currentY);
+        currentY += 7;
+		(pdfDoc as any).autoTable({
+            head: [['Name', 'Age', 'Birthday', 'Gender', 'Phone']],
+            body: patientsData.map(p => [
+                `${p.name} ${p.lastName}`.trim(),
+                p.age ?? 'N/A',
+                p.birthday || 'N/A',
+                p.gender || 'N/A',
+                p.phone || 'N/A'
+            ]),
+            startY: currentY,
+            theme: 'plain', // Simple theme
+            headStyles: { fillColor: [88, 86, 214], textColor: 255, fontStyle: 'bold' }
+        });
+        // currentY = (pdfDoc as any).lastAutoTable.finalY + 10; // No need if it's the last table
+    }
+
+    // --- Save the PDF with Date in Filename ---
+    const filename = `Data_Report_${reportDate}.pdf`;
+    pdfDoc.save(filename);
+    console.log(`PDF Report Saved as ${filename}`);
+}
 
 	function downloadExcelReport(appointmentsData: Appointment[], patientsData: Patient[], prescriptionsData: Prescription[]): void {
-		console.log('Generating Excel Report...');
-		const workbook = XLSX.utils.book_new();
+    console.log('Generating Excel Report...');
+    const workbook = XLSX.utils.book_new();
+    const reportDate = getTodayString(); // Get today's date
 
-		// Prescriptions Sheet
-		if (prescriptionsData.length > 0) {
-			 const sheetData = prescriptionsData.flatMap(pres => pres.medicines.map(med => ({ 'Patient Name': pres.patientName || 'Unknown', 'Medicine Name': med.medicine || 'N/A', 'Dosage': med.dosage || 'N/A', 'Instructions': med.instructions || 'N/A', 'Prescriber': pres.prescriber || 'N/A', 'Prescription Date': pres.date || 'N/A', 'Appointment ID': pres.appointmentId || 'N/A' })));
-			if (sheetData.length > 0) { XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sheetData), 'Prescriptions'); }
-		}
-		// Appointments Sheet
-		if (appointmentsData.length > 0) {
-			const sheetData = appointmentsData.map(appt => ({ 'Patient Name': appt.patientName || 'Unknown', 'Date': appt.date || 'N/A', 'Time': appt.time || 'N/A', 'Service': appt.service || 'N/A', 'Subservice': appt.subServices?.join(', ') || 'N/A', 'Status': appt.status || 'N/A', 'Patient ID': appt.patientId || 'N/A' }));
-			XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sheetData), 'Appointments');
-		}
-		// Patients Sheet
-		if (patientsData.length > 0) {
-			const sheetData = patientsData.map(p => ({ 'Full Name': `${p.name} ${p.lastName}`.trim(), 'First Name': p.name || 'N/A', 'Last Name': p.lastName || 'N/A', 'Age': p.age ?? 'N/A', 'Birthday': p.birthday || 'N/A', 'Gender': p.gender || 'N/A', 'Phone Number': p.phone || 'N/A', 'Registration Date': p.registrationDate || 'N/A', 'Patient ID': p.id }));
-			XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sheetData), 'Patients');
-		}
+    // Prescriptions Sheet - Already well-structured with headers from object keys
+    if (prescriptionsData.length > 0) {
+         const sheetData = prescriptionsData.flatMap(pres =>
+            pres.medicines.map(med => ({
+                'Patient Name': pres.patientName || 'Unknown',
+                'Medicine Name': med.medicine || 'N/A',
+                'Dosage': med.dosage || 'N/A',
+                'Instructions': med.instructions || 'N/A',
+                'Prescriber': pres.prescriber || 'N/A',
+                'Prescription Date': pres.date || 'N/A',
+                'Appointment ID': pres.appointmentId || 'N/A' // Added for traceability
+            }))
+         );
+        if (sheetData.length > 0) {
+             const ws = XLSX.utils.json_to_sheet(sheetData);
+             // Optional: Add basic column width adjustments (example)
+             // const cols = [{wch:20}, {wch:20}, {wch:10}, {wch:30}, {wch:15}, {wch:12}, {wch:25}]; // Adjust widths as needed
+             // ws['!cols'] = cols;
+             XLSX.utils.book_append_sheet(workbook, ws, 'Prescriptions');
+        }
+    }
 
-		if (workbook.SheetNames.length > 0) {
-			XLSX.writeFile(workbook, 'Data_Report.xlsx'); console.log('Excel Report Saved.');
-		} else {
-			console.log('No data available to generate Excel report.'); alert('No data found to include in the report.');
-		}
-	}
+    // Appointments Sheet - Already well-structured
+    if (appointmentsData.length > 0) {
+        const sheetData = appointmentsData.map(appt => ({
+            'Patient Name': appt.patientName || 'Unknown',
+            'Date': appt.date || 'N/A',
+            'Time': appt.time || 'N/A',
+            'Service': appt.service || 'N/A',
+            'Subservice': appt.subServices?.join(', ') || 'N/A',
+            'Status': appt.status || 'N/A',
+            'Patient ID': appt.patientId || 'N/A' // Added for traceability
+        }));
+         const ws = XLSX.utils.json_to_sheet(sheetData);
+         // Optional: Add column widths
+         // ws['!cols'] = [{wch:20}, {wch:12}, {wch:8}, {wch:20}, {wch:25}, {wch:10}, {wch:25}];
+        XLSX.utils.book_append_sheet(workbook, ws, 'Appointments');
+    }
 
+    // Patients Sheet - Already well-structured
+    if (patientsData.length > 0) {
+        const sheetData = patientsData.map(p => ({
+            'Full Name': `${p.name} ${p.lastName}`.trim(),
+            'First Name': p.name || 'N/A',
+            'Last Name': p.lastName || 'N/A',
+            'Age': p.age ?? 'N/A',
+            'Birthday': p.birthday || 'N/A',
+            'Gender': p.gender || 'N/A',
+            'Phone Number': p.phone || 'N/A',
+            'Registration Date': p.registrationDate || 'N/A',
+            'Patient ID': p.id
+        }));
+         const ws = XLSX.utils.json_to_sheet(sheetData);
+         // Optional: Add column widths
+         // ws['!cols'] = [{wch:25}, {wch:15}, {wch:15}, {wch:5}, {wch:12}, {wch:10}, {wch:15}, {wch:15}, {wch:25}];
+        XLSX.utils.book_append_sheet(workbook, ws, 'Patients');
+    }
+
+    // --- Save the Excel Workbook with Date in Filename ---
+    if (workbook.SheetNames.length > 0) {
+        const filename = `Data_Report_${reportDate}.xlsx`;
+        XLSX.writeFile(workbook, filename);
+        console.log(`Excel Report Saved as ${filename}`);
+    } else {
+        console.log('No data available to generate Excel report.');
+        alert('No data found to include in the report.');
+    }
+}
 	// --- Lifecycle Hooks ---
 	onMount(async () => {
 		if (!db) { console.error('Firestore DB not available on mount.'); return; }
@@ -1040,5 +1149,5 @@
 			{/if}
 		</section>
 	</div>
-	<!-- /content -->
+
 

@@ -8,8 +8,6 @@
 
   let isCollapsed = false;
 
-
-
   type Medicine = {
     id: string;
     name: string;
@@ -36,18 +34,16 @@
     .map(doc => {
       const data = doc.data();
       return {
-        id: doc.id,  // Store Firestore document ID as the 'id' property
+        id: doc.id, 
         name: data.name || "", 
         quantity: data.quantity ?? 0, 
         description: data.description || "", 
         imageUrl: data.imageUrl || "",
       } as Medicine;
     })
-    .filter((medicine) => medicine.name && medicine.description); // Filter out invalid medicines
+    .filter((medicine) => medicine.name && medicine.description); 
 }
 
-
-  // On mount, fetch the medicines
   onMount(fetchMedicines);
 
   function togglePopup() {
@@ -62,12 +58,10 @@
     const reader = new FileReader();
 
     reader.onloadend = () => {
-      // If editing, update the image for the medicineToEdit
       if (medicineToEdit) {
         medicineToEdit.imageUrl = reader.result as string;
       }
 
-      // If adding, update the image for the newMedicine
       if (newMedicine) {
         newMedicine.imageUrl = reader.result as string;
       }
@@ -77,12 +71,10 @@
   }
 }
 
-
-
 async function addMedicine() {
   if (newMedicine.name && newMedicine.quantity > 0 && newMedicine.description) {
     try {
-      // Show loading SweetAlert while processing
+  
       Swal.fire({
         title: "Adding Medicine...",
         text: "Please wait while we save the details.",
@@ -98,27 +90,23 @@ async function addMedicine() {
         reader.onloadend = async () => {
           newMedicine.imageUrl = reader.result as string;
 
-          // Save to Firestore
-          const medicineName = newMedicine.name; // Save the name before resetting
+          const medicineName = newMedicine.name; 
           await saveMedicineToFirestore();
 
-          // Close loading SweetAlert and show success message
           Swal.close();
           showSuccessAlert(medicineName);
         };
       } else {
-        // Save to Firestore without image
-        const medicineName = newMedicine.name; // Save the name before resetting
+     
+        const medicineName = newMedicine.name;
         await saveMedicineToFirestore();
 
-        // Close loading SweetAlert and show success message
         Swal.close();
         showSuccessAlert(medicineName);
       }
     } catch (error) {
       console.error("Error adding medicine: ", error);
 
-      // Show error SweetAlert
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -126,7 +114,7 @@ async function addMedicine() {
       });
     }
   } else {
-    // Show validation error alert
+
     Swal.fire({
       icon: "warning",
       title: "Invalid Input",
@@ -135,7 +123,6 @@ async function addMedicine() {
   }
 }
 
-// Function to display success SweetAlert
 function showSuccessAlert(medicineName: string) {
   Swal.fire({
     icon: "success",
@@ -148,7 +135,6 @@ async function saveMedicineToFirestore() {
   const medicineRef = doc(firestore, "medicines", newMedicine.name);
   await setDoc(medicineRef, newMedicine);
 
-  // Refetch medicines to ensure the list is updated
   await fetchMedicines();
   newMedicine = { name: "", quantity: 0, description: "", imageUrl: "" };
   imageFile = null;
@@ -166,23 +152,19 @@ async function saveMedicineToFirestore() {
     }
 
     try {
-      // Update Firestore document with new quantity
       await updateDoc(medicineRef, { quantity: updatedQuantity });
 
-      // Update local state immediately for faster UI feedback
       medicines = medicines.map(m => (m.name === medicine.name ? { ...m, quantity: updatedQuantity } : m));
     } catch (error) {
       console.error("Error updating quantity: ", error);
     }
   }
 
-// Open the edit popup and set the medicine to edit
 function openEditPopup(medicine: Medicine) {
-  medicineToEdit = { ...medicine }; // Directly clone the medicine object for editing
+  medicineToEdit = { ...medicine }; 
   editPopup = true;
 }
 
-// Close the edit popup
 function closeEditPopup() {
   editPopup = false;
   medicineToEdit = null;
@@ -208,7 +190,6 @@ async function saveEditedMedicine() {
   }
 
   try {
-    // Show loading SweetAlert while processing
     Swal.fire({
       title: "Saving Changes...",
       text: "Please wait while we update the medicine details.",
@@ -218,12 +199,11 @@ async function saveEditedMedicine() {
       },
     });
 
-    const medicineRef = doc(firestore, "medicines", medicineToEdit?.id); // Use optional chaining on id
+    const medicineRef = doc(firestore, "medicines", medicineToEdit?.id); 
 
-    // Check if the document exists before attempting to update it
     const docSnapshot = await getDoc(medicineRef);
     if (!docSnapshot.exists()) {
-      Swal.close(); // Close the loading SweetAlert
+      Swal.close(); 
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -232,7 +212,6 @@ async function saveEditedMedicine() {
       return;
     }
 
-    // Proceed with updating the Firestore document
     await updateDoc(medicineRef, {
       name: medicineToEdit?.name,
       quantity: medicineToEdit?.quantity,
@@ -240,12 +219,10 @@ async function saveEditedMedicine() {
       imageUrl: medicineToEdit?.imageUrl || "",
     });
 
-    // Update the local state immediately
     medicines = medicines.map(m =>
       m.id === medicineToEdit?.id ? { ...m, ...medicineToEdit } : m
     );
 
-    // Close the loading SweetAlert and show success message
     Swal.close();
     Swal.fire({
       icon: "success",
@@ -258,7 +235,6 @@ async function saveEditedMedicine() {
   } catch (error) {
     console.error("Error saving edited medicine:", error);
 
-    // Close the loading SweetAlert and show error message
     Swal.close();
     Swal.fire({
       icon: "error",
@@ -268,8 +244,6 @@ async function saveEditedMedicine() {
   }
 }
 
-
-// Delete a medicine
 async function deleteMedicine(medicine: Medicine) {
   if (!medicine.id) {
     Swal.fire({
@@ -281,7 +255,6 @@ async function deleteMedicine(medicine: Medicine) {
   }
 
   try {
-    // Show confirmation dialog
     const result = await Swal.fire({
       title: `Are you sure?`,
       text: `Do you want to delete the medicine: ${medicine.name}?`,
@@ -294,14 +267,12 @@ async function deleteMedicine(medicine: Medicine) {
     });
 
     if (!result.isConfirmed) {
-      return; // If the user cancels, stop the deletion process
+      return; 
     }
 
-    // Use the document ID (`medicine.id`) for deletion
     const medicineRef = doc(firestore, "medicines", medicine.id);
     await deleteDoc(medicineRef);
 
-    // Update the local state to remove the deleted medicine
     medicines = medicines.filter((m) => m.id !== medicine.id);
 
     // Show success alert
@@ -328,8 +299,22 @@ async function deleteMedicine(medicine: Medicine) {
 
 <!-- svelte-ignore css_unused_selector -->
 <style>
- 
+ .container {
+  flex-grow: 1; 
+  overflow-y: auto;
+  padding: 1rem;
+  margin: 0 auto;
+  max-width: 1200px;
 
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.container::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
       .dashboard {
         display: flex;
         height: 100vh;
@@ -340,13 +325,12 @@ async function deleteMedicine(medicine: Medicine) {
     }
 
     .container {
-  flex-grow: 1; /* Make this container take the remaining space */
-  overflow-y: auto; /* Enable vertical scrolling */
+  flex-grow: 1; 
+  overflow-y: auto; 
   padding: 1rem;
   margin: 0 auto; 
   max-width: 1200px;
 }
-
 
 .popup {
     position: fixed;
@@ -370,7 +354,6 @@ async function deleteMedicine(medicine: Medicine) {
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
-    /* Button Styles */
     .add-button {
       background: linear-gradient(90deg, #08B8F3, #005b80);
         color: rgb(255, 255, 255);
@@ -423,9 +406,6 @@ async function deleteMedicine(medicine: Medicine) {
     
     
 }
-
-
-
 span {
     font-size: 1.1rem;
     font-weight: 500;
@@ -468,7 +448,6 @@ textarea:focus {
 .cancel-button:hover {
     background-color: #c23628;
 }
-
 .confirm-button {
     background-color: #4caf50;
     color: #fff;
@@ -492,17 +471,15 @@ textarea:focus {
     object-fit: cover;
     border: 1px solid #ddd;
 }
-    /* Responsive adjustments */
     .container {
     padding: 1rem;
-    margin: 0 auto;  /* Center the container */
-    max-width: 1200px; /* You can adjust this max-width value as per your design */
+    margin: 0 auto; 
+    max-width: 1200px; 
 }
    
-    /* Media Queries */
     @media (min-width: 640px) {
         .container {
-            padding: 2rem; /* More padding for larger screens */
+            padding: 2rem;
         }
     }
 
@@ -512,7 +489,7 @@ textarea:focus {
 
     @media (min-width: 1024px) {
         .popup-content {
-            width: 600px; /* Wider popup on larger screens */
+            width: 600px; 
         }
     }
     .edit-popup {
@@ -526,19 +503,17 @@ textarea:focus {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   width: 800px;
   max-width: 90%;
-  max-height: 80vh; /* Limits height to 80% of the viewport */
-  overflow-y: auto; /* Enables vertical scrolling if content is too long */
+  max-height: 80vh; 
+  overflow-y: auto; 
   z-index: 1050;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .edit-popup {
     width: 90%;
     padding: 15px;
-    max-height: 90vh; /* Increases height limit for smaller screens */
+    max-height: 90vh; 
   }
-
   .edit-popup-content {
     flex-direction: column;
     gap: 10px;
@@ -561,7 +536,6 @@ textarea:focus {
     text-align: center;
   }
 }
-
 @media (max-width: 480px) {
   .edit-popup {
     width: 95%;
@@ -578,11 +552,8 @@ textarea:focus {
     padding: 8px;
   }
 }
-
- 
-/* In your CSS file */
 .custom-margin-top {
-    margin-top: -1.8rem; /* Adjust the value as needed */
+    margin-top: -1.8rem; 
     margin-left: -1rem;
     padding-bottom: 1.5rem;
 }
@@ -645,8 +616,6 @@ textarea:focus {
           {/each}
         </div>
         
-        
-
         {#if editPopup && medicineToEdit}
         <div class="edit-popup">
           <div class="edit-popup-content landscape-layout">
