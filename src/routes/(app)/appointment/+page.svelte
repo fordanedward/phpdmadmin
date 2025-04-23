@@ -708,7 +708,7 @@
 </script>
 
 <!-- HTML Template -->
-<div class="px-4 md:px-6 pb-4 md:pb-6 pt-0 space-y-6 ">
+<div class="px-4 md:px-6 pb-4 md:pb-6 pt-0 space-y-6 mt-4">
 
   {#if loading && appointments.length === 0}
     <p class="text-center text-gray-500 py-10">Loading appointments...</p>

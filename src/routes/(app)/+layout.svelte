@@ -98,7 +98,7 @@
 	<div class="sidebar {isMobile ? (isSidebarOpen ? 'open' : 'closed-mobile') : (isCollapsed ? 'collapsed' : 'open-desktop')}">
 		<div class="sidebar-header">
             {#if isMobile}
-                 <button on:click={closeSidebarMobile} class="close-sidebar-btn" aria-label="Close Menu">✕</button>
+                 <button on:click={closeSidebarMobile} class="close-sidebar-btn" aria-label="Close Menu"></button>
             {/if}
 			<div class="circle-background">
 				<img src={'/images/logo(landing).png'} alt="Logo" />
@@ -119,14 +119,16 @@
             <li><a href="/medicine-list"><img class="icon" src="/images/medicinelist.png" alt="Medicines List" /><span class="text">Medicines List</span></a></li>
 		</ul>
 
-		<button class="logout-btn" on:click={logout}>
-			{#if (isMobile && isSidebarOpen) || (!isMobile && !isCollapsed)}
-				<img src="/images/logout-icon.png" alt="Logout" class="logout-icon" />
-                <span>Logout</span>
-			{:else if !isMobile && isCollapsed}
-                <img src="/images/logout-icon.png" alt="Logout" class="logout-icon" />
-			{/if}
-		</button>
+	<button class="logout-btn" on:click={logout}>
+    {#if isMobile || (!isMobile && !isCollapsed)}
+        <!-- Laging ipakita ito sa mobile, O kapag desktop at hindi collapsed -->
+        <img src="/images/logout-icon.png" alt="Logout" class="logout-icon" />
+        <span>Logout</span>
+    {:else if !isMobile && isCollapsed}
+        <!-- Para lang ito sa desktop collapsed view -->
+        <img src="/images/logout-icon.png" alt="Logout" class="logout-icon" />
+    {/if}
+</button>
 
 		{#if !isMobile}
 			<button class="toggle-btn" on:click={toggleSidebarDesktop} aria-label={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}>
@@ -147,7 +149,7 @@
 	:root {
 		--sidebar-width-desktop: 11.6rem;
 		--sidebar-width-collapsed: 4.22rem;
-		--sidebar-width-mobile: 250px;
+		--sidebar-width-mobile: 200px; 
 	
 		--sidebar-bg-color: #334eac;
 		--sidebar-text-color: white;
@@ -345,7 +347,7 @@
 		}
 
 		.sidebar-menu a .icon {
-			margin-right: 15px;
+			
 		}
 
 		.sidebar-menu a .text {
@@ -435,7 +437,7 @@
 		}
 
 		.sidebar-menu a .icon {
-			margin-right: 15px;
+			
 		}
 
 		.sidebar.collapsed .sidebar-menu a {
