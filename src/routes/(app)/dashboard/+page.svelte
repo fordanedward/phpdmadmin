@@ -336,30 +336,100 @@
 	}
 
 	async function updateAndRenderAppointmentStatusPieChart(): Promise<void> {
-		console.log('Updating appointment status pie chart...');
-		const canvas = document.getElementById('appointmentStatusPieChart') as HTMLCanvasElement | null;
-		if (!canvas) { console.error('Appointment status pie chart canvas not found.'); return; }
+    console.log('Updating appointment status pie chart...');
+    const canvas = document.getElementById('appointmentStatusPieChart') as HTMLCanvasElement | null;
+    if (!canvas) {
+        console.error('Appointment status pie chart canvas not found.');
+        return;
+    }
 
-		if (!allAppointments.length) allAppointments = await fetchAllAppointments();
+    // Fetch appointments if the global array is empty
+    if (!allAppointments || !allAppointments.length) { // Added a check for null/undefined allAppointments
+        allAppointments = await fetchAllAppointments();
+        if (!allAppointments) { // Handle case where fetch might fail or return null/undefined
+            console.error("Failed to fetch appointments.");
+            return;
+        }
+    }
 
-		const statusCounts = { completed: 0, pending: 0, missed: 0, other: 0 };
-		allAppointments.forEach(a => {
-			const status = (a.status || '').toLowerCase();
-			if (status === 'completed') statusCounts.completed++;
-			else if (status === 'pending') statusCounts.pending++;
-			else if (status === 'missed') statusCounts.missed++;
-			else statusCounts.other++;
-		});
+    // Initialize status counts, including 'accepted' and 'declined'
+    const statusCounts = {
+        completed: 0,
+        pending: 0,
+        accepted: 0, // Added accepted counter
+        missed: 0,
+        declined: 0,
+        other: 0
+    };
 
-		const pieData = {
-			labels: ['Completed', 'Pending', 'Missed', 'Other'],
-			datasets: [{ data: [statusCounts.completed, statusCounts.pending, statusCounts.missed, statusCounts.other], backgroundColor: ['#4caf50', '#ff9800', '#f44336', '#9e9e9e'] }]
-		};
+    // Iterate through appointments and count statuses
+    allAppointments.forEach(a => {
+        // Ensure 'a' and 'a.status' exist before accessing toLowerCase
+        const status = (a && a.status) ? a.status.toLowerCase() : ''; // Safer handling
 
-		if (appointmentStatusChartInstance) appointmentStatusChartInstance.destroy();
-		appointmentStatusChartInstance = new Chart(canvas, { type: 'pie', data: pieData, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
-		console.log('Appointment status pie chart updated.');
-	}
+        if (status === 'completed') {
+            statusCounts.completed++;
+        } else if (status === 'pending') {
+            statusCounts.pending++;
+        } else if (status === 'accepted') { // Specifically count 'accepted'
+            statusCounts.accepted++;
+        } else if (status === 'missed') {
+            statusCounts.missed++;
+        } else if (status === 'decline') {
+            statusCounts.declined++;
+        } else if (status !== '') { // Only count non-empty statuses as 'other'
+            statusCounts.other++;
+        }
+        // Appointments with empty or null status are implicitly ignored now,
+        // unless you want to count them under 'other' or a specific category.
+    });
+
+    // Prepare data for the pie chart
+    const pieData = {
+        // Added 'Accepted' label
+        labels: ['Completed', 'Pending', 'Accepted', 'Missed', 'Declined', 'Other'],
+        datasets: [{
+            data: [
+                statusCounts.completed,
+                statusCounts.pending,
+                statusCounts.accepted, // Added accepted count data
+                statusCounts.missed,
+                statusCounts.declined,
+                statusCounts.other
+            ],
+            backgroundColor: [
+                '#4caf50', // Completed (Green)
+                '#ff9800', // Pending (Orange)
+                '#8bc34a', // Accepted (Light Green - added new color)
+                '#f44336', // Missed (Red)
+                '#2196f3', // Declined (Blue)
+                '#9e9e9e'  // Other (Grey)
+            ]
+        }]
+    };
+
+    // Destroy the previous chart instance if it exists
+    if (appointmentStatusChartInstance) {
+        appointmentStatusChartInstance.destroy();
+    }
+
+    // Create and render the new pie chart
+    appointmentStatusChartInstance = new Chart(canvas, {
+        type: 'pie',
+        data: pieData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    console.log('Appointment status pie chart updated.');
+}
 
 	async function updateAndRenderGenderDistributionChart(): Promise<void> {
 		console.log('Updating gender distribution chart...');

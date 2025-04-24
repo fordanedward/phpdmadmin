@@ -708,7 +708,7 @@
 </script>
 
 <!-- HTML Template -->
-<div class="px-4 md:px-6 pb-4 md:pb-6 pt-0 space-y-6 mt-4">
+<div class="px-4 md:px-6 pb-4 md:pb-6 pt-0 ">
 
   {#if loading && appointments.length === 0}
     <p class="text-center text-gray-500 py-10">Loading appointments...</p>
@@ -1035,7 +1035,7 @@
 
   {#if isPrescriptionModalOpen}
 
-  <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 p-4" role="dialog" aria-modal="true">
+  <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-0 p-4" role="dialog" aria-modal="true">
 
     <div class="modal-content bg-white p-6 rounded-lg shadow-xl relative w-full max-w-lg mx-auto max-h-[90vh] overflow-y-auto" role="document">
        <button class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold" on:click={closePrescriptionModal} aria-label="Close Modal">×</button>
