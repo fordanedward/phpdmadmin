@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { firebaseConfig } from '$lib/firebaseConfig';
 	import { initializeApp } from 'firebase/app';
-	import { getFirestore, collection, updateDoc, getDocs, doc, Timestamp, deleteField } from 'firebase/firestore';
+	import { getFirestore, collection, updateDoc, getDocs, deleteDoc, doc, Timestamp, deleteField } from 'firebase/firestore';
 	import Swal from 'sweetalert2';
 
 	// --- Firebase Initialization ---
@@ -293,6 +293,40 @@
 			}
 		}
 	}
+	async function deletePatient(patientId: string) {
+  const result = await Swal.fire({
+    title: 'Delete Patient?',
+    text: 'This action is permanent and cannot be undone. Are you sure you want to delete this patient?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, Delete',
+  });
+
+  if (result.isConfirmed) {
+    try {
+      // Delete the patient from the database
+      const patientRef = doc(db, 'patientProfiles', patientId);
+      await updateDoc(patientRef, {
+        isArchived: deleteField(),
+        remark: deleteField(),
+        dateArchived: deleteField(),
+      });
+      await deleteDoc(patientRef);
+
+      // Remove the patient from the local list
+      patients = patients.filter((p) => p.id !== patientId);
+      prescribedPatients = prescribedPatients.filter((p) => p.id !== patientId);
+      filteredPatients = filteredPatients.filter((p) => p.id !== patientId);
+
+      Swal.fire('Deleted!', 'The patient has been permanently deleted.', 'success');
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+      Swal.fire('Error', 'Could not delete the patient. Please try again.', 'error');
+    }
+  }
+}
 
 	function openPrescriptionModal(patient: Patient) {
 		const detailedPatient = prescribedPatients.find(p => p.id === patient.id);
@@ -426,6 +460,23 @@
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M5.5 1.75A.75.75 0 0 1 6.25 1h7.5a.75.75 0 0 1 .75.75v2.5h-9v-2.5Zm-2 3.5A.75.75 0 0 1 4.25 5h11.5a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75H4.25a.75.75 0 0 1-.75-.75V5.25ZM8 12a.75.75 0 0 0 0 1.5h4a.75.75 0 0 0 0-1.5H8Z" /></svg>
 							</button>
+						{/if}
+
+						{#if currentCategory === 'Archived'}
+						<button
+						on:click={() => deletePatient(patient.id)}
+						title="Delete Patient"
+						aria-label="Delete Patient"
+						class="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition duration-150 ease-in-out"
+						>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+							<path
+							fill-rule="evenodd"
+							d="M6.5 3.75a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 .75.75v.75h3.25a.75.75 0 0 1 0 1.5h-.5v10.5a2.25 2.25 0 0 1-2.25 2.25H6.25A2.25 2.25 0 0 1 4 16.5V6h-.5a.75.75 0 0 1 0-1.5H6.5v-.75Zm1.5.75v.75h4.5v-.75H8Zm-2 2.25v10.5c0 .414.336.75.75.75h7.5c.414 0 .75-.336.75-.75V6H6Zm2.25 2.25a.75.75 0 0 1 1.5 0v6a.75.75 0 0 1-1.5 0v-6Zm4.5 0a.75.75 0 0 1 1.5 0v6a.75.75 0 0 1-1.5 0v-6Z"
+							clip-rule="evenodd"
+							/>
+						</svg>
+						</button>
 						{/if}
 
 						{#if currentCategory === 'Active'}

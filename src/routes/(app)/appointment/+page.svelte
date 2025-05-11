@@ -594,64 +594,65 @@
 
   const addSelectedMedicine = async () => { /* Implementation removed for brevity */ };
   const addManualMedicine = () => { /* Implementation removed for brevity */ };
-  const submitPrescription = async () => {
-        try {
-          if (selectedAppointment && prescriber && (selectedMedicine || medication) && qtyRefills) { // Simplified validation
-              const existingPrescriptionQuery = query(
-                  collection(db, "prescriptions"),
-                  where("appointmentId", "==", selectedAppointment.id)
-              );
-              const existingSnapshot = await getDocs(existingPrescriptionQuery);
+ const submitPrescription = async () => {
+  try {
+    if (selectedAppointment && prescriber && (selectedMedicine || medication) && qtyRefills) {
+      // Check for duplicate prescriptions
+      const existingPrescriptionQuery = query(
+        collection(db, "prescriptions"),
+        where("appointmentId", "==", selectedAppointment.id)
+      );
+      const existingSnapshot = await getDocs(existingPrescriptionQuery);
 
-              if (!existingSnapshot.empty) {
-                  await Swal.fire('Duplicate Prescription', 'A prescription already exists for this appointment.', 'warning');
-                  return;
-              }
-
-              // Simplified: Create one medicine entry based on selection or manual input
-               const medicineToAdd: PrescriptionMedicine = {
-                  medicine: selectedMedicine ? selectedMedicine.name : medication,
-                  dosage: qtyRefills,
-                  instructions: instructions
-               };
-
-               // TODO: If using availableMedicines, decrement stock here via updateDoc for selectedMedicine.id
-
-              const prescriptionData = {
-                  appointmentId: selectedAppointment.id,
-                  patientId: selectedAppointment.patientId,
-                  medicines: [medicineToAdd], // Save as array with one item for this simple version
-                  prescriber: prescriber,
-                  dateVisited: dateVisited,
-                  createdAt: new Date().toISOString(),
-              };
-
-              await addDoc(collection(db, "prescriptions"), prescriptionData);
-
-              prescriptionAdded = true;
-              closePrescriptionModal();
-              await Swal.fire('Success!', 'Prescription successfully added!', 'success');
-              prescriptionMedicines = [];
-              prescriber = '';
-              selectedMedicine = null;
-              medication = '';
-              qtyRefills = '';
-              instructions = '';
-
-          } else {
-              let message = "Cannot submit prescription: ";
-              if (!selectedAppointment) message += "No appointment selected. ";
-              if (!prescriber) message += "Prescriber not selected. ";
-              if (!selectedMedicine && !medication) message += "No medicine selected or entered. ";
-              if (!qtyRefills) message += "Dosage/Qty is required.";
-
-              await Swal.fire('Missing Information', message, 'warning');
-          }
-      } catch (error) {
-          console.error("Error saving prescription:", error);
-          await Swal.fire('Error!', 'An error occurred while saving the prescription.', 'error');
+      if (!existingSnapshot.empty) {
+        await Swal.fire('Duplicate Prescription', 'A prescription already exists for this appointment.', 'warning');
+        return;
       }
-  };
+
+      // Create the prescription data
+      const medicineToAdd: PrescriptionMedicine = {
+        medicine: selectedMedicine ? selectedMedicine.name : medication,
+        dosage: qtyRefills,
+        instructions: instructions,
+      };
+
+      const prescriptionData = {
+        appointmentId: selectedAppointment.id,
+        patientId: selectedAppointment.patientId,
+        medicines: [medicineToAdd],
+        prescriber: prescriber,
+        dateVisited: new Date().toISOString(), // Add the current timestamp
+        createdAt: new Date().toISOString(),
+      };
+
+      // Save the prescription to the database
+      await addDoc(collection(db, "prescriptions"), prescriptionData);
+
+      prescriptionAdded = true;
+      closePrescriptionModal();
+      await Swal.fire('Success!', 'Prescription successfully added!', 'success');
+
+      // Reset form fields
+      prescriptionMedicines = [];
+      prescriber = '';
+      selectedMedicine = null;
+      medication = '';
+      qtyRefills = '';
+      instructions = '';
+    } else {
+      let message = "Cannot submit prescription: ";
+      if (!selectedAppointment) message += "No appointment selected. ";
+      if (!prescriber) message += "Prescriber not selected. ";
+      if (!selectedMedicine && !medication) message += "No medicine selected or entered. ";
+      if (!qtyRefills) message += "Dosage/Qty is required.";
+
+      await Swal.fire('Missing Information', message, 'warning');
+    }
+  } catch (error) {
+    console.error("Error saving prescription:", error);
+    await Swal.fire('Error!', 'An error occurred while saving the prescription.', 'error');
+  }
+};
 
   const filterAppointments = (view: 'today' | 'week' | 'month') => {
     const now = new Date();

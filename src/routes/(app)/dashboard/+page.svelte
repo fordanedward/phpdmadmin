@@ -78,17 +78,17 @@
 		instructions?: string;
 	}
 
-	interface Prescription {
-		id: string;
-		appointmentId: string;
-		patientId?: string;
-		patientName?: string;
-		prescriber?: string;
-		medicines: Medicine[];
-		date: string;
-		createdAt?: Timestamp | Date;
-	}
-
+interface Prescription {
+  id: string;
+  appointmentId: string;
+  patientId?: string;
+  patientName?: string;
+  prescriber?: string;
+  medicines: Medicine[];
+  date: string;
+  dateVisited?: string; // Add this property
+  createdAt?: Timestamp | Date;
+}
 	interface Stats {
 		newAppointments: number;
 		totalPatients: number;
@@ -203,39 +203,40 @@
 		}
 	}
 
-	async function fetchAllPrescriptions(): Promise<Prescription[]> {
-		console.log("Fetching all prescriptions...");
-		try {
-			const snapshot = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PRESCRIPTIONS));
-			 // Ensure appointments are fetched first to get patient details
-			if (allAppointments.length === 0) {
-				 console.warn("Appointments not fetched yet, fetching them now for prescription mapping.");
-				 allAppointments = await fetchAllAppointments(); // Fetch if not already available
-			}
-			const appointmentMap = new Map(allAppointments.map(a => [a.id, a]));
+async function fetchAllPrescriptions(): Promise<Prescription[]> {
+  console.log("Fetching all prescriptions...");
+  try {
+    // Ensure patients are fetched first for mapping names
+    if (patientMap.size === 0) {
+      console.log("Patient map is empty, fetching patients...");
+      await fetchAllPatients();
+    }
 
-			const prescriptions = snapshot.docs.map(doc => {
-				const data = doc.data();
-				const appointment = appointmentMap.get(data.appointmentId);
-				return {
-					id: doc.id,
-					appointmentId: data.appointmentId || 'N/A',
-					patientId: appointment?.patientId,
-					patientName: appointment ? getPatientName(appointment.patientId) : 'Unknown (Appt. Missing)',
-					prescriber: data.prescriber || 'N/A',
-					medicines: data.medicines || [],
-					date: data.date || 'N/A',
-					createdAt: data.createdAt,
-				} as Prescription;
-			});
-			console.log(`Fetched ${prescriptions.length} prescriptions.`);
-			return prescriptions;
-		} catch (error) {
-			console.error("Error fetching prescriptions:", error);
-			return [];
-		}
-	}
+    const snapshot = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PRESCRIPTIONS));
 
+    const prescriptions = snapshot.docs.map(doc => {
+      const data = doc.data();
+      const patientName = patientMap.get(data.patientId)?.name || 'Unknown';
+      const patientLastName = patientMap.get(data.patientId)?.lastName || '';
+      return {
+        id: doc.id,
+        appointmentId: data.appointmentId || 'N/A',
+        patientId: data.patientId || 'N/A',
+        patientName: `${patientName} ${patientLastName}`.trim(), // Combine first and last name
+        prescriber: data.prescriber || 'N/A',
+        medicines: data.medicines || [],
+        dateVisited: data.dateVisited || 'N/A',
+        createdAt: data.createdAt,
+      } as Prescription;
+    });
+
+    console.log(`Fetched ${prescriptions.length} prescriptions.`);
+    return prescriptions;
+  } catch (error) {
+    console.error("Error fetching prescriptions:", error);
+    return [];
+  }
+}
 	async function fetchDashboardStats(): Promise<Stats> {
 		console.log("Fetching dashboard stats...");
 		const today = getTodayString();
@@ -645,78 +646,130 @@
     console.log(`PDF Report Saved as ${filename}`);
 }
 
-	function downloadExcelReport(appointmentsData: Appointment[], patientsData: Patient[], prescriptionsData: Prescription[]): void {
-    console.log('Generating Excel Report...');
-    const workbook = XLSX.utils.book_new();
-    const reportDate = getTodayString(); // Get today's date
+function downloadExcelReport(
+  appointmentsData: Appointment[],
+  patientsData: Patient[],
+  prescriptionsData: Prescription[]
+): void {
+  console.log('Generating Excel Report with Monthly Sectioning...');
+  const workbook = XLSX.utils.book_new();
+  const reportDate = getTodayString(); // Get today's date
 
-    // Prescriptions Sheet - Already well-structured with headers from object keys
-    if (prescriptionsData.length > 0) {
-         const sheetData = prescriptionsData.flatMap(pres =>
-            pres.medicines.map(med => ({
-                'Patient Name': pres.patientName || 'Unknown',
-                'Medicine Name': med.medicine || 'N/A',
-                'Dosage': med.dosage || 'N/A',
-                'Instructions': med.instructions || 'N/A',
-                'Prescriber': pres.prescriber || 'N/A',
-                'Prescription Date': pres.date || 'N/A',
-                'Appointment ID': pres.appointmentId || 'N/A' // Added for traceability
-            }))
-         );
-        if (sheetData.length > 0) {
-             const ws = XLSX.utils.json_to_sheet(sheetData);
-             // Optional: Add basic column width adjustments (example)
-             // const cols = [{wch:20}, {wch:20}, {wch:10}, {wch:30}, {wch:15}, {wch:12}, {wch:25}]; // Adjust widths as needed
-             // ws['!cols'] = cols;
-             XLSX.utils.book_append_sheet(workbook, ws, 'Prescriptions');
-        }
-    }
+    // Helper function to calculate column widths
+  const calculateColumnWidths = (data: any[]) => {
+    const keys = Object.keys(data[0] || {});
+    return keys.map(key => ({
+      wch: Math.max(
+        key.length, // Header length
+        ...data.map(row => (row[key] ? row[key].toString().length : 0)) // Max cell length
+      ),
+    }));
+  };
 
-    // Appointments Sheet - Already well-structured
-    if (appointmentsData.length > 0) {
-        const sheetData = appointmentsData.map(appt => ({
-            'Patient Name': appt.patientName || 'Unknown',
-            'Date': appt.date || 'N/A',
-            'Time': appt.time || 'N/A',
-            'Service': appt.service || 'N/A',
-            'Subservice': appt.subServices?.join(', ') || 'N/A',
-            'Status': appt.status || 'N/A',
-            'Patient ID': appt.patientId || 'N/A' // Added for traceability
-        }));
-         const ws = XLSX.utils.json_to_sheet(sheetData);
-         // Optional: Add column widths
-         // ws['!cols'] = [{wch:20}, {wch:12}, {wch:8}, {wch:20}, {wch:25}, {wch:10}, {wch:25}];
-        XLSX.utils.book_append_sheet(workbook, ws, 'Appointments');
+  // Group appointments by month
+  const appointmentsByMonth = appointmentsData.reduce((acc, appt) => {
+    try {
+      const date = new Date(appt.date);
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!acc[monthYear]) acc[monthYear] = [];
+      acc[monthYear].push(appt);
+    } catch (e) {
+      console.warn(`Invalid date format for appointment: ${appt.date}`);
     }
+    return acc;
+  }, {} as Record<string, Appointment[]>);
 
-    // Patients Sheet - Already well-structured
-    if (patientsData.length > 0) {
-        const sheetData = patientsData.map(p => ({
-            'Full Name': `${p.name} ${p.lastName}`.trim(),
-            'First Name': p.name || 'N/A',
-            'Last Name': p.lastName || 'N/A',
-            'Age': p.age ?? 'N/A',
-            'Birthday': p.birthday || 'N/A',
-            'Gender': p.gender || 'N/A',
-            'Phone Number': p.phone || 'N/A',
-            'Registration Date': p.registrationDate || 'N/A',
-            'Patient ID': p.id
-        }));
-         const ws = XLSX.utils.json_to_sheet(sheetData);
-         // Optional: Add column widths
-         // ws['!cols'] = [{wch:25}, {wch:15}, {wch:15}, {wch:5}, {wch:12}, {wch:10}, {wch:15}, {wch:15}, {wch:25}];
-        XLSX.utils.book_append_sheet(workbook, ws, 'Patients');
-    }
+  // Create a sheet for each month's appointments
+ Object.entries(appointmentsByMonth).forEach(([monthYear, appointments]) => {
+    const sheetData = appointments.map(appt => ({
+      'Patient Name': appt.patientName || 'Unknown',
+      'Date': appt.date || 'N/A',
+      'Time': appt.time || 'N/A',
+      'Service': appt.service || 'N/A',
+      'Subservice': appt.subServices?.join(', ') || 'N/A',
+      'Status': appt.status || 'N/A',
+    }));
 
-    // --- Save the Excel Workbook with Date in Filename ---
-    if (workbook.SheetNames.length > 0) {
-        const filename = `Data_Report_${reportDate}.xlsx`;
-        XLSX.writeFile(workbook, filename);
-        console.log(`Excel Report Saved as ${filename}`);
-    } else {
-        console.log('No data available to generate Excel report.');
-        alert('No data found to include in the report.');
+    const ws = XLSX.utils.json_to_sheet(sheetData);
+    ws['!cols'] = calculateColumnWidths(sheetData); // Set column widths
+    XLSX.utils.book_append_sheet(workbook, ws, `Appointments_${monthYear}`);
+  });
+
+
+  // Group patients by registration month
+  const patientsByMonth = patientsData.reduce((acc, patient) => {
+    try {
+      const date = new Date(patient.registrationDate || '');
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!acc[monthYear]) acc[monthYear] = [];
+      acc[monthYear].push(patient);
+    } catch (e) {
+      console.warn(`Invalid date format for patient registration: ${patient.registrationDate}`);
     }
+    return acc;
+  }, {} as Record<string, Patient[]>);
+
+  // Create a sheet for each month's patients
+  Object.entries(patientsByMonth).forEach(([monthYear, patients]) => {
+    const sheetData = patients.map(p => ({
+      'Full Name': `${p.name} ${p.lastName}`.trim(),
+      'First Name': p.name || 'N/A',
+      'Last Name': p.lastName || 'N/A',
+      'Age': p.age ?? 'N/A',
+      'Birthday': p.birthday || 'N/A',
+      'Gender': p.gender || 'N/A',
+      'Phone Number': p.phone || 'N/A',
+      'Registration Date': p.registrationDate || 'N/A',
+      'Patient ID': p.id,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(workbook, ws, `Patients_${monthYear}`);
+  });
+
+  // Group prescriptions by prescription date month
+ const prescriptionsByMonth = prescriptionsData.reduce((acc, pres) => {
+    try {
+      const date = new Date(pres.dateVisited || pres.date); // Use dateVisited or fallback to date
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!acc[monthYear]) acc[monthYear] = [];
+      acc[monthYear].push(pres);
+    } catch (e) {
+      console.warn(`Invalid date format for prescription: ${pres.dateVisited || pres.date}`);
+    }
+    return acc;
+  }, {} as Record<string, Prescription[]>);
+
+  // Create a sheet for each month's prescriptions
+ Object.entries(prescriptionsByMonth).forEach(([monthYear, prescriptions]) => {
+    const sheetData = prescriptions.flatMap(pres =>
+      pres.medicines.map(med => ({
+        'Patient Name': pres.patientName || 'Unknown',
+        'Medicine Name': med.medicine || 'N/A',
+        'Dosage': med.dosage || 'N/A',
+        'Instructions': med.instructions || 'N/A',
+        'Prescriber': pres.prescriber || 'N/A',
+        'Prescription Date': pres.dateVisited
+          ? new Date(pres.dateVisited).toLocaleDateString('en-US')
+          : 'N/A',
+        'Appointment ID': pres.appointmentId || 'N/A',
+      }))
+    );
+
+    const ws = XLSX.utils.json_to_sheet(sheetData);
+    ws['!cols'] = calculateColumnWidths(sheetData); // Set column widths
+    XLSX.utils.book_append_sheet(workbook, ws, `Prescriptions_${monthYear}`);
+  });
+
+  // Save the Excel Workbook
+   if (workbook.SheetNames.length > 0) {
+    const filename = `Data_Report_${reportDate}.xlsx`;
+    XLSX.writeFile(workbook, filename);
+    console.log(`Excel Report Saved as ${filename}`);
+  } else {
+    console.log('No data available to generate Excel report.');
+    alert('No data found to include in the report.');
+  }
 }
 	// --- Lifecycle Hooks ---
 	onMount(async () => {
@@ -1130,93 +1183,85 @@
 			{/if}
 
 			{#if openTable === 'prescriptions'}
-				<div
-					class="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm overflow-x-auto"
-					id="all-prescriptions-table"
-					aria-live="polite"
-				>
-					<h3 class="mb-3 text-lg font-semibold text-gray-700">All Prescriptions</h3>
-					<table class="w-full border-collapse">
-						<thead>
-							<tr class="bg-blue-500 text-white">
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Patient</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium"
-									>Prescriber</th
-								>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium"
-									>Prescr. Date</th
-								>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium"
-									>Medication</th
-								>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Dosage</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium"
-									>Instructions</th
-								>
-							</tr>
-						</thead>
-						<tbody>
-							{#each allPrescriptions as pres (pres.id)}
-								{#if pres.medicines && pres.medicines.length > 0}
-									{#each pres.medicines as med, i (med.medicine + i)}
-										<tr class="hover:bg-gray-100 even:bg-gray-50">
-											{#if i === 0}
-												<td
-													rowspan={pres.medicines.length}
-													class="border border-gray-300 px-3 py-2 text-sm align-middle"
-													>{pres.patientName}</td
-												>
-												<td
-													rowspan={pres.medicines.length}
-													class="border border-gray-300 px-3 py-2 text-sm align-middle"
-													>{pres.prescriber}</td
-												>
-												<td
-													rowspan={pres.medicines.length}
-													class="border border-gray-300 px-3 py-2 text-sm align-middle"
-													>{pres.date}</td
-												>
-											{/if}
-											<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-												>{med.medicine}</td
-											>
-											<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-												>{med.dosage}</td
-											>
-											<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-												>{med.instructions ?? 'N/A'}</td
-											>
-										</tr>
-									{/each}
-								{:else}
-									<tr class="hover:bg-gray-100 even:bg-gray-50">
-										<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-											>{pres.patientName}</td
-										>
-										<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-											>{pres.prescriber}</td
-										>
-										<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-											>{pres.date}</td
-										>
-										<td
-											colspan="3"
-											class="border border-gray-300 px-3 py-2 text-sm align-middle text-center italic"
-											>No medicines listed.</td
-										>
-									</tr>
-								{/if}
-							{:else}
-								<tr>
-									<td colspan="6" class="border border-gray-300 px-3 py-2 text-sm text-center"
-										>No prescriptions found or data loading...</td
-									>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			{/if}
+<div
+  class="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm overflow-x-auto"
+  id="all-prescriptions-table"
+  aria-live="polite"
+>
+  <h3 class="mb-3 text-lg font-semibold text-gray-700">All Prescriptions</h3>
+  <table class="w-full border-collapse">
+    <thead>
+      <tr class="bg-blue-500 text-white">
+        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Patient</th>
+        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Prescriber</th>
+        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Prescr. Date</th>
+        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Medication</th>
+        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Dosage</th>
+        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Instructions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each allPrescriptions as pres (pres.id)}
+        {#if pres.medicines && pres.medicines.length > 0}
+          {#each pres.medicines as med, i (med.medicine + i)}
+            <tr class="hover:bg-gray-100 even:bg-gray-50">
+              {#if i === 0}
+                <td
+                  rowspan={pres.medicines.length}
+                  class="border border-gray-300 px-3 py-2 text-sm align-middle"
+                >
+                  {pres.patientName}
+                </td>
+                <td
+                  rowspan={pres.medicines.length}
+                  class="border border-gray-300 px-3 py-2 text-sm align-middle"
+                >
+                  {pres.prescriber}
+                </td>
+                <td
+                  rowspan={pres.medicines.length}
+                  class="border border-gray-300 px-3 py-2 text-sm align-middle"
+                >
+                  {pres.dateVisited
+                    ? new Date(pres.dateVisited).toLocaleDateString('en-US')
+                    : 'N/A'}
+                </td>
+              {/if}
+              <td class="border border-gray-300 px-3 py-2 text-sm align-middle">{med.medicine}</td>
+              <td class="border border-gray-300 px-3 py-2 text-sm align-middle">{med.dosage}</td>
+              <td class="border border-gray-300 px-3 py-2 text-sm align-middle">
+                {med.instructions ?? 'N/A'}
+              </td>
+            </tr>
+          {/each}
+        {:else}
+          <tr class="hover:bg-gray-100 even:bg-gray-50">
+            <td class="border border-gray-300 px-3 py-2 text-sm align-middle">{pres.patientName}</td>
+            <td class="border border-gray-300 px-3 py-2 text-sm align-middle">{pres.prescriber}</td>
+            <td class="border border-gray-300 px-3 py-2 text-sm align-middle">
+              {pres.dateVisited
+                ? new Date(pres.dateVisited).toLocaleDateString('en-US')
+                : 'N/A'}
+            </td>
+            <td
+              colspan="3"
+              class="border border-gray-300 px-3 py-2 text-sm align-middle text-center italic"
+            >
+              No medicines listed.
+            </td>
+          </tr>
+        {/if}
+      {:else}
+        <tr>
+          <td colspan="6" class="border border-gray-300 px-3 py-2 text-sm text-center">
+            No prescriptions found or data loading...
+          </td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+</div>
+{/if}
 		</section>
 	</div>
 
