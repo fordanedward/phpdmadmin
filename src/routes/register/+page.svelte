@@ -1,21 +1,32 @@
 <script lang="ts">
-    import { Label, Input, Toast, Button } from 'flowbite-svelte'; // Added Button
+    import { Label, Input, Toast, Button } from 'flowbite-svelte';
     import {
         CheckOutline,
         CloseOutline,
         ExclamationCircleOutline,
         InfoCircleOutline,
-        GoogleSolid 
+        GoogleSolid
     } from "flowbite-svelte-icons";
     import {
         getAuth,
         createUserWithEmailAndPassword,
-        GoogleAuthProvider, 
-        signInWithPopup     
+        GoogleAuthProvider,
+        signInWithPopup,
+        deleteUser 
     } from 'firebase/auth';
     import { firebaseConfig } from "$lib/firebaseConfig";
     import { initializeApp, getApps, getApp } from "firebase/app";
-    import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore"; 
+    import {
+        getFirestore,
+        doc,
+        setDoc,
+        getDoc,
+        Timestamp,
+        collection,
+        query,     
+        where,    
+        getDocs    
+    } from "firebase/firestore";
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
     import { onMount } from 'svelte';
@@ -48,7 +59,33 @@
     let toastDuration: number = 3000;
     let toastTimeoutId: number | null = null;
 
-    let isGoogleSigningIn = false; 
+    let isGoogleSigningIn = false;
+
+    function generateSixDigitId(): string {
+        const min = 100000; 
+        const max = 999999; 
+        const randomNumber = Math.floor(Math.random() * (max - min + 1)) + min;
+        return randomNumber.toString();
+    }
+
+    async function isCustomIdTaken(customIdToCheck: string): Promise<boolean> {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("customUserId", "==", customIdToCheck));
+        const querySnapshot = await getDocs(q);
+        return !querySnapshot.empty; 
+    }
+
+    async function generateUniqueCustomId(maxRetries: number = 10): Promise<string | null> {
+        for (let i = 0; i < maxRetries; i++) {
+            const potentialId = generateSixDigitId();
+            if (!(await isCustomIdTaken(potentialId))) {
+                return potentialId; 
+            }
+            console.warn(`Custom ID ${potentialId} is already taken. Retrying... (${i + 1}/${maxRetries})`);
+        }
+        console.error("Failed to generate a unique custom ID after several retries.");
+        return null;
+    }
 
     function showToast(message: string, type: ToastType = 'info', duration: number = 3000) {
         toastMessage = message;
@@ -70,11 +107,10 @@
             case 'userAdmin': return '/admin/panel';
             case 'userSecretary': return '/secretary/dashboard';
             default:
-                console.warn(`Unexpected firestoreRole '${firestoreRole}' for redirection. Redirecting to default path '/'.`);
-                return '/auth/profile'; 
+                console.warn(`Unexpected firestoreRole '${firestoreRole}' for redirection. Redirecting to default path '/auth/profile'.`);
+                return '/auth/profile';
         }
     }
-
 
     onMount(() => {
         const urlParams = $page.url.searchParams;
@@ -100,27 +136,51 @@
         }
         const firestoreRole = roleMapping[determinedRole as AllowedRole];
         showToast("Registering...", "info", 0);
+
+        let createdAuthUser = null; 
+
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
+            createdAuthUser = user; 
+
+            const customUserId = await generateUniqueCustomId();
+
+            if (!customUserId) {
+                showToast("Failed to generate a unique User ID. Please try again later.", "error", 6000);
+                if (createdAuthUser) {
+                    await deleteUser(createdAuthUser).catch(delErr => {
+                        console.error("Failed to delete auth user after custom ID generation failure:", delErr);
+                        showToast("Critical error: Please contact support. Auth account might be orphaned.", "error", 10000);
+                    });
+                }
+                if (toastMessage === "Registering...") toastVisible = false;
+                return;
+            }
+
             const userData = {
+                firebaseUid: user.uid, 
+                customUserId: customUserId, 
                 email: user.email,
                 role: firestoreRole,
-                createdAt: new Date().toISOString(),
-                uid: user.uid,
-                displayName: user.email?.split('@')[0] || 'User', 
+                registrationDate: new Date().toISOString(), 
+                displayName: user.email?.split('@')[0] || 'User',
                 photoURL: user.photoURL || null,
                 providerId: user.providerData[0]?.providerId || 'password'
+                // lastLoginAt: new Date().toISOString() 
             };
+           
             await setDoc(doc(db, "users", user.uid), userData);
-            showToast(`Registration successful as ${determinedRole}! Welcome, ${user.email}`, "success", 3000);
+
+            showToast(`Registration successful! Your User ID: ${customUserId}. Welcome, ${user.email}`, "success", 5000);
             const redirectPath = getRedirectPath(firestoreRole);
-            window.setTimeout(() => { goto(redirectPath); toastVisible = false; }, 1500);
+            window.setTimeout(() => { goto(redirectPath); toastVisible = false; }, 2500);
+
         } catch (err) {
             console.error("Email/Pass Registration Error:", err);
             let userFriendlyMessage = "An unexpected error occurred. Please try again.";
             if (err instanceof Error) {
-                const firebaseError = err as any;
+                const firebaseError = err as any; 
                 if (firebaseError.code) {
                     switch (firebaseError.code) {
                         case 'auth/email-already-in-use': userFriendlyMessage = "Email already registered. Try logging in or use a different email."; break;
@@ -131,6 +191,14 @@
                     }
                 } else { userFriendlyMessage = "Registration error. Check input and try again."; }
             } else if (typeof err === 'string') { userFriendlyMessage = "Registration failed: " + err; }
+
+            if (createdAuthUser && !(err as any).code?.startsWith('auth/')) { 
+                console.warn("Attempting to clean up auth user due to non-auth error post-creation:", err);
+                // await deleteUser(createdAuthUser).catch(delErr => {
+                //     console.error("Cleanup failed for auth user on non-auth error:", delErr);
+                // });
+            }
+
             showToast(userFriendlyMessage, "error", 6000);
         }
     }
@@ -139,39 +207,65 @@
         isGoogleSigningIn = true;
         showToast("Connecting to Google...", "info", 0);
         const provider = new GoogleAuthProvider();
+        let createdAuthUserForGoogle = null;
+
         try {
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
+            createdAuthUserForGoogle = user;
 
-            const userDocRef = doc(db, "users", user.uid);
+            const userDocRef = doc(db, "users", user.uid); 
             const userDocSnap = await getDoc(userDocRef);
 
             let finalRole: FirestoreRole;
             let welcomeMessage: string;
+            let displayableCustomId: string | null = null;
 
             if (userDocSnap.exists()) {
                 const existingUserData = userDocSnap.data();
                 finalRole = existingUserData.role as FirestoreRole;
-                 await setDoc(userDocRef, {
+                displayableCustomId = existingUserData.customUserId || "N/A";
+
+                await setDoc(userDocRef, {
                     lastLoginAt: new Date().toISOString(),
                     displayName: user.displayName || existingUserData.displayName,
                     photoURL: user.photoURL || existingUserData.photoURL,
-                 }, { merge: true });
-                welcomeMessage = `Welcome back, ${user.displayName || user.email}!`;
+                    firebaseUid: user.uid, // Ensure it's present
+                }, { merge: true });
+                welcomeMessage = `Welcome back, ${user.displayName || user.email}! Your ID: ${displayableCustomId}`;
                 showToast(welcomeMessage, "success", 3000);
             } else {
+                const customUserId = await generateUniqueCustomId();
+
+                if (!customUserId) {
+                    showToast("Failed to generate a unique User ID for Google Sign-In. Please try again.", "error", 6000);
+                    if (createdAuthUserForGoogle) {
+                        await deleteUser(createdAuthUserForGoogle).catch(delErr => {
+                           console.error("Failed to delete Google auth user after custom ID failure:", delErr);
+                           showToast("Critical error with Google Sign-In. Contact support.", "error", 10000);
+                        });
+                        // await auth.signOut();
+                    }
+                    isGoogleSigningIn = false;
+                    if (toastMessage === "Connecting to Google...") toastVisible = false;
+                    return;
+                }
+                displayableCustomId = customUserId;
+
                 finalRole = roleMapping[determinedRole];
                 const newUser_Data = {
-                    uid: user.uid,
+                    firebaseUid: user.uid,
+                    customUserId: customUserId,
                     email: user.email,
                     displayName: user.displayName,
                     photoURL: user.photoURL,
                     role: finalRole,
-                    createdAt: new Date().toISOString(),
+                    registrationDate: new Date().toISOString(), 
                     providerId: result.providerId || 'google.com'
+                    // lastLoginAt: new Date().toISOString()
                 };
                 await setDoc(userDocRef, newUser_Data);
-                welcomeMessage = `Successfully registered with Google as ${determinedRole}! Welcome, ${user.displayName || user.email}!`;
+                welcomeMessage = `Successfully registered with Google as ${determinedRole}! Your ID: ${displayableCustomId}. Welcome, ${user.displayName || user.email}!`;
                 showToast(welcomeMessage, "success", 4000);
             }
 
@@ -199,10 +293,16 @@
                         userFriendlyMessage = "Google Sign-In failed. Please try again later.";
                 }
             }
+    
+            if (createdAuthUserForGoogle && err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/account-exists-with-different-credential') {
+                if (toastMessage !== "Failed to generate a unique User ID for Google Sign-In. Please try again.") {
+
+                }
+            }
             showToast(userFriendlyMessage, "error", 6000);
         } finally {
             isGoogleSigningIn = false;
-            if (toastMessage === "Connecting to Google...") {
+            if (toastVisible && toastMessage === "Connecting to Google...") {
                 toastVisible = false;
             }
         }
@@ -212,7 +312,6 @@
 
 {#if toastVisible}
     <div class="fixed top-5 right-5 z-50">
-        
         <Toast
             color={toastType === 'success' ? 'green' : toastType === 'error' ? 'red' : toastType === 'warning' ? 'yellow' : 'blue'}
             dismissable
@@ -234,12 +333,12 @@
 
 <div class="min-h-screen bg-gradient-to-r from-[#094361] to-[#128AC7] flex items-center justify-center px-4 py-8">
     <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <div class="flex items-center mb-6">  
+        <div class="flex items-center mb-6">
             <img src="/images/lock.png" alt="Lock Icon" class="w-12 h-12 mr-4" />
             <h2 class="text-3xl font-semibold text-gray-800">{registrationTitle}</h2>
         </div>
 
-       
+
         <form on:submit|preventDefault={handleRegistration}>
             <div class="mb-6">
                 <Label for="email" class="block mb-2">Email</Label>
@@ -266,7 +365,7 @@
             <hr class="flex-grow border-gray-300">
         </div>
 
-        
+
         <div class="mb-6">
             <Button
                 on:click={handleGoogleSignIn}

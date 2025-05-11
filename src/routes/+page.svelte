@@ -137,7 +137,7 @@
     <div class="nav-container">
         <img src="/images/logo(landing) copy.png" alt="ToothTrack Logo" class="navbar-logo" />
         <nav>
-            <a href="/login">Dentist Login</a>
+            <a href="/login?role=dentist">Dentist Login</a>
         </nav>
     </div>
 </header>
