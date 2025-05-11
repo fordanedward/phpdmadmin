@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { firebaseConfig } from '$lib/firebaseConfig';
 	import { initializeApp } from 'firebase/app';
-	import { getFirestore, collection, updateDoc, getDocs, doc } from 'firebase/firestore';
+	import { getFirestore, collection, updateDoc, getDocs, doc, Timestamp, deleteField } from 'firebase/firestore';
 	import Swal from 'sweetalert2';
 
 	// --- Firebase Initialization ---
@@ -10,44 +10,78 @@
 	const db = getFirestore(app);
 
 	// --- Component State ---
-	let patients: any[] = [];
-	let prescribedPatients: any[] = [];
-	let filteredPatients: any[] = []; // This will hold the patients to be displayed
+	interface Patient {
+		id: string;
+		name: string;
+		lastName: string;
+		fullName: string;
+		address: string;
+		phone: string;
+		age: number;
+		birthday: string;
+		isArchived: boolean;
+		remark: string;
+		dateArchived?: string | null;
+		prescriptions?: PrescriptionDetail[]; // Defined PrescriptionDetail below
+	}
+
+    interface PrescriptionDetail {
+        id: string;
+        appointmentId?: string;
+        instructions: string;
+        medications: string;
+        prescriber: string;
+        dosage: string;
+        dateVisited?: string;
+    }
+
+	let patients: Patient[] = [];
+	let prescribedPatients: Patient[] = [];
+	let filteredPatients: Patient[] = [];
 
 	let searchTerm = '';
 	let currentCategory: 'Active' | 'Archived' = 'Active';
-	let sortCriteria = 'name_asc'; // Default sort: name ascending (e.g., 'name_asc', 'name_desc', 'age_asc', 'age_desc')
+	let sortCriteria = 'fullName_asc'; // Default sort: name ascending
 
 	// Modals State
 	let showRemarkModal = false;
-	let selectedPatientForRemark: any = null;
+	let selectedPatientForRemark: Patient | null = null;
 	let remark = '';
 
 	let showPrescriptionModal = false;
-	let currentPatientForModal: any = {};
+	let currentPatientForModal: Patient | null = null; // Changed from Patient | {} = {}
 
 	// --- Lifecycle Hooks ---
 	onMount(async () => {
 		await fetchPatients();
 		await fetchPrescribedPatients();
-		applyFiltersAndSorting(); 
+		applyFiltersAndSorting();
 	});
 
 	async function fetchPatients() {
 		try {
 			const querySnapshot = await getDocs(collection(db, 'patientProfiles'));
-			patients = querySnapshot.docs.map((doc) => ({
-				id: doc.id,
-				name: doc.data().name || '', // Ensure default values
-				lastName: doc.data().lastName || '',
-				fullName: `${doc.data().name || ''} ${doc.data().lastName || ''}`.trim(), 
-				address: doc.data().address || 'N/A',
-				phone: doc.data().phone || 'N/A',
-				age: doc.data().age || 0,
-				birthday: doc.data().birthday || 'N/A',
-				isArchived: doc.data().isArchived || false,
-				remark: doc.data().remark || 'No remark provided'
-			}));
+			patients = querySnapshot.docs.map((docSnap) => {
+				const data = docSnap.data();
+				let dateArchivedString: string | null = null;
+				if (data.dateArchived && data.dateArchived.seconds) {
+					dateArchivedString = new Date(data.dateArchived.seconds * 1000).toLocaleDateString();
+				}
+
+				return {
+					id: docSnap.id,
+					name: data.name || '',
+					lastName: data.lastName || '',
+					fullName: `${data.name || ''} ${data.lastName || ''}`.trim(),
+					address: data.address || 'N/A',
+					phone: data.phone || 'N/A',
+					age: data.age || 0,
+					birthday: data.birthday || 'N/A',
+					isArchived: data.isArchived || false,
+					remark: data.remark || 'No remark provided',
+					dateArchived: dateArchivedString,
+				};
+			});
 			console.log('Fetched Patients:', patients.length);
 		} catch (error) {
 			console.error('Error fetching patients:', error);
@@ -57,38 +91,31 @@
 
 	async function fetchPrescribedPatients() {
 		try {
-			// Fetch prescriptions
 			const prescriptionsSnapshot = await getDocs(collection(db, "prescriptions"));
-			const prescriptionsData = prescriptionsSnapshot.docs.map(doc => {
-				const data = doc.data();
+			const prescriptionsData: PrescriptionDetail[] = prescriptionsSnapshot.docs.map(docSnap => { // Added type
+				const data = docSnap.data();
 				const medicines = data.medicines || [];
 				return {
-					id: doc.id,
+					id: docSnap.id,
 					appointmentId: data.appointmentId,
 					instructions: medicines.map((m: { instructions: any; }) => m.instructions || 'N/A').join(', '),
 					medications: medicines.map((m: { medicine: any; }) => m.medicine || 'N/A').join(', '),
 					prescriber: data.prescriber || 'N/A',
-					dosage: medicines.map((m: { dosage: any; }) => m.dosage || 'N/A').join(', '), // Using dosage as requested
+					dosage: medicines.map((m: { dosage: any; }) => m.dosage || 'N/A').join(', '),
 				};
 			});
 
-			// Fetch appointments to link prescriptions to patients and get dates
 			const appointmentsSnapshot = await getDocs(collection(db, "appointments"));
 			const appointmentsMap = new Map();
-			appointmentsSnapshot.docs.forEach(doc => {
-				const data = doc.data();
-				appointmentsMap.set(doc.id, {
+			appointmentsSnapshot.docs.forEach(docSnap => {
+				const data = docSnap.data();
+				appointmentsMap.set(docSnap.id, {
 					patientId: data.patientId,
-					date: data.date ? new Date(data.date.seconds * 1000).toLocaleDateString() : 'N/A', // Format date
+					date: data.date ? new Date(data.date.seconds * 1000).toLocaleDateString() : 'N/A',
 				});
 			});
 
-			// Create a map of patients for quick lookup
-			const patientsMap = new Map(patients.map(p => [p.id, p]));
-
-			// Aggregate prescriptions by patient
-			const patientPrescriptionsMap = new Map();
-
+			const patientPrescriptionsMap = new Map<string, PrescriptionDetail[]>(); // Typed map
 			prescriptionsData.forEach(prescription => {
 				const appointment = appointmentsMap.get(prescription.appointmentId);
 				if (appointment && appointment.patientId) {
@@ -96,19 +123,21 @@
 					if (!patientPrescriptionsMap.has(patientId)) {
 						patientPrescriptionsMap.set(patientId, []);
 					}
-					patientPrescriptionsMap.get(patientId).push({
-						...prescription,
-						dateVisited: appointment.date,
-					});
+                    const currentPrescriptions = patientPrescriptionsMap.get(patientId);
+                    if (currentPrescriptions) {
+                        currentPrescriptions.push({
+                            ...prescription,
+                            dateVisited: appointment.date,
+                        });
+                    }
 				}
 			});
 
-			// Populate prescribedPatients array with patient details and their prescriptions
 			prescribedPatients = patients
-				.filter(p => patientPrescriptionsMap.has(p.id)) // Only include patients who have prescriptions
+				.filter(p => patientPrescriptionsMap.has(p.id))
 				.map(patient => ({
 					...patient,
-					prescriptions: patientPrescriptionsMap.get(patient.id) || [],
+					prescriptions: patientPrescriptionsMap.get(patient.id) || [], // Ensures `prescriptions` array exists
 				}));
 
 			console.log("Processed Prescribed Patients:", prescribedPatients.length);
@@ -119,74 +148,51 @@
 		}
 	}
 
-
 	// --- Filtering and Sorting ---
 	function applyFiltersAndSorting() {
 		console.log(`Applying filters. Category: ${currentCategory}, Search: "${searchTerm}", Sort: ${sortCriteria}`);
+		let baseList: Patient[] = [];
 
-		let baseList = [];
-
-		// 1. Filter by Category (Active/Archived)
 		if (currentCategory === 'Active') {
-			// Active means NOT archived AND has prescriptions
 			const prescribedPatientIds = new Set(prescribedPatients.map(p => p.id));
 			baseList = patients.filter(p => !p.isArchived && prescribedPatientIds.has(p.id));
-			console.log(`Active category base count: ${baseList.length}`);
 		} else {
-			// Archived means IS archived
 			baseList = patients.filter(p => p.isArchived);
-			console.log(`Archived category base count: ${baseList.length}`);
 		}
 
-		// 2. Filter by Search Term
 		let searchedList = baseList;
 		if (searchTerm.trim() !== '') {
 			const lowerSearchTerm = searchTerm.toLowerCase();
 			searchedList = baseList.filter(patient =>
 				Object.values(patient).some(value => {
-					if (typeof value === 'string') {
-						return value.toLowerCase().includes(lowerSearchTerm);
-					}
-					if (typeof value === 'number') {
-						return value.toString().includes(lowerSearchTerm); // Allow searching numbers as strings
-					}
+					if (typeof value === 'string') return value.toLowerCase().includes(lowerSearchTerm);
+					if (typeof value === 'number') return value.toString().includes(lowerSearchTerm);
 					return false;
 				})
 			);
-			console.log(`After search term filter count: ${searchedList.length}`);
-		} else {
-			console.log(`No search term applied.`);
 		}
 
-
-		// 3. Sort
-		const [column, direction] = sortCriteria.split('_'); // e.g., 'name_asc' -> ['name', 'asc']
+		const [column, direction] = sortCriteria.split('_') as [keyof Patient, 'asc' | 'desc'];
 
 		searchedList.sort((a, b) => {
-			let valA = a[column];
-			let valB = b[column];
+			const valA_raw = a[column];
+			const valB_raw = b[column];
 
-			// Handle case-insensitive string sorting for name/lastName/fullName
-			if (column === 'name' || column === 'lastName' || column === 'fullName') {
-				valA = String(valA).toLowerCase();
-				valB = String(valB).toLowerCase();
+			if (column === 'fullName') {
+				const strA = String(valA_raw ?? '').toLowerCase();
+				const strB = String(valB_raw ?? '').toLowerCase();
+				if (strA < strB) return direction === 'asc' ? -1 : 1;
+				if (strA > strB) return direction === 'asc' ? 1 : -1;
+				return 0;
+			} else if (column === 'age') {
+				const numA = Number(valA_raw ?? 0); // Fallback to 0 if age is somehow null/undefined
+				const numB = Number(valB_raw ?? 0);
+				return direction === 'asc' ? numA - numB : numB - numA;
 			}
-
-            // Handle numeric sorting for age
-			if (column === 'age') {
-				valA = Number(valA);
-				valB = Number(valB);
-				return direction === 'asc' ? valA - valB : valB - valA;
-			}
-
-            // Default string comparison
-			if (valA < valB) return direction === 'asc' ? -1 : 1;
-			if (valA > valB) return direction === 'asc' ? 1 : -1;
-			return 0;
+			// Add other specific sort criteria here if needed
+			return 0; // Default: no change in order for unhandled columns or equality
 		});
-
-		console.log(`Sorting applied: ${column} ${direction}. Final count: ${searchedList.length}`);
-		filteredPatients = searchedList; // Update the reactive variable
+		filteredPatients = searchedList;
 	}
 
 	// --- Event Handlers ---
@@ -202,44 +208,48 @@
 
 	function switchCategory(category: 'Active' | 'Archived') {
 		currentCategory = category;
-		searchTerm = ''; // Reset search on category switch
-		// sortCriteria = 'name_asc'; // Optionally reset sort on category switch
+		searchTerm = '';
 		applyFiltersAndSorting();
 	}
 
-	function openRemarkModal(patient: any) {
+	function openRemarkModal(patient: Patient) {
 		selectedPatientForRemark = patient;
-		remark = ''; // Reset remark input
+		remark = (patient.remark === 'No remark provided' || patient.remark === 'Archived without specific remark' || patient.remark === 'Unarchived') 
+                 ? '' 
+                 : patient.remark;
 		showRemarkModal = true;
 	}
 
 	function closeRemarkModal() {
 		showRemarkModal = false;
 		selectedPatientForRemark = null;
+		remark = '';
 	}
 
 	async function archivePatient() {
 		if (!selectedPatientForRemark) return;
 
 		const patientId = selectedPatientForRemark.id;
+		const archiveDate = new Date();
 
 		try {
 			const patientRef = doc(db, 'patientProfiles', patientId);
 			await updateDoc(patientRef, {
 				isArchived: true,
-				remark: remark || 'Archived without specific remark' // Provide a default if empty
+				remark: remark.trim() || 'Archived without specific remark',
+				dateArchived: Timestamp.fromDate(archiveDate)
 			});
 
-			// Update local state immediately for UI responsiveness
 			const patientIndex = patients.findIndex((p) => p.id === patientId);
 			if (patientIndex !== -1) {
 				patients[patientIndex].isArchived = true;
-				patients[patientIndex].remark = remark || 'Archived without specific remark';
+				patients[patientIndex].remark = remark.trim() || 'Archived without specific remark';
+				patients[patientIndex].dateArchived = archiveDate.toLocaleDateString();
+				patients = [...patients]; // Trigger reactivity
 			}
 
 			closeRemarkModal();
-			applyFiltersAndSorting(); // Re-filter the list
-
+			applyFiltersAndSorting();
 			Swal.fire('Archived!', 'The patient has been archived.', 'success');
 		} catch (error) {
 			console.error('Error archiving patient:', error);
@@ -261,18 +271,21 @@
 		if (result.isConfirmed) {
 			try {
 				const patientRef = doc(db, 'patientProfiles', patientId);
-				// Reset remark when unarchiving, or keep it based on requirements
-				await updateDoc(patientRef, { isArchived: false, remark: '' }); // Reset remark
+				await updateDoc(patientRef, {
+					isArchived: false,
+					remark: 'Unarchived',
+					dateArchived: deleteField()
+				});
 
-				// Update local state
 				const patientIndex = patients.findIndex((p) => p.id === patientId);
 				if (patientIndex !== -1) {
 					patients[patientIndex].isArchived = false;
-					patients[patientIndex].remark = ''; // Reset remark locally too
+					patients[patientIndex].remark = 'Unarchived';
+					patients[patientIndex].dateArchived = null;
+					patients = [...patients]; // Trigger reactivity
 				}
 
-				applyFiltersAndSorting(); // Re-filter the list
-
+				applyFiltersAndSorting();
 				Swal.fire('Unarchived!', 'The patient has been moved to active.', 'success');
 			} catch (error) {
 				console.error('Error unarchiving patient:', error);
@@ -281,20 +294,24 @@
 		}
 	}
 
-	function openPrescriptionModal(patient: any) {
-		// Find the full patient detail including prescriptions
-		currentPatientForModal = prescribedPatients.find(p => p.id === patient.id) || patient; // Fallback to basic patient info if not found in prescribed list
-		if (!currentPatientForModal.prescriptions) {
-			// If the fallback was used or prescriptions weren't loaded correctly for this patient
-			const fullData = prescribedPatients.find(p => p.id === patient.id);
-			currentPatientForModal = { ...patient, prescriptions: fullData ? fullData.prescriptions : [] };
+	function openPrescriptionModal(patient: Patient) {
+		const detailedPatient = prescribedPatients.find(p => p.id === patient.id);
+
+		if (detailedPatient) {
+			currentPatientForModal = detailedPatient; // This patient has .prescriptions array from fetchPrescribedPatients
+		} else {
+			// This case should ideally not occur for 'Active' patients due to current filtering logic.
+			// If it does, or if the function is called for a patient not in prescribedPatients,
+			// use the basic patient info and ensure an empty prescriptions array.
+			console.warn(`Patient ${patient.fullName} (ID: ${patient.id}) not found in prescribedPatients list during modal open. Displaying basic info with no prescriptions.`);
+			currentPatientForModal = { ...patient, prescriptions: [] }; // Ensure prescriptions property exists
 		}
 		showPrescriptionModal = true;
 	}
 
 	function closePrescriptionModal() {
 		showPrescriptionModal = false;
-		currentPatientForModal = {};
+		currentPatientForModal = null; // Reset to null
 	}
 
 </script>
@@ -305,9 +322,7 @@
 	<div class="mb-6 bg-white p-4 rounded-lg shadow">
 		<h1 class="text-2xl font-semibold text-gray-700 mb-4">Patient Records</h1>
 
-		<!-- Search and Sort -->
 		<div class="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-			<!-- Search Input -->
 			<div class="relative flex-grow">
 				<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
 					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-gray-400">
@@ -323,7 +338,6 @@
 				/>
 			</div>
 
-			<!-- Sort Dropdown -->
 			<div class="flex-shrink-0">
 				<label for="sort-select" class="sr-only">Sort Patients</label>
 				<select
@@ -342,7 +356,6 @@
 			</div>
 		</div>
 
-		<!-- Category Tabs -->
 		<div class="border-b border-gray-200">
 			<nav class="-mb-px flex space-x-6" aria-label="Tabs">
 				<button
@@ -365,18 +378,16 @@
 		</div>
 	</div>
 
-	<!-- Patient Cards Grid -->
 	{#if filteredPatients.length > 0}
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
 			{#each filteredPatients as patient (patient.id)}
 				<div class="bg-white rounded-lg shadow border border-gray-200 p-4 flex flex-col justify-between transition-shadow duration-200 hover:shadow-md">
-					<!-- Card Content -->
 					<div>
 						<h3 class="text-lg font-semibold text-gray-800 mb-2">{patient.fullName}</h3>
-						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-16 inline-block">Address:</span> {patient.address}</p>
-						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-16 inline-block">Phone:</span> {patient.phone}</p>
-						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-16 inline-block">Birth Date:</span> {patient.birthday}</p>
-						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-16 inline-block">Age:</span> {patient.age}</p>
+						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-20 inline-block">Address:</span> {patient.address}</p>
+						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-20 inline-block">Phone:</span> {patient.phone}</p>
+						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-20 inline-block">Birth Date:</span> {patient.birthday}</p>
+						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-20 inline-block">Age:</span> {patient.age}</p>
 
 						{#if currentCategory === 'Archived'}
 							<div class="mt-2 pt-2 border-t border-gray-100">
@@ -384,14 +395,18 @@
 									<span class="font-medium text-gray-500">Remark:</span>
 									<span class="italic ml-1">{patient.remark || 'No remark provided'}</span>
 								</p>
+								{#if patient.dateArchived}
+								<p class="text-sm text-gray-600 mt-1">
+									<span class="font-medium text-gray-500">Date Archived:</span>
+									<span class="ml-1">{patient.dateArchived}</span>
+								</p>
+								{/if}
 							</div>
 						{/if}
 					</div>
 
-					<!-- Card Actions -->
 					<div class="mt-4 pt-3 border-t border-gray-200 flex justify-end space-x-2">
 						{#if currentCategory === 'Active'}
-							<!-- Archive Button -->
 							<button
 								on:click={() => openRemarkModal(patient)}
 								title="Archive Patient"
@@ -403,7 +418,6 @@
 						{/if}
 
 						{#if currentCategory === 'Archived'}
-							<!-- Unarchive Button -->
 							<button
 								on:click={() => unarchivePatient(patient.id)}
 								title="Unarchive Patient"
@@ -414,7 +428,6 @@
 							</button>
 						{/if}
 
-						<!-- View Prescriptions Button -->
 						{#if currentCategory === 'Active'}
 						<button
 							on:click={() => openPrescriptionModal(patient)}
@@ -422,7 +435,6 @@
 							aria-label="View prescriptions for {patient.fullName}"
 							class="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition duration-150 ease-in-out"
 						>
-							<span class="sr-only">View prescriptions for {patient.fullName}</span>
 							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M3.5 2.75a.75.75 0 0 0-1.5 0v14.5a.75.75 0 0 0 1.5 0v-4.392l1.657-.828a.75.75 0 0 0 0-1.344L3.5 9.858v-4.392Zm13.96 4.418-1.656.828a.75.75 0 0 0 0 1.344l1.656.828v4.392a.75.75 0 0 0 1.5 0V7.168a.75.75 0 0 0-.62-1.46l-1.657-.828a.75.75 0 0 0-.88 0l-1.656.828a.75.75 0 0 0 0 1.344l1.656.828ZM12 7.5a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 12 7.5Zm.75 4.75a.75.75 0 0 0 0 1.5h1.5a.75.75 0 0 0 0-1.5h-1.5Z" /><path fill-rule="evenodd" d="M8.5 2a.5.5 0 0 0-.5.5v15a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-15a.5.5 0 0 0-.5-.5h-3Zm-1.5 3A.5.5 0 0 1 7.5 4.5h5a.5.5 0 0 1 0 1h-5A.5.5 0 0 1 7 5Zm0 3A.5.5 0 0 1 7.5 7.5h5a.5.5 0 0 1 0 1h-5A.5.5 0 0 1 7 8Zm0 3a.5.5 0 0 1 7.5 10.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5Z" clip-rule="evenodd" /></svg>
 						</button>
                         {/if}
@@ -444,20 +456,18 @@
 			</p>
 		</div>
 	{/if}
-
-</div> <!-- End Main Container -->
-
+</div>
 
 <!-- Remark Modal -->
-{#if showRemarkModal}
+{#if showRemarkModal && selectedPatientForRemark}
 <div class="fixed inset-0 bg-gray-900 bg-opacity-60 flex justify-center items-center z-[100] transition-opacity duration-300 ease-in-out">
 	<div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md mx-4 transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modal-appear">
 		<h3 class="text-xl font-semibold mb-4 text-gray-800">Archive Patient</h3>
-		<p class="mb-4 text-gray-600">Please provide a reason or remark for archiving <span class="font-medium">{selectedPatientForRemark?.fullName}</span>.</p>
+		<p class="mb-4 text-gray-600">Please provide a reason or remark for archiving <span class="font-medium">{selectedPatientForRemark.fullName}</span>.</p>
 
 		<form on:submit|preventDefault={archivePatient}>
 			<label for="remark" class="block text-sm font-medium text-gray-700 mb-1">
-				Remark (Optional):
+				Remark:
 			</label>
 			<textarea
 				id="remark"
@@ -488,17 +498,20 @@
 {/if}
 
 <!-- Prescription Details Modal -->
-{#if showPrescriptionModal}
+{#if showPrescriptionModal && currentPatientForModal}
 <div class="fixed inset-0 bg-gray-900 bg-opacity-60 flex justify-center items-center z-[100] transition-opacity duration-300 ease-in-out"> 
 	<div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl mx-4 transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modal-appear max-h-[85vh] flex flex-col">
 		<div class="flex justify-between items-center mb-4 border-b pb-3">
             <h3 class="text-xl font-semibold text-gray-800">Prescription Details</h3>
-            <button on:click={closePrescriptionModal} class="text-gray-400 hover:text-gray-600">
+            <button 
+                on:click={closePrescriptionModal} 
+                aria-label="Close prescription details"  
+                class="text-gray-400 hover:text-gray-600"
+            >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
             </button>
         </div>
 
-		<!-- Patient Info -->
 		<div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
 			<p><strong class="text-gray-600">Patient:</strong> {currentPatientForModal.fullName}</p>
 			<p><strong class="text-gray-600">Age:</strong> {currentPatientForModal.age}</p>
@@ -507,7 +520,6 @@
 			<p><strong class="text-gray-600">Birthday:</strong> {currentPatientForModal.birthday}</p>
 		</div>
 
-		<!-- Prescriptions Table -->
 		<div class="flex-grow overflow-y-auto border rounded-md">
 			{#if currentPatientForModal.prescriptions && currentPatientForModal.prescriptions.length > 0}
 				<table class="min-w-full divide-y divide-gray-200">
@@ -516,7 +528,7 @@
 							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Visited</th>
 							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Medications</th>
 							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dosage</th>
-							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Instructions</th>
+							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking_wider">Instructions</th>
 							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescriber</th>
 						</tr>
 					</thead>
@@ -537,7 +549,6 @@
 			{/if}
 		</div>
 
-		<!-- Close Button Footer -->
 		<div class="mt-5 pt-4 border-t flex justify-end">
 			<button
 				on:click={closePrescriptionModal}
@@ -579,4 +590,7 @@
     .overflow-y-auto::-webkit-scrollbar-thumb:hover {
       background: #a8a8a8;
     }
+	.w-20 {
+		width: 5rem; 
+	}
 </style>
