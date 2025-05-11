@@ -259,10 +259,10 @@
                 Sign up
             </a>
         </div>
-         <div class="text-center text-sm mt-2">
+        <!-- <div class="text-center text-sm mt-2">
             <a href="/forgot-password" class="font-medium text-sm text-blue-600 hover:underline">
                 Forgot password?
             </a>
-        </div>
+        </div>-->
     </div>
 </div>
