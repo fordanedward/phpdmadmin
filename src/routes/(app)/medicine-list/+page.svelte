@@ -319,7 +319,6 @@ async function deleteMedicine(medicine: Medicine) {
         display: flex;
         height: 100vh;
         overflow: hidden;
-        font-family: 'Nunito', sans-serif;
         color: #333;
 
     }
@@ -355,9 +354,8 @@ async function deleteMedicine(medicine: Medicine) {
 }
 
     .add-button {
-      background: linear-gradient(90deg, #08B8F3, #005b80);
+      background: linear-gradient(90deg, #172f85, #6681e2);
         color: rgb(255, 255, 255);
-        font-family: 'Roboto', sans-serif;
         font-weight: 550;
         padding: 0.5rem 1rem;
         border-radius: 0.3rem;
@@ -373,7 +371,7 @@ async function deleteMedicine(medicine: Medicine) {
 }
 
 .add-button:hover {
-  background: linear-gradient(90deg, #005b80, #08B8F3);
+  background: linear-gradient(90deg, #6681e2, #172f85);
         transform: translateY(2px);
       }
 
