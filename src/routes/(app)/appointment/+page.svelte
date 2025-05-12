@@ -113,32 +113,28 @@
       const init = async () => {
           loading = true;
           try {
+              // 1. Fetch patient profiles first
+              await fetchPatientProfiles();
+
+              // 2. Then set up the appointments listener
               const appointmentsQuery = query(collection(db, "appointments"));
               unsubscribeAppointments = onSnapshot(appointmentsQuery, (snapshot) => {
-                  console.log("Appointment snapshot received");
                   appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
                   appointmentStore.set(appointments);
                   processAppointmentsData();
-                  // Set loading false only after the first data load,
-                  // subsequent updates don't trigger the main loading state
-                  if (loading) {
-                      loading = false;
-                  }
+                  if (loading) loading = false;
               }, (error) => {
                   console.error("Error listening to appointments:", error);
                   Swal.fire('Error', 'Could not load appointments in real-time.', 'error');
                   loading = false;
               });
 
-              await fetchPatientProfiles();
               await fetchAvailableMedicines();
-
           } catch (error) {
               console.error('Error during initial data fetch:', error);
               Swal.fire('Error', 'Failed to load initial page data.', 'error');
               loading = false;
           }
-          // Removed finally block setting loading to false here, handled in snapshot/error
       };
 
       init();
@@ -167,23 +163,59 @@
       pendingAppointments = appointmentsThisMonth.filter(app => app.status === 'pending' && !app.cancellationStatus).length;
       completedAppointments = appointmentsThisMonth.filter(app => app.status === 'Completed' || app.status === 'Completed: Need Follow-up').length;
 
+      // Update pending appointments list with patient data
       pendingAppointmentsList = appointments.filter(app =>
           (app.status === 'pending' && !app.cancellationStatus) ||
           app.status === 'Reschedule Requested' ||
           app.cancellationStatus === 'requested'
-      );
+      ).map(appointment => {
+          const patient = patientProfiles.find(p => p.id === appointment.patientId);
+          return {
+              ...appointment,
+              patientName: patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient',
+              patientAge: patient?.age || 0
+          };
+      });
 
-      console.log("Processed appointments data:", { total: totalAppointments, pending: pendingAppointments, completed: completedAppointments, pendingListCount: pendingAppointmentsList.length });
+      console.log("Processed appointments data:", { 
+          total: totalAppointments, 
+          pending: pendingAppointments, 
+          completed: completedAppointments, 
+          pendingListCount: pendingAppointmentsList.length 
+      });
   }
 
   const fetchPatientProfiles = async () => {
     try {
       const profilesRef = collection(db, 'patientProfiles');
       const querySnapshot = await getDocs(profilesRef);
-      patientProfiles = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PatientProfile));
+      patientProfiles = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || '',
+          lastName: data.lastName || '',
+          age: data.age || 0
+        } as PatientProfile;
+      });
       console.log("Fetched Patient Profiles:", patientProfiles.length);
+      
+      // Create a map for faster lookups
+      const patientMap = new Map(patientProfiles.map(p => [p.id, p]));
+      
+      // Update appointments with patient data
+      appointments = appointments.map(appointment => {
+        const patient = patientMap.get(appointment.patientId);
+        return {
+          ...appointment,
+          patientName: patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient',
+          patientAge: patient?.age || 0
+        };
+      });
+      processAppointmentsData(); // <-- Ensure this is called after fetching profiles
     } catch (error) {
       console.error('Error fetching profiles:', error);
+      Swal.fire('Error', 'Failed to load patient profiles.', 'error');
     }
   };
 
@@ -717,7 +749,7 @@
     <div class="flex flex-col lg:flex-row gap-6">
 
       <div class="flex-grow lg:w-2/3 order-2 lg:order-1">
-        <div class="bg-white p-4 rounded-lg shadow-md">
+        <div class="bg-white p-4 rounded-lg shadow-md mt-6">
           <h2 class="text-xl font-semibold mb-4">Scheduled Appointments</h2>
 
           <div class="tabs mb-4 border-b border-gray-200">
@@ -821,7 +853,7 @@
         </div>
       </div>
 
-      <div class="w-full lg:w-1/3 order-1 lg:order-2 space-y-6">
+      <div class="w-full lg:w-1/3 order-1 lg:order-2 space-y-6 mt-6">
 
         <Card class="w-full p-4 shadow-lg bg-white rounded-lg">
            <div class="card-content1 space-y-3">
@@ -854,13 +886,17 @@
                    {#if pendingReqs.length > 0}
                        {#each pendingReqs as appointment (appointment.id)}
                            <div class="appointment-card border border-gray-200 rounded-md p-3 shadow-sm text-sm">
-                               {#if patientProfiles.find(p => p.id === appointment.patientId)}
-                                  {@const patient = patientProfiles.find(p => p.id === appointment.patientId)}
-                                  <p class="font-semibold text-gray-800">{patient?.name} {patient?.lastName} ({patient?.age})</p>
-                               {:else}<p class="italic">Patient ID: {appointment.patientId}</p>{/if}
-                               <p class="text-gray-600">{appointment.date} at {appointment.time}</p>
+                               <p class="font-semibold text-gray-800">
+                                   {appointment.patientName}
+                                   {#if appointment.patientAge}
+                                       <span class="text-sm font-normal text-gray-600">({appointment.patientAge} years old)</span>
+                                   {/if}
+                               </p>
+                               <p class="text-gray-600">{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {appointment.time}</p>
                                <p class="text-gray-600 mt-1">Service: {appointment.service}</p>
-                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0}<p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>{/if}
+                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0}
+                                   <p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>
+                               {/if}
                                <div class="appointment-buttons flex gap-2 justify-end mt-2">
                                    <button class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs px-3 py-1 rounded" on:click={() => updatePendingAppointmentStatus(appointment.id, 'Accepted')}>Accept</button>
                                    <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => openReasonModal(appointment.id)}>Reject</button>
