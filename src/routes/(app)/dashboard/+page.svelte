@@ -163,20 +163,56 @@ interface Prescription {
 	}
 
 	// --- Data Fetching Functions ---
-	async function fetchAllPatients(): Promise<Patient[]> {
-		console.log("Fetching all patients...");
-		try {
-			const snapshot = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PATIENTS));
-			const patients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Patient));
-			patientMap.clear();
-			patients.forEach(p => patientMap.set(p.id, p));
-			console.log(`Fetched ${patients.length} patients.`);
-			return patients;
-		} catch (error) {
-			console.error("Error fetching patients:", error);
-			return [];
-		}
-	}
+async function fetchAllPatients(): Promise<Patient[]> {
+    console.log("Fetching all patients...");
+    try {
+        const users = await fetchAllUsers(); // Fetch users first
+        const snapshot = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PATIENTS));
+        const patients = snapshot.docs.map(doc => {
+            const data = doc.data();
+            console.log("Fetched patient data:", data);
+            console.log("Raw registration date:", users[doc.id]?.registrationDate); // Access registration date from users
+
+            return {
+                id: doc.id,
+                name: data.name,
+                lastName: data.lastName,
+                age: data.age,
+                birthday: data.birthday,
+                gender: data.gender,
+                phone: data.phone,
+                registrationDate: users[doc.id]?.registrationDate ? 
+                    new Date(users[doc.id].registrationDate).toISOString().split('T')[0] : 
+                    'N/A' // Use registration date from users
+            } as Patient;
+        });
+        patientMap.clear();
+        patients.forEach(p => patientMap.set(p.id, p));
+        console.log(`Fetched ${patients.length} patients.`);
+        return patients;
+    } catch (error) {
+        console.error("Error fetching patients:", error);
+        return [];
+    }
+}
+
+
+async function fetchAllUsers(): Promise<{ [key: string]: any }> {
+    console.log("Fetching all users...");
+    try {
+        const snapshot = await getDocs(collection(db, 'users'));
+        const users = snapshot.docs.reduce((acc, doc) => {
+            acc[doc.id] = doc.data(); // Store user data by user ID
+            return acc;
+        }, {} as { [key: string]: any });
+        console.log(`Fetched ${Object.keys(users).length} users.`);
+        return users;
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        return {};
+    }
+}
+
 
 	async function fetchAllAppointments(): Promise<Appointment[]> {
 		console.log("Fetching all appointments...");
@@ -709,6 +745,7 @@ function downloadExcelReport(
     return acc;
   }, {} as Record<string, Patient[]>);
 
+
   // Create a sheet for each month's patients
   Object.entries(patientsByMonth).forEach(([monthYear, patients]) => {
     const sheetData = patients.map(p => ({
@@ -722,8 +759,8 @@ function downloadExcelReport(
       'Registration Date': p.registrationDate || 'N/A',
       'Patient ID': p.id,
     }));
-
     const ws = XLSX.utils.json_to_sheet(sheetData);
+    ws['!cols'] = calculateColumnWidths(sheetData); // Set column widths
     XLSX.utils.book_append_sheet(workbook, ws, `Patients_${monthYear}`);
   });
 
@@ -1056,9 +1093,7 @@ function downloadExcelReport(
 								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Age</th>
 								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Gender</th>
 								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Phone</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium"
-									>Registered</th
-								>
+								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Registered</th>
 							</tr>
 						</thead>
 						<tbody>
