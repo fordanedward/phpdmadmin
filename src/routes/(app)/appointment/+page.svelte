@@ -57,6 +57,7 @@
     name: string;
     lastName: string;
     age: number;
+    email: string;
   }
 
   interface Prescription {
@@ -113,28 +114,32 @@
       const init = async () => {
           loading = true;
           try {
-              // 1. Fetch patient profiles first
-              await fetchPatientProfiles();
-
-              // 2. Then set up the appointments listener
               const appointmentsQuery = query(collection(db, "appointments"));
               unsubscribeAppointments = onSnapshot(appointmentsQuery, (snapshot) => {
+                  console.log("Appointment snapshot received");
                   appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
                   appointmentStore.set(appointments);
                   processAppointmentsData();
-                  if (loading) loading = false;
+                  // Set loading false only after the first data load,
+                  // subsequent updates don't trigger the main loading state
+                  if (loading) {
+                      loading = false;
+                  }
               }, (error) => {
                   console.error("Error listening to appointments:", error);
                   Swal.fire('Error', 'Could not load appointments in real-time.', 'error');
                   loading = false;
               });
 
+              await fetchPatientProfiles();
               await fetchAvailableMedicines();
+
           } catch (error) {
               console.error('Error during initial data fetch:', error);
               Swal.fire('Error', 'Failed to load initial page data.', 'error');
               loading = false;
           }
+          // Removed finally block setting loading to false here, handled in snapshot/error
       };
 
       init();
@@ -163,59 +168,23 @@
       pendingAppointments = appointmentsThisMonth.filter(app => app.status === 'pending' && !app.cancellationStatus).length;
       completedAppointments = appointmentsThisMonth.filter(app => app.status === 'Completed' || app.status === 'Completed: Need Follow-up').length;
 
-      // Update pending appointments list with patient data
       pendingAppointmentsList = appointments.filter(app =>
           (app.status === 'pending' && !app.cancellationStatus) ||
           app.status === 'Reschedule Requested' ||
           app.cancellationStatus === 'requested'
-      ).map(appointment => {
-          const patient = patientProfiles.find(p => p.id === appointment.patientId);
-          return {
-              ...appointment,
-              patientName: patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient',
-              patientAge: patient?.age || 0
-          };
-      });
+      );
 
-      console.log("Processed appointments data:", { 
-          total: totalAppointments, 
-          pending: pendingAppointments, 
-          completed: completedAppointments, 
-          pendingListCount: pendingAppointmentsList.length 
-      });
+      console.log("Processed appointments data:", { total: totalAppointments, pending: pendingAppointments, completed: completedAppointments, pendingListCount: pendingAppointmentsList.length });
   }
 
   const fetchPatientProfiles = async () => {
     try {
       const profilesRef = collection(db, 'patientProfiles');
       const querySnapshot = await getDocs(profilesRef);
-      patientProfiles = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name || '',
-          lastName: data.lastName || '',
-          age: data.age || 0
-        } as PatientProfile;
-      });
+      patientProfiles = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PatientProfile));
       console.log("Fetched Patient Profiles:", patientProfiles.length);
-      
-      // Create a map for faster lookups
-      const patientMap = new Map(patientProfiles.map(p => [p.id, p]));
-      
-      // Update appointments with patient data
-      appointments = appointments.map(appointment => {
-        const patient = patientMap.get(appointment.patientId);
-        return {
-          ...appointment,
-          patientName: patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient',
-          patientAge: patient?.age || 0
-        };
-      });
-      processAppointmentsData(); // <-- Ensure this is called after fetching profiles
     } catch (error) {
       console.error('Error fetching profiles:', error);
-      Swal.fire('Error', 'Failed to load patient profiles.', 'error');
     }
   };
 
@@ -232,49 +201,82 @@
 
   const updatePendingAppointmentStatus = async (appointmentId: string, newStatus: 'Accepted' | 'Decline') => {
     if (newStatus === 'Decline' && !rejectionReason.trim()) {
-        openReasonModal(appointmentId);
-        return;
+      openReasonModal(appointmentId);
+      return;
     }
 
     const confirmText = newStatus === 'Accepted'
-        ? 'Do you want to accept this appointment request?'
-        : `Do you want to reject this appointment request with reason: "${rejectionReason}"?`;
+      ? 'Do you want to accept this appointment request?'
+      : `Do you want to reject this appointment request with reason: "${rejectionReason}"?`;
 
     const result = await Swal.fire({
-        title: 'Are you sure?',
-        text: confirmText,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: newStatus === 'Accepted' ? '#3085d6' : '#d33',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: `Yes, ${newStatus} it!`,
+      title: 'Are you sure?',
+      text: confirmText,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: newStatus === 'Accepted' ? '#3085d6' : '#d33',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: `Yes, ${newStatus} it!`,
     });
 
     if (!result.isConfirmed) {
-        if (newStatus === 'Decline') rejectionReason = '';
-        return;
+      if (newStatus === 'Decline') rejectionReason = '';
+      return;
     }
 
     try {
-        const appointmentRef = doc(db, 'appointments', appointmentId);
-        const updateData: { status: string; cancellationStatus?: string; reason?: string | null } = {
-            status: newStatus,
-            reason: newStatus === 'Decline' ? rejectionReason : null,
-        };
-        if (newStatus === 'Accepted') {
-            updateData.cancellationStatus = '';
+      // Update Firestore
+      const appointmentRef = doc(db, 'appointments', appointmentId);
+      const updateData: { status: 'Accepted' | 'Decline'; reason: string | null; cancellationStatus?: string } = {
+        status: newStatus,
+        reason: newStatus === 'Decline' ? rejectionReason : null,
+      };
+      if (newStatus === 'Accepted') {
+        updateData.cancellationStatus = '';
+      }
+      await updateDoc(appointmentRef, updateData);
+
+      // Send email notification
+      const appointment = appointments.find(app => app.id === appointmentId);
+      if (appointment) {
+        const patient = patientProfiles.find(profile => profile.id === appointment.patientId);
+        if (patient && patient.email) {
+          try {
+            const formattedDate = new Date(appointment.date).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+            await fetch('/appointment/sendEmail', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                patientEmail: patient.email,
+                patientName: `${patient.name} ${patient.lastName}`,
+                status: newStatus === 'Accepted' ? 'Accepted' : 'Declined',
+                appointmentDetails: {
+                  date: formattedDate,
+                  time: appointment.time,
+                  service: appointment.service,
+                  reason: newStatus === 'Decline' ? rejectionReason : null
+                }
+              })
+            });
+          } catch (err) {
+            console.error("Failed to send email:", err);
+          }
         }
+      }
 
-        await updateDoc(appointmentRef, updateData);
-
-        await Swal.fire('Success!', `The appointment has been ${newStatus}.`, 'success');
-        rejectionReason = '';
-        showReasonModal = false;
+      await Swal.fire('Success!', `The appointment has been ${newStatus}.`, 'success');
+      rejectionReason = '';
+      showReasonModal = false;
 
     } catch (error) {
-        console.error('Error updating appointment status:', error);
-        await Swal.fire('Error!', 'There was an error updating the status. Please try again.', 'error');
-        if (newStatus === 'Decline') rejectionReason = '';
+      console.error('Error updating appointment status:', error);
+      await Swal.fire('Error!', 'There was an error updating the status. Please try again.', 'error');
+      if (newStatus === 'Decline') rejectionReason = '';
     }
   };
 
@@ -749,7 +751,7 @@
     <div class="flex flex-col lg:flex-row gap-6">
 
       <div class="flex-grow lg:w-2/3 order-2 lg:order-1">
-        <div class="bg-white p-4 rounded-lg shadow-md mt-6">
+        <div class="bg-white p-4 rounded-lg shadow-md">
           <h2 class="text-xl font-semibold mb-4">Scheduled Appointments</h2>
 
           <div class="tabs mb-4 border-b border-gray-200">
@@ -853,7 +855,7 @@
         </div>
       </div>
 
-      <div class="w-full lg:w-1/3 order-1 lg:order-2 space-y-6 mt-6">
+      <div class="w-full lg:w-1/3 order-1 lg:order-2 space-y-6">
 
         <Card class="w-full p-4 shadow-lg bg-white rounded-lg">
            <div class="card-content1 space-y-3">
@@ -886,17 +888,13 @@
                    {#if pendingReqs.length > 0}
                        {#each pendingReqs as appointment (appointment.id)}
                            <div class="appointment-card border border-gray-200 rounded-md p-3 shadow-sm text-sm">
-                               <p class="font-semibold text-gray-800">
-                                   {appointment.patientName}
-                                   {#if appointment.patientAge}
-                                       <span class="text-sm font-normal text-gray-600">({appointment.patientAge} years old)</span>
-                                   {/if}
-                               </p>
-                               <p class="text-gray-600">{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {appointment.time}</p>
+                               {#if patientProfiles.find(p => p.id === appointment.patientId)}
+                                  {@const patient = patientProfiles.find(p => p.id === appointment.patientId)}
+                                  <p class="font-semibold text-gray-800">{patient?.name} {patient?.lastName} ({patient?.age})</p>
+                               {:else}<p class="italic">Patient ID: {appointment.patientId}</p>{/if}
+                               <p class="text-gray-600">{appointment.date} at {appointment.time}</p>
                                <p class="text-gray-600 mt-1">Service: {appointment.service}</p>
-                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0}
-                                   <p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>
-                               {/if}
+                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0}<p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>{/if}
                                <div class="appointment-buttons flex gap-2 justify-end mt-2">
                                    <button class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs px-3 py-1 rounded" on:click={() => updatePendingAppointmentStatus(appointment.id, 'Accepted')}>Accept</button>
                                    <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => openReasonModal(appointment.id)}>Reject</button>
