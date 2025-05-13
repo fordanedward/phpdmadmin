@@ -4,7 +4,7 @@
   import { initializeApp } from 'firebase/app';
   import { firebaseConfig } from '$lib/firebaseConfig';
   import { Card } from 'flowbite-svelte';
-  import { Modal } from 'flowbite-svelte';
+  // import { Modal } from 'flowbite-svelte';
   import { writable } from 'svelte/store';
   import Swal from 'sweetalert2';
 
@@ -24,15 +24,15 @@
 
   let availableSlots: string[] = [];
   let date: string = '';
-  let time: string = '';
-  let newTime: string = '';
-  let appointmentId: string = '';
+  let time: string = ''; 
+  let newTime: string = ''; 
+  // let appointmentId: string = ''; 
   let appointmentService: string = '';
   let subServices: string = '';
   let remarks: string = '';
-  let cancelReason: string = '';
-  let cancellationStatus: string = '';
-  let showModal: boolean = false;
+  // let cancelReason: string = '';
+  // let cancellationStatus: string = '';
+  let showModal: boolean = false; 
 
   type Appointment = {
     remarks: any;
@@ -49,6 +49,10 @@
     followUpFrom?: string | null;
     createdAt?: string;
     reason?: string | null;
+    // Added for enriched data
+    patientName?: string;
+    patientAge?: number;
+    patientEmail?: string;
     [key: string]: any;
   };
 
@@ -60,49 +64,49 @@
     email: string;
   }
 
-  interface Prescription {
+  interface Prescription { 
     appointmentId: string;
     medicine: string;
     dosage: string;
     instructions: string;
   }
-  let prescription: Prescription = { appointmentId: '', medicine: '', dosage: '', instructions: '' };
+  // let prescription: Prescription = { appointmentId: '', medicine: '', dosage: '', instructions: '' };
 
-  let totalAppointments = 0;
-  let pendingAppointments = 0;
-  let completedAppointments = 0;
+  let totalAppointments = 0;  
+  let pendingAppointments = 0;  
+  let completedAppointments = 0;  
   let loading = true;
   let currentView: 'today' | 'week' | 'month' = 'today';
-  let currentSection = 0;
+  let currentSection = 0;  
 
-  let appointments: Appointment[] = [];
-  let patientProfiles: PatientProfile[] = [];
-  let pendingAppointmentsList: Appointment[] = [];
-  let selectedAppointment: Appointment | null = null;
+  let appointments: Appointment[] = [];  
+  let patientProfiles: PatientProfile[] = []; 
+  let pendingAppointmentsList: Appointment[] = [];  
+  let selectedAppointment: Appointment | null = null; 
   let isPrescriptionModalOpen = false;
-  let showReasonModal = false;
-  let rejectionReason = '';
-  let pendingAppointmentId = '';
+  let showReasonModal = false; 
+  let rejectionReason: string = '';
+  let pendingAppointmentId: string = '';  
 
-  let dateVisited: string = '';
-  let prescriber: string = '';
+  let dateVisited: string = '';  
+  let prescriber: string = ''; 
   interface Medicine {
     id: string;
     name: string;
     quantity: number;
   }
   let availableMedicines: Medicine[] = [];
-  let medication = '';
-  let qtyRefills = '';
-  let instructions = '';
-  let selectedMedicine: Medicine | null = null;
-  interface PrescriptionMedicine {
-    medicine: string;
-    dosage: string;
-    instructions: string;
-  }
-  let prescriptionMedicines: PrescriptionMedicine[] = [];
-  let prescriptionAdded = false;
+  let medication = '';  
+  let qtyRefills = '';  
+  let instructions = ''; 
+  let selectedMedicine: Medicine | null = null;  
+  // interface PrescriptionMedicine {  
+  //   medicine: string;
+  //   dosage: string;
+  //   instructions: string;
+  // }
+  // let prescriptionMedicines: PrescriptionMedicine[] = [];
+  let prescriptionAdded = false;  
 
   const today = new Date();
 
@@ -114,14 +118,30 @@
       const init = async () => {
           loading = true;
           try {
+              await fetchPatientProfiles();
+              await fetchAvailableMedicines();
+
               const appointmentsQuery = query(collection(db, "appointments"));
               unsubscribeAppointments = onSnapshot(appointmentsQuery, (snapshot) => {
-                  console.log("Appointment snapshot received");
-                  appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+                  console.log("Appointment snapshot received. Processing...");
+                  const rawAppointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+
+                  appointments = rawAppointments.map(app => {
+                      const patient = patientProfiles.find(p => p.id === app.patientId);
+                      return {
+                          ...app,
+                          patientName: patient ? `${patient.name || ''} ${patient.lastName || ''}`.trim() : 'Unknown Patient',
+                          patientAge: patient?.age || 0,
+                          patientEmail: patient?.email || ''
+                      };
+                  });
+                  console.log("Enriched appointments count:", appointments.length);
+                  if(appointments.length > 0) console.log("First enriched appointment example:", appointments[0]);
+
+
                   appointmentStore.set(appointments);
                   processAppointmentsData();
-                  // Set loading false only after the first data load,
-                  // subsequent updates don't trigger the main loading state
+
                   if (loading) {
                       loading = false;
                   }
@@ -131,15 +151,11 @@
                   loading = false;
               });
 
-              await fetchPatientProfiles();
-              await fetchAvailableMedicines();
-
           } catch (error) {
               console.error('Error during initial data fetch:', error);
               Swal.fire('Error', 'Failed to load initial page data.', 'error');
               loading = false;
           }
-          // Removed finally block setting loading to false here, handled in snapshot/error
       };
 
       init();
@@ -174,17 +190,33 @@
           app.cancellationStatus === 'requested'
       );
 
-      console.log("Processed appointments data:", { total: totalAppointments, pending: pendingAppointments, completed: completedAppointments, pendingListCount: pendingAppointmentsList.length });
+      console.log("Processed appointments data (summaries and pending list):", {
+          totalThisMonth: totalAppointments,
+          pendingThisMonth: pendingAppointments,
+          completedThisMonth: completedAppointments,
+          pendingListItemsCount: pendingAppointmentsList.length
+      });
   }
 
   const fetchPatientProfiles = async () => {
     try {
       const profilesRef = collection(db, 'patientProfiles');
       const querySnapshot = await getDocs(profilesRef);
-      patientProfiles = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PatientProfile));
+      patientProfiles = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || '',
+          lastName: data.lastName || '',
+          age: data.age || 0,
+          email: data.email || ''
+        } as PatientProfile;
+      });
       console.log("Fetched Patient Profiles:", patientProfiles.length);
+      if (patientProfiles.length > 0) console.log("First patient profile example:", patientProfiles[0]);
     } catch (error) {
-      console.error('Error fetching profiles:', error);
+      console.error('Error fetching patient profiles:', error);
+      Swal.fire('Error', 'Failed to load patient profiles. Patient names might not display correctly.', 'error');
     }
   };
 
@@ -201,82 +233,107 @@
 
   const updatePendingAppointmentStatus = async (appointmentId: string, newStatus: 'Accepted' | 'Decline') => {
     if (newStatus === 'Decline' && !rejectionReason.trim()) {
-      openReasonModal(appointmentId);
-      return;
+        openReasonModal(appointmentId);
+        return;
     }
 
     const confirmText = newStatus === 'Accepted'
-      ? 'Do you want to accept this appointment request?'
-      : `Do you want to reject this appointment request with reason: "${rejectionReason}"?`;
+        ? 'Do you want to accept this appointment request?'
+        : `Do you want to reject this appointment request with reason: "${rejectionReason}"?`;
 
     const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: confirmText,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: newStatus === 'Accepted' ? '#3085d6' : '#d33',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: `Yes, ${newStatus} it!`,
+        title: 'Are you sure?',
+        text: confirmText,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: newStatus === 'Accepted' ? '#3085d6' : '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: `Yes, ${newStatus} it!`,
     });
 
     if (!result.isConfirmed) {
-      if (newStatus === 'Decline') rejectionReason = '';
-      return;
+        if (newStatus === 'Decline') rejectionReason = '';
+        return;
     }
 
     try {
-      // Update Firestore
-      const appointmentRef = doc(db, 'appointments', appointmentId);
-      const updateData: { status: 'Accepted' | 'Decline'; reason: string | null; cancellationStatus?: string } = {
-        status: newStatus,
-        reason: newStatus === 'Decline' ? rejectionReason : null,
-      };
-      if (newStatus === 'Accepted') {
-        updateData.cancellationStatus = '';
-      }
-      await updateDoc(appointmentRef, updateData);
-
-      // Send email notification
-      const appointment = appointments.find(app => app.id === appointmentId);
-      if (appointment) {
-        const patient = patientProfiles.find(profile => profile.id === appointment.patientId);
-        if (patient && patient.email) {
-          try {
-            const formattedDate = new Date(appointment.date).toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            });
-            await fetch('/appointment/sendEmail', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                patientEmail: patient.email,
-                patientName: `${patient.name} ${patient.lastName}`,
-                status: newStatus === 'Accepted' ? 'Accepted' : 'Declined',
-                appointmentDetails: {
-                  date: formattedDate,
-                  time: appointment.time,
-                  service: appointment.service,
-                  reason: newStatus === 'Decline' ? rejectionReason : null
-                }
-              })
-            });
-          } catch (err) {
-            console.error("Failed to send email:", err);
-          }
+        const appointmentRef = doc(db, 'appointments', appointmentId);
+        const updateData: { status: string; reason?: string | null; cancellationStatus?: string } = {
+            status: newStatus,
+            reason: newStatus === 'Decline' ? rejectionReason : null,
+        };
+        if (newStatus === 'Accepted') {
+            updateData.cancellationStatus = '';
         }
-      }
+        await updateDoc(appointmentRef, updateData);
 
-      await Swal.fire('Success!', `The appointment has been ${newStatus}.`, 'success');
-      rejectionReason = '';
-      showReasonModal = false;
+        const appointment = appointments.find(app => app.id === appointmentId);
+
+        if (appointment && appointment.patientEmail) {
+            console.log(`Attempting to send email to ${appointment.patientEmail} for appointment ${appointment.id} (Status: ${newStatus})`);
+            try {
+                const formattedDate = new Date(appointment.date).toLocaleDateString('en-US', {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                });
+                const patientFullName = appointment.patientName || 'Patient';
+
+                const emailResponse = await fetch('/appointment/sendEmail', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patientEmail: appointment.patientEmail,
+                        patientName: patientFullName,
+                        status: newStatus,
+                        appointmentDetails: {
+                            date: formattedDate,
+                            time: appointment.time,
+                            service: appointment.service,
+                            reason: newStatus === 'Decline' ? rejectionReason : null
+                        }
+                    })
+                });
+
+                const responseData = await emailResponse.json();
+
+                if (!emailResponse.ok) {
+                    console.error("Failed to send email:", responseData);
+                    Swal.fire({
+                        title: 'Warning',
+                        text: `Appointment ${newStatus.toLowerCase()}, but failed to send email notification: ${responseData.message || 'Unknown error'}`,
+                        icon: 'warning'
+                    });
+                } else {
+                    console.log("Email sent successfully:", responseData);
+                    Swal.fire('Success!', `The appointment has been ${newStatus.toLowerCase()} and the patient has been notified.`, 'success');
+                }
+            } catch (err) {
+                console.error("Error sending email:", err);
+                Swal.fire({
+                    title: 'Warning',
+                    text: `Appointment ${newStatus.toLowerCase()}, but encountered an error sending email notification.`,
+                    icon: 'warning'
+                });
+            }
+        } else {
+            if (appointment && !appointment.patientEmail) {
+                console.warn(`Cannot send email for appointment ${appointmentId}: Patient email not found.`, appointment);
+                Swal.fire({
+                    title: 'Warning',
+                    text: `Appointment ${newStatus.toLowerCase()}, but no email address found for the patient to send notification.`,
+                    icon: 'warning'
+                });
+            } else if (!appointment) {
+                console.warn(`Cannot send email: Appointment with ID ${appointmentId} not found in local list.`);
+            }
+        }
+
+        rejectionReason = '';
+        showReasonModal = false;
 
     } catch (error) {
-      console.error('Error updating appointment status:', error);
-      await Swal.fire('Error!', 'There was an error updating the status. Please try again.', 'error');
-      if (newStatus === 'Decline') rejectionReason = '';
+        console.error('Error updating appointment status:', error);
+        Swal.fire('Error!', 'There was an error updating the status. Please try again.', 'error');
+        if (newStatus === 'Decline') rejectionReason = '';
     }
   };
 
@@ -379,7 +436,7 @@
               where("date", "==", appointment.date),
               where("time", "==", appointment.time),
               where("status", "in", ["Accepted", "Pending", "Scheduled", "Rescheduled", "Completed: Need Follow-up"]),
-              where("__name__", "!=", appointmentId)
+              where("__name__", "!=", appointmentId) // Exclude the current appointment from conflict check
           );
           const conflictSnapshot = await getDocs(conflictQuery);
 
@@ -434,12 +491,12 @@
   }
 
   async function loadAvailableSlots() {
-      const selectedDate = date;
+      const selectedDate = date; 
       availableSlots = [];
       console.log(`Loading slots for date: ${selectedDate}`);
 
       if (!selectedDate) {
-          console.warn("No date selected.");
+          console.warn("No date selected for loading slots.");
           return;
       }
 
@@ -452,47 +509,48 @@
               const scheduleData = scheduleSnap.data();
               if (scheduleData.isWorkingDay === false) {
                   console.log(`${selectedDate} is marked as a non-working day.`);
-                  return;
+                  return; 
               }
               scheduledSlotsForDay = scheduleData.availableSlots || [];
-              console.log(`Scheduled slots for ${selectedDate}:`, scheduledSlotsForDay);
+              console.log(`Scheduled slots from dailySchedules for ${selectedDate}:`, scheduledSlotsForDay);
           } else {
-              console.log(`No schedule defined for ${selectedDate}. No slots available.`);
-              return;
+              console.log(`No schedule defined in dailySchedules for ${selectedDate}. No slots available.`);
+              return; 
           }
 
           if (scheduledSlotsForDay.length === 0) {
-              console.log(`Schedule exists for ${selectedDate}, but no slots are defined.`);
+              console.log(`Schedule exists for ${selectedDate}, but no availableSlots are defined in it.`);
               return;
           }
 
           const q = query(
               collection(db, "appointments"),
               where("date", "==", selectedDate),
-              where("status", "in", ["Accepted", "Pending", "Scheduled", "Rescheduled", "Completed: Need Follow-up"])
+              where("status", "in", ["Accepted", "Pending", "Scheduled", "Rescheduled", "Completed: Need Follow-up"]) // Consider active statuses
           );
 
           const querySnapshot = await getDocs(q);
           const bookedSlots = querySnapshot.docs.map((doc) => doc.data().time);
-          console.log(`Booked slots for ${selectedDate}:`, bookedSlots);
+          console.log(`Booked slots on ${selectedDate}:`, bookedSlots);
 
           availableSlots = scheduledSlotsForDay.filter(
               (slot) => !bookedSlots.includes(slot)
           );
-          availableSlots.sort((a, b) => new Date(`1970-01-01 ${a}`).getTime() - new Date(`1970-01-01 ${b}`).getTime());
+          
+          availableSlots.sort((a, b) => new Date(`1970-01-01T${a}`).getTime() - new Date(`1970-01-01T${b}`).getTime());
 
           console.log(`Final available slots for ${selectedDate}:`, availableSlots);
 
       } catch (error) {
           console.error(`Error loading available slots for ${selectedDate}:`, error);
           Swal.fire('Error', `Could not load available time slots for ${selectedDate}.`, 'error');
-          availableSlots = [];
+          availableSlots = [];  
       }
   }
 
-  const openReasonModal = (appointmentId: string) => {
-      pendingAppointmentId = appointmentId;
-      rejectionReason = '';
+  const openReasonModal = (idOfAppointmentToReject: string) => {
+      pendingAppointmentId = idOfAppointmentToReject;
+      rejectionReason = '';  
       showReasonModal = true;
   };
 
@@ -501,63 +559,59 @@
           await Swal.fire('Error!', 'Please provide a reason for rejection.', 'error');
           return;
       }
+      
       await updatePendingAppointmentStatus(pendingAppointmentId, 'Decline');
+      // showReasonModal = false; 
   };
 
-  const openPrescriptionModal = (appointmentId: string) => {
-      selectedAppointment = appointments.find(appointment => appointment.id === appointmentId) ?? null;
+  const openPrescriptionModal = (appointmentIdToPrescribe: string) => {
+      selectedAppointment = appointments.find(appointment => appointment.id === appointmentIdToPrescribe) ?? null;
       if (!selectedAppointment) {
-          console.error("Appointment not found:", appointmentId);
-          Swal.fire('Error', 'Could not find the selected appointment.', 'error');
+          console.error("Appointment not found for prescription:", appointmentIdToPrescribe);
+          Swal.fire('Error', 'Could not find the selected appointment to add prescription.', 'error');
           return;
       }
 
-      const patient = patientProfiles.find(profile => profile.id === selectedAppointment?.patientId);
-      if (!patient) {
-          console.error("Patient not found for appointment:", appointmentId);
-          Swal.fire('Error', 'Could not find the patient profile for this appointment.', 'error');
-          return;
-      }
-
-      dateVisited = today.toISOString().split('T')[0];
+      dateVisited = today.toISOString().split('T')[0];  
       medication = '';
       instructions = '';
       qtyRefills = '';
       prescriber = '';
       selectedMedicine = null;
-      prescriptionMedicines = [];
+      // prescriptionMedicines = [];  
       prescriptionAdded = false;
-
       isPrescriptionModalOpen = true;
-      console.log('Prescription Modal opened for:', selectedAppointment.id);
+      console.log('Prescription Modal opened for appointment ID:', selectedAppointment.id);
   };
 
   const closePrescriptionModal = () => {
       isPrescriptionModalOpen = false;
+      selectedAppointment = null; 
   };
 
-  function showAppointmentModal(originatingAppointment: Appointment) {
-      console.log("Opening follow-up modal originating from:", originatingAppointment.id);
-      selectedAppointment = originatingAppointment;
+  function showAppointmentModal(originatingAppointment: Appointment) { 
+      console.log("Opening follow-up modal originating from appointment ID:", originatingAppointment.id);
+      selectedAppointment = originatingAppointment; 
 
-      date = '';
-      newTime = '';
-      availableSlots = [];
-      appointmentService = originatingAppointment.service;
-      subServices = '';
-      remarks = '';
+      date = '';  
+      newTime = '';  
+      availableSlots = [];  
+      appointmentService = originatingAppointment.service; 
+      subServices = ''; 
+      remarks = '';  
 
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      date = tomorrow.toISOString().split('T')[0];
+      date = tomorrow.toISOString().split('T')[0];  
 
-      showModal = true;
-      loadAvailableSlots();
+      showModal = true; 
+      loadAvailableSlots();  
   }
 
-  function hideAppointmentModal() {
+  function hideAppointmentModal() {  
       showModal = false;
-      selectedAppointment = null;
+      selectedAppointment = null;  
+      // Reset form fields
       date = '';
       newTime = '';
       availableSlots = [];
@@ -566,18 +620,19 @@
       remarks = '';
   }
 
-  async function addNewAppointment() {
+  async function addNewAppointment() {  
       if (!date || !newTime || !appointmentService) {
-          Swal.fire("Missing Information", "Please select a Date, Time, and enter a Service.", "warning");
+          Swal.fire("Missing Information", "Please select a Date, Time, and enter a Service for the follow-up.", "warning");
           return;
       }
       if (!selectedAppointment || !selectedAppointment.patientId) {
-           Swal.fire("Error", "Cannot add follow-up. Original appointment context is missing.", "error");
+           Swal.fire("Error", "Cannot add follow-up. Original appointment context (including patient ID) is missing.", "error");
            return;
       }
-       const patientId = selectedAppointment.patientId;
+       const patientIdForFollowUp = selectedAppointment.patientId;
 
       try {
+           
           const conflictQuery = query(
               collection(db, "appointments"),
               where("date", "==", date),
@@ -587,38 +642,39 @@
           const conflictSnapshot = await getDocs(conflictQuery);
 
           if (!conflictSnapshot.empty) {
-              Swal.fire("Time Slot Unavailable", `The time slot ${newTime} on ${date} is already booked or pending. Please choose a different time.`, "info");
+              Swal.fire("Time Slot Unavailable", `The time slot ${newTime} on ${date} is already booked or pending. Please choose a different time for the follow-up.`, "info");
               return;
           }
 
-           const newAppointmentData: Omit<Appointment, 'id'> & { createdAt: string; followUpFrom: string } = {
-             patientId: patientId,
+           const newFollowUpData: Omit<Appointment, 'id' | 'patientName' | 'patientAge' | 'patientEmail'> & { createdAt: string; followUpFrom: string } = {
+             patientId: patientIdForFollowUp,
              service: appointmentService,
              date: date,
              time: newTime,
              subServices: subServices ? subServices.split(',').map(s => s.trim()) : [],
              remarks: remarks || '',
-             status: 'Scheduled',
+             status: 'Scheduled', // Follow-ups are typically directly scheduled
              cancellationStatus: '',
              cancelReason: null,
              completionTime: null,
              reason: null,
              createdAt: new Date().toISOString(),
-             followUpFrom: selectedAppointment.id
+             followUpFrom: selectedAppointment.id  
            };
 
-          console.log("Adding new follow-up appointment:", newAppointmentData);
-          const addedDocRef = await addDoc(collection(db, "appointments"), newAppointmentData);
+          console.log("Adding new follow-up appointment data:", newFollowUpData);
+          const addedDocRef = await addDoc(collection(db, "appointments"), newFollowUpData);
           console.log("Follow-up appointment added with ID:", addedDocRef.id);
 
+          // Update status of the original appointment
           const originalAppointmentRef = doc(db, "appointments", selectedAppointment.id);
           await updateDoc(originalAppointmentRef, {
               status: "Completed: Need Follow-up"
           });
-          console.log(`Updated original appointment ${selectedAppointment.id} status.`);
+          console.log(`Updated original appointment ${selectedAppointment.id} status to 'Completed: Need Follow-up'.`);
 
           Swal.fire("Success", "Follow-up appointment scheduled successfully!", "success");
-          hideAppointmentModal();
+          hideAppointmentModal();  
 
       } catch (error) {
           console.error("Error adding follow-up appointment:", error);
@@ -626,77 +682,76 @@
       }
   }
 
-  const addSelectedMedicine = async () => { /* Implementation removed for brevity */ };
-  const addManualMedicine = () => { /* Implementation removed for brevity */ };
- const submitPrescription = async () => {
-  try {
-    if (selectedAppointment && prescriber && (selectedMedicine || medication) && qtyRefills) {
-      // Check for duplicate prescriptions
-      const existingPrescriptionQuery = query(
-        collection(db, "prescriptions"),
-        where("appointmentId", "==", selectedAppointment.id)
-      );
-      const existingSnapshot = await getDocs(existingPrescriptionQuery);
+  // const addSelectedMedicine = async () => { /* Not implemented in provided snippet */ };
+  // const addManualMedicine = () => { /* Not implemented in provided snippet */ };
 
-      if (!existingSnapshot.empty) {
-        await Swal.fire('Duplicate Prescription', 'A prescription already exists for this appointment.', 'warning');
-        return;
+  const submitPrescription = async () => {
+    try {
+      if (selectedAppointment && prescriber && (selectedMedicine || medication.trim()) && qtyRefills.trim()) {
+        const existingPrescriptionQuery = query(
+          collection(db, "prescriptions"),
+          where("appointmentId", "==", selectedAppointment.id)
+        );
+        const existingSnapshot = await getDocs(existingPrescriptionQuery);
+
+        if (!existingSnapshot.empty) {
+          await Swal.fire('Duplicate Prescription', 'A prescription already exists for this appointment.', 'warning');
+          return;
+        }
+
+        const medicineToAdd = {  
+          medicine: selectedMedicine ? selectedMedicine.name : medication.trim(),
+          dosage: qtyRefills.trim(),
+          instructions: instructions.trim(),
+        };
+
+        const prescriptionData = {
+          appointmentId: selectedAppointment.id,
+          patientId: selectedAppointment.patientId,  
+          medicines: [medicineToAdd],  
+          prescriber: prescriber,
+          dateVisited: dateVisited,  
+          createdAt: new Date().toISOString(),
+        };
+
+        await addDoc(collection(db, "prescriptions"), prescriptionData);
+
+        prescriptionAdded = true; 
+        closePrescriptionModal();
+        await Swal.fire('Success!', 'Prescription successfully added!', 'success');
+ 
+        medication = '';
+        qtyRefills = '';
+        instructions = '';
+        selectedMedicine = null;
+        prescriber = '';
+        
+      } else {
+        let message = "Cannot submit prescription: ";
+        if (!selectedAppointment) message += "No appointment selected. ";
+        if (!prescriber) message += "Prescriber not selected. ";
+        if (!selectedMedicine && !medication.trim()) message += "No medicine selected or entered. ";
+        if (!qtyRefills.trim()) message += "Dosage/Qty is required.";
+        await Swal.fire('Missing Information', message, 'warning');
       }
-
-      // Create the prescription data
-      const medicineToAdd: PrescriptionMedicine = {
-        medicine: selectedMedicine ? selectedMedicine.name : medication,
-        dosage: qtyRefills,
-        instructions: instructions,
-      };
-
-      const prescriptionData = {
-        appointmentId: selectedAppointment.id,
-        patientId: selectedAppointment.patientId,
-        medicines: [medicineToAdd],
-        prescriber: prescriber,
-        dateVisited: new Date().toISOString(), // Add the current timestamp
-        createdAt: new Date().toISOString(),
-      };
-
-      // Save the prescription to the database
-      await addDoc(collection(db, "prescriptions"), prescriptionData);
-
-      prescriptionAdded = true;
-      closePrescriptionModal();
-      await Swal.fire('Success!', 'Prescription successfully added!', 'success');
-
-      // Reset form fields
-      prescriptionMedicines = [];
-      prescriber = '';
-      selectedMedicine = null;
-      medication = '';
-      qtyRefills = '';
-      instructions = '';
-    } else {
-      let message = "Cannot submit prescription: ";
-      if (!selectedAppointment) message += "No appointment selected. ";
-      if (!prescriber) message += "Prescriber not selected. ";
-      if (!selectedMedicine && !medication) message += "No medicine selected or entered. ";
-      if (!qtyRefills) message += "Dosage/Qty is required.";
-
-      await Swal.fire('Missing Information', message, 'warning');
+    } catch (error) {
+      console.error("Error saving prescription:", error);
+      await Swal.fire('Error!', 'An error occurred while saving the prescription.', 'error');
     }
-  } catch (error) {
-    console.error("Error saving prescription:", error);
-    await Swal.fire('Error!', 'An error occurred while saving the prescription.', 'error');
-  }
-};
+  };
 
-  const filterAppointments = (view: 'today' | 'week' | 'month') => {
+  const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => {
     const now = new Date();
-    const todayDate = now.toDateString();
+    const todayDateStr = now.toDateString();  
+
     const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setDate(now.getDate() - now.getDay());  
     startOfWeek.setHours(0, 0, 0, 0);
+
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
+
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
@@ -707,42 +762,47 @@
         }
 
         const displayStatuses = ['Accepted', 'Scheduled', 'Rescheduled', 'Completed: Need Follow-up'];
-        if (!displayStatuses.includes(appt.status)) return false;
+        if (!displayStatuses.includes(appt.status)) {
+          return false;
+        }
 
         try {
-            const apptDate = new Date(appt.date);
-             apptDate.setHours(0, 0, 0, 0);
+            const apptDate = new Date(appt.date); // Assuming appt.date is 'YYYY-MM-DD'
+            // To compare dates correctly, it's often better to compare parts or timestamps of normalized dates
+            const apptDateNormalized = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate());
+
 
             if (view === 'today') {
-                return apptDate.toDateString() === todayDate;
+                return apptDateNormalized.toDateString() === todayDateStr;
             } else if (view === 'week') {
-                return apptDate >= startOfWeek && apptDate <= endOfWeek;
+                return apptDateNormalized >= startOfWeek && apptDateNormalized <= endOfWeek;
             } else if (view === 'month') {
-                return apptDate.getMonth() === currentMonth && apptDate.getFullYear() === currentYear;
+                return apptDateNormalized.getMonth() === currentMonth && apptDateNormalized.getFullYear() === currentYear;
             }
-            return false;
+            return false;  
         } catch(e) {
-             console.warn("Error parsing appointment date:", appt.date, e);
-             return false;
+             console.warn("Error parsing appointment date during filtering:", appt.date, e);
+             return false;  
         }
-    }).sort((a, b) => {
+    }).sort((a, b) => {  
         const dateA = new Date(a.date).getTime();
         const dateB = new Date(b.date).getTime();
         if (dateA !== dateB) return dateA - dateB;
+
         try {
-            const timeA = new Date(`1970-01-01 ${a.time}`).getTime();
-            const timeB = new Date(`1970-01-01 ${b.time}`).getTime();
-            if (isNaN(timeA) || isNaN(timeB)) return 0; // Handle invalid time strings
+           
+            const timeA = new Date(`1970-01-01T${a.time}`).getTime();
+            const timeB = new Date(`1970-01-01T${b.time}`).getTime();
+            if (isNaN(timeA) || isNaN(timeB)) return 0; 
             return timeA - timeB;
         } catch {
-            return 0; // Handle potential errors parsing time
+            return 0; 
         }
-    }) // Removed semicolon here
+    });
   };
 
 </script>
 
-<!-- HTML Template -->
 <div class="px-4 md:px-6 pb-4 md:pb-6 pt-0 ">
 
   {#if loading && appointments.length === 0}
@@ -751,7 +811,8 @@
     <div class="flex flex-col lg:flex-row gap-6">
 
       <div class="flex-grow lg:w-2/3 order-2 lg:order-1">
-        <div class="bg-white p-4 rounded-lg shadow-md">
+        <!-- Added mt-6 to match original, ensure consistent spacing -->
+        <div class="bg-white p-4 rounded-lg shadow-md mt-6">
           <h2 class="text-xl font-semibold mb-4">Scheduled Appointments</h2>
 
           <div class="tabs mb-4 border-b border-gray-200">
@@ -764,20 +825,16 @@
               {#each filterAppointments(currentView) as appointment (appointment.id)}
                 <article class="border border-gray-300 rounded-lg p-4 bg-white shadow transition hover:shadow-lg">
                   <section class="appointment-details mb-3">
-                     {#if patientProfiles.find(p => p.id === appointment.patientId)}
-                        <!-- This inner @const is correct as it's scoped to the #each block -->
-                        {@const patient = patientProfiles.find(p => p.id === appointment.patientId)}
-                        {#if patient}
-                          <p class="font-semibold text-gray-800">
-                             {patient.name} {patient.lastName}
-                             <span class="text-sm font-normal text-gray-600">({patient.age} years old)</span>
-                          </p>
-                        {:else}
-                           <!-- Fallback if find returns undefined, though the #if should handle it -->
-                           <p class="font-semibold text-gray-800 italic">Patient ID: {appointment.patientId} (Profile Error)</p>
-                        {/if}
+                     <!-- MODIFIED for direct patientName -->
+                     {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
+                       <p class="font-semibold text-gray-800">
+                          {appointment.patientName}
+                          {#if appointment.patientAge && appointment.patientAge > 0}
+                            <span class="text-sm font-normal text-gray-600">({appointment.patientAge} years old)</span>
+                          {/if}
+                       </p>
                      {:else}
-                        <p class="font-semibold text-gray-800 italic">Patient ID: {appointment.patientId} (Profile not loaded)</p>
+                        <p class="font-semibold text-gray-800 italic">Patient ID: {appointment.patientId} (Profile details missing)</p>
                      {/if}
 
                       <div class="my-1">
@@ -788,7 +845,7 @@
                       </div>
 
                       <p class="text-sm text-gray-600 mt-1">Service: {appointment.service}</p>
-                      {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0}
+                      {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
                          <p class="text-sm text-gray-600">Sub-services: {appointment.subServices.join(', ')}</p>
                       {/if}
 
@@ -811,7 +868,7 @@
                                  class="remarks-input w-full border border-gray-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                  bind:value={appointment.remarks}
                                  placeholder="Add remarks before completing/missing"
-                                 aria-label="Enter remarks for {appointment.date} at {appointment.time}"
+                                 aria-label="Enter remarks for {appointment.patientName || appointment.patientId} on {appointment.date} at {appointment.time}"
                              />
                           </div>
                        {:else}
@@ -855,7 +912,7 @@
         </div>
       </div>
 
-      <div class="w-full lg:w-1/3 order-1 lg:order-2 space-y-6">
+      <div class="w-full lg:w-1/3 order-1 lg:order-2 space-y-6 mt-6">
 
         <Card class="w-full p-4 shadow-lg bg-white rounded-lg">
            <div class="card-content1 space-y-3">
@@ -880,21 +937,29 @@
               </div>
            </div>
            <hr class="my-4">
-           <!--<div class="text-right mb-2"> <a class="view-all text-sm text-blue-600 hover:underline" href="/allstatus">View All Statuses</a> </div>-->
 
-            {#if currentSection === 0}
+            {#if currentSection === 0} <!-- Pending Appointments -->
                {@const pendingReqs = pendingAppointmentsList.filter(a => a.status === 'pending' && !a.cancellationStatus)}
                <div class="pending-appointments space-y-3">
                    {#if pendingReqs.length > 0}
                        {#each pendingReqs as appointment (appointment.id)}
                            <div class="appointment-card border border-gray-200 rounded-md p-3 shadow-sm text-sm">
-                               {#if patientProfiles.find(p => p.id === appointment.patientId)}
-                                  {@const patient = patientProfiles.find(p => p.id === appointment.patientId)}
-                                  <p class="font-semibold text-gray-800">{patient?.name} {patient?.lastName} ({patient?.age})</p>
-                               {:else}<p class="italic">Patient ID: {appointment.patientId}</p>{/if}
-                               <p class="text-gray-600">{appointment.date} at {appointment.time}</p>
+                               <!-- MODIFIED for direct patientName -->
+                               {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
+                                  <p class="font-semibold text-gray-800">
+                                    {appointment.patientName}
+                                    {#if appointment.patientAge && appointment.patientAge > 0}
+                                        <span class="text-sm font-normal text-gray-600">({appointment.patientAge} years old)</span>
+                                    {/if}
+                                  </p>
+                               {:else}
+                                  <p class="font-semibold text-gray-800 italic">Patient ID: {appointment.patientId} (Profile details missing)</p>
+                               {/if}
+                               <p class="text-gray-600">{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {appointment.time}</p>
                                <p class="text-gray-600 mt-1">Service: {appointment.service}</p>
-                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0}<p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>{/if}
+                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
+                                   <p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>
+                               {/if}
                                <div class="appointment-buttons flex gap-2 justify-end mt-2">
                                    <button class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs px-3 py-1 rounded" on:click={() => updatePendingAppointmentStatus(appointment.id, 'Accepted')}>Accept</button>
                                    <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => openReasonModal(appointment.id)}>Reject</button>
@@ -907,20 +972,29 @@
                </div>
            {/if}
 
-             {#if currentSection === 1}
+             {#if currentSection === 1} <!-- Pending Reschedule -->
                {@const rescheduleReqs = pendingAppointmentsList.filter(a => a.status === 'Reschedule Requested')}
                <div class="reschedule-requests space-y-3">
                    {#if rescheduleReqs.length > 0}
                        {#each rescheduleReqs as appointment (appointment.id)}
                            <div class="appointment-card border border-gray-200 rounded-md p-3 shadow-sm text-sm">
-                              {#if patientProfiles.find(p => p.id === appointment.patientId)}
-                                  {@const patient = patientProfiles.find(p => p.id === appointment.patientId)}
-                                  <p class="font-semibold text-gray-800">{patient?.name} {patient?.lastName} ({patient?.age})</p>
-                               {:else}<p class="italic">Patient ID: {appointment.patientId}</p>{/if}
+                              <!-- MODIFIED for direct patientName -->
+                              {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
+                                  <p class="font-semibold text-gray-800">
+                                    {appointment.patientName}
+                                    {#if appointment.patientAge && appointment.patientAge > 0}
+                                        <span class="text-sm font-normal text-gray-600">({appointment.patientAge} years old)</span>
+                                    {/if}
+                                  </p>
+                               {:else}
+                                  <p class="font-semibold text-gray-800 italic">Patient ID: {appointment.patientId} (Profile details missing)</p>
+                               {/if}
                                <p class="text-gray-600 italic">Requests reschedule to:</p>
-                               <p class="text-gray-600 font-medium">{appointment.date} at {appointment.time}</p>
+                               <p class="text-gray-600 font-medium">{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {appointment.time}</p>
                                <p class="text-gray-600 mt-1">Service: {appointment.service}</p>
-                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0}<p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>{/if}
+                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
+                                 <p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>
+                               {/if}
                                <div class="appointment-buttons flex gap-2 justify-end mt-2">
                                    <button class="bg-green-100 hover:bg-green-200 text-green-700 text-xs px-3 py-1 rounded" on:click={() => acceptReschedule(appointment.id)}>Accept</button>
                                    <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => rejectReschedule(appointment.id)}>Reject</button>
@@ -933,19 +1007,28 @@
                </div>
            {/if}
 
-            {#if currentSection === 2}
+            {#if currentSection === 2} <!-- Pending Cancellation -->
                {@const cancelReqs = pendingAppointmentsList.filter(a => a.cancellationStatus === 'requested')}
                <div class="pending-cancellations space-y-3">
                    {#if cancelReqs.length > 0}
                        {#each cancelReqs as appointment (appointment.id)}
                            <div class="appointment-card border border-gray-200 rounded-md p-3 shadow-sm text-sm">
-                               {#if patientProfiles.find(p => p.id === appointment.patientId)}
-                                  {@const patient = patientProfiles.find(p => p.id === appointment.patientId)}
-                                  <p class="font-semibold text-gray-800">{patient?.name} {patient?.lastName} ({patient?.age})</p>
-                               {:else}<p class="italic">Patient ID: {appointment.patientId}</p>{/if}
-                               <p class="text-gray-600">{appointment.date} at {appointment.time}</p>
+                               <!-- MODIFIED for direct patientName -->
+                               {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
+                                  <p class="font-semibold text-gray-800">
+                                    {appointment.patientName}
+                                    {#if appointment.patientAge && appointment.patientAge > 0}
+                                        <span class="text-sm font-normal text-gray-600">({appointment.patientAge} years old)</span>
+                                    {/if}
+                                  </p>
+                               {:else}
+                                  <p class="font-semibold text-gray-800 italic">Patient ID: {appointment.patientId} (Profile details missing)</p>
+                               {/if}
+                               <p class="text-gray-600">{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {appointment.time}</p>
                                <p class="text-gray-600 mt-1">Service: {appointment.service}</p>
-                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0}<p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>{/if}
+                               {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
+                                <p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>
+                               {/if}
                                <p class="text-gray-600 mt-1">Reason: <span class="italic">{appointment.cancelReason || 'No reason provided'}</span></p>
                                <div class="appointment-buttons flex gap-2 justify-end mt-2">
                                    <button class="bg-green-100 hover:bg-green-200 text-green-700 text-xs px-3 py-1 rounded" on:click={() => confirmCancellationStatusChange(appointment.id, 'Approved')}>Approve</button>
@@ -958,7 +1041,6 @@
                    {/if}
                </div>
            {/if}
-
         </div>
       </div>
     </div>
@@ -978,33 +1060,32 @@
           placeholder="Enter the reason..."
         ></textarea>
         <div class="flex justify-end space-x-3">
-          <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded" on:click={() => (showReasonModal = false)}>Cancel</button>
-          <button class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" on:click={confirmRejection}>Submit Rejection</button>
+          <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded" on:click={() => (showReasonModal = false)}>Cancel</button>
+          <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" on:click={confirmRejection}>Submit Rejection</button>
         </div>
       </div>
     </div>
   {/if}
 
-  {#if showModal}
+  {#if showModal}  
     <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 p-4" role="dialog" aria-modal="true">
-      <!-- Overlay close button for accessibility -->
       <button
         type="button"
         aria-label="Close Modal"
-        tabindex="0"
-        class="absolute top-0 left-0 w-full h-full bg-transparent border-0 p-0 m-0"
-        style="z-index:1; opacity:0; pointer-events:auto;"
+        tabindex="-1"  
+        class="fixed inset-0 w-full h-full bg-transparent cursor-default"
         on:click={hideAppointmentModal}
-        on:keydown={(e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { hideAppointmentModal(); } }}
       ></button>
-       <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-auto" role="document" on:click|stopPropagation>
+       <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-auto relative" role="document" on:click|stopPropagation>
         {#if selectedAppointment}
          <h3 class="text-xl font-semibold mb-5 text-center">
             Add Follow-up for
-             {#if patientProfiles.find(p => p.id === selectedAppointment?.patientId)}
-                {@const patient = patientProfiles.find(p => p.id === selectedAppointment?.patientId)}
-                {patient?.name} {patient?.lastName}
-             {:else} Patient ID: {selectedAppointment?.patientId} {/if}
+            <!-- MODIFIED for direct patientName -->
+            {#if selectedAppointment.patientName && selectedAppointment.patientName !== 'Unknown Patient'}
+                {selectedAppointment.patientName}
+            {:else}
+                Patient ID: {selectedAppointment.patientId}
+            {/if}
          </h3>
          <form on:submit|preventDefault={addNewAppointment} class="space-y-4">
            <div>
@@ -1015,18 +1096,18 @@
                bind:value={date}
                required
                on:change={loadAvailableSlots}
-               min={new Date().toISOString().split('T')[0]}
+               min={new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0]}  
                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
              />
            </div>
            <div>
-             <label for="newTime" class="block text-sm font-medium text-gray-700">Available Time:</label>
+             <label for="newTimeFollowUp" class="block text-sm font-medium text-gray-700">Available Time:</label>
              <select
-                id="newTime"
+                id="newTimeFollowUp"
                 bind:value={newTime}
                 required
                 class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                disabled={!date || (availableSlots.length === 0)}
+                disabled={!date || (availableSlots.length === 0 && !loading)} 
              >
                {#if !date}
                  <option value="" disabled selected>-- Select Date First --</option>
@@ -1039,8 +1120,8 @@
                  {/each}
                {/if}
              </select>
-              {#if date && availableSlots.length === 0}
-                 <p class="text-xs text-red-600 mt-1">No time slots available for {date}. It might be fully booked or a non-working day.</p>
+              {#if date && availableSlots.length === 0 && !loading} <!-- Show message if no slots and not actively loading -->
+                 <p class="text-xs text-red-600 mt-1">No time slots available for {new Date(date).toLocaleDateString()}. It might be fully booked or a non-working day.</p>
               {/if}
            </div>
            <div>
@@ -1062,6 +1143,9 @@
          </form>
         {:else}
             <p class="text-center text-red-500">Error: No appointment context found for follow-up.</p>
+            <div class="flex justify-end pt-4">
+                <button type="button" class="cancel-btn bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md" on:click={hideAppointmentModal}>Close</button>
+            </div>
         {/if}
        </div>
     </div>
@@ -1069,21 +1153,31 @@
 
 
   {#if isPrescriptionModalOpen}
-
-  <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-0 p-4" role="dialog" aria-modal="true">
-
-    <div class="modal-content bg-white p-6 rounded-lg shadow-xl relative w-full max-w-lg mx-auto max-h-[90vh] overflow-y-auto" role="document">
+  <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 p-4" role="dialog" aria-modal="true"> <!-- Ensure z-index is high -->
+    <button
+        type="button"
+        aria-label="Close Modal"
+        tabindex="-1"
+        class="fixed inset-0 w-full h-full bg-transparent cursor-default"
+        on:click={closePrescriptionModal}
+      ></button>
+    <div class="modal-content bg-white p-6 rounded-lg shadow-xl relative w-full max-w-lg mx-auto max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
        <button class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold" on:click={closePrescriptionModal} aria-label="Close Modal">×</button>
        {#if selectedAppointment}
            <h2 class="text-xl font-bold mb-5">
               Add Prescription for
-               {#if patientProfiles.find(p => p.id === selectedAppointment?.patientId)}
-                  {@const patient = patientProfiles.find(p => p.id === selectedAppointment?.patientId)}
-                  {patient?.name} {patient?.lastName}
-               {:else} Patient ID: {selectedAppointment?.patientId} {/if}
+              <!-- MODIFIED for direct patientName -->
+               {#if selectedAppointment.patientName && selectedAppointment.patientName !== 'Unknown Patient'}
+                  {selectedAppointment.patientName}
+               {:else}
+                  Patient ID: {selectedAppointment.patientId}
+               {/if}
            </h2>
            <form on:submit|preventDefault={submitPrescription} class="space-y-4">
-              <div> <label for="dateVisited" class="block text-sm font-medium text-gray-700 mb-1">Date Visited</label> <input id="dateVisited" type="date" bind:value={dateVisited} required class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" /> </div>
+              <div>
+                <label for="dateVisited" class="block text-sm font-medium text-gray-700 mb-1">Date Visited</label>
+                <input id="dateVisited" type="date" bind:value={dateVisited} required class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" />
+              </div>
               <div>
                  <label for="availableMedicine" class="block text-sm font-medium text-gray-700 mb-1">Available Medicines</label>
                  <select id="availableMedicine" bind:value={selectedMedicine} class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500">
@@ -1091,10 +1185,18 @@
                     {#each availableMedicines as med (med.id)} <option value={med}>{med.name} (Stock: {med.quantity})</option> {/each}
                  </select>
               </div>
-               <div> <label for="manualMedication" class="block text-sm font-medium text-gray-700 mb-1">Or Enter Medication Manually</label> <input id="manualMedication" type="text" bind:value={medication} placeholder="e.g., Paracetamol 500mg" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" /> </div>
-               <div> <label for="qtyRefills" class="block text-sm font-medium text-gray-700 mb-1">Dosage / Qty / Refills</label> <input id="qtyRefills" type="text" bind:value={qtyRefills} required placeholder="e.g., 1 tablet 3x a day / 30 tablets" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" /> </div>
-               <div> <label for="instructions" class="block text-sm font-medium text-gray-700 mb-1">Instructions</label> <textarea id="instructions" bind:value={instructions} rows="3" placeholder="e.g., Take with food" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500"></textarea> </div>
-
+               <div>
+                 <label for="manualMedication" class="block text-sm font-medium text-gray-700 mb-1">Or Enter Medication Manually</label>
+                 <input id="manualMedication" type="text" bind:value={medication} placeholder="e.g., Paracetamol 500mg" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" />
+               </div>
+               <div>
+                 <label for="qtyRefills" class="block text-sm font-medium text-gray-700 mb-1">Dosage / Qty / Refills</label>
+                 <input id="qtyRefills" type="text" bind:value={qtyRefills} required placeholder="e.g., 1 tablet 3x a day / 30 tablets" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" />
+               </div>
+               <div>
+                 <label for="instructions" class="block text-sm font-medium text-gray-700 mb-1">Instructions</label>
+                 <textarea id="instructions" bind:value={instructions} rows="3" placeholder="e.g., Take with food" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500"></textarea>
+               </div>
                <div>
                  <label for="prescriber" class="block text-sm font-medium text-gray-700 mb-1">Prescriber</label>
                  <select id="prescriber" bind:value={prescriber} required class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500">
@@ -1105,11 +1207,14 @@
               </div>
               <div class="flex justify-end pt-4">
                   <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md mr-3" on:click={closePrescriptionModal}>Cancel</button>
-                 <button type="submit" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500" disabled={!prescriber || (!selectedMedicine && !medication) || !qtyRefills}>Submit Prescription</button>
+                 <button type="submit" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500" disabled={!prescriber || (!selectedMedicine && !medication.trim()) || !qtyRefills.trim()}>Submit Prescription</button>
               </div>
            </form>
        {:else}
           <p class="text-center text-red-500">Error: No appointment context found for prescription.</p>
+          <div class="flex justify-end pt-4">
+            <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md mr-3" on:click={closePrescriptionModal}>Close</button>
+          </div>
        {/if}
     </div>
   </div>
@@ -1122,15 +1227,17 @@
    .icon-buttons img.icon { cursor: pointer; transition: transform 0.2s ease; }
    .icon-buttons img.icon:hover { transform: scale(1.1); }
    .appointment-container1::-webkit-scrollbar { width: 6px; }
-   .appointment-container1::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
-   .appointment-container1::-webkit-scrollbar-track { background-color: #f1f5f9; }
+   .appointment-container1::-webkit-scrollbar-thumb { background-color: #cbd5e1;  border-radius: 3px; }
+   .appointment-container1::-webkit-scrollbar-track { background-color: #f1f5f9;  }
    .appointment-container1 { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+
     select:disabled {
         cursor: not-allowed;
-        background-color: #f3f4f6;
+        background-color: #f3f4f6; 
         color: #9ca3af;
     }
+   
     .fixed.inset-0 {
-        z-index: 50;
+        z-index: 50; 
     }
 </style>

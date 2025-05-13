@@ -9,11 +9,13 @@ export interface AppointmentDetails {
 
 // Create a single transporter instance to reuse
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'tanyangqty25@gmail.com',
-    pass: 'sgnc yklv mieh nvfa',
-  },
+    service: 'gmail',
+    auth: {
+        user: 'tanyangqty25@gmail.com',
+        pass: 'sgnc yklv mieh nvfa',
+    },
+    debug: true, 
+    logger: true 
 });
 
 export async function sendAppointmentNotification(
@@ -23,6 +25,14 @@ export async function sendAppointmentNotification(
     appointmentDetails: AppointmentDetails
 ): Promise<void> {
     try {
+        console.log('Starting email send process...');
+        console.log('Email details:', {
+            to: patientEmail,
+            patientName,
+            status: appointmentStatus,
+            details: appointmentDetails
+        });
+
         let subject = `Appointment ${appointmentStatus}`;
         let messageContent = `
             <p>Dear ${patientName},</p>
@@ -35,7 +45,6 @@ export async function sendAppointmentNotification(
             </ul>
         `;
         
-        // Add reason for declined appointments
         if (appointmentStatus === 'Declined' && appointmentDetails.reason) {
             messageContent += `
                 <p><strong>Reason:</strong> ${appointmentDetails.reason}</p>
@@ -48,16 +57,27 @@ export async function sendAppointmentNotification(
             <p>AFDomingo Dental Clinic</p>
         `;
 
-        await transporter.sendMail({
+        console.log('Attempting to send email...');
+        
+        // Verify SMTP connection configuration
+        await transporter.verify();
+        console.log('SMTP connection verified successfully');
+
+        const mailOptions = {
             from: '"AFDomingo Dental Clinic" <tanyangqty25@gmail.com>',
             to: patientEmail,
             subject: subject,
             html: messageContent,
-        });
+        };
+
+        console.log('Sending email with options:', mailOptions);
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', info);
 
         return;
     } catch (error) {
-        console.error('Error sending email:', error);
+        console.error('Detailed error in sendAppointmentNotification:', error);
         if (error instanceof Error) {
             throw new Error(`Failed to send email: ${error.message}`);
         } else {
