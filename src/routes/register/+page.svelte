@@ -105,7 +105,7 @@
         switch(firestoreRole) {
             case 'userDentist': return '/dashboard';
             case 'userAdmin': return '/admin/panel';
-            case 'userSecretary': return '/secretary/dashboard';
+            case 'userSecretary': return '/dashboard';
             default:
                 console.warn(`Unexpected firestoreRole '${firestoreRole}' for redirection. Redirecting to default path '/auth/profile'.`);
                 return '/auth/profile';

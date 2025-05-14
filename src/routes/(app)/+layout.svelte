@@ -2,48 +2,62 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { browser } from '$app/environment'; 
+	import { browser } from '$app/environment';
 	import '../../app.css';
 
-	let isMobile = false;
-	let isCollapsed = false;
-	let isSidebarOpen = false;
+    import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+    import { doc, getDoc } from 'firebase/firestore';
+    import { auth as firebaseAppAuth, db as firebaseAppDb } from '$lib/firebaseConfig';  
+ 
+    interface UserProfileForLayout {
+        uid: string;
+        email: string | null;
+        displayName: string | null;
+        photoURL: string | null;
+        role?: 'userDentist' | 'userAdmin' | 'userSecretary' | 'userPatient' | 'userSuper'; // Match your Firestore roles
+    }
+    let layoutCurrentUser: UserProfileForLayout | null = null;
+    let layoutAuthLoading: boolean = true;
 
-	const MOBILE_BREAKPOINT = 768;
+
+	let isMobile = false;
+	let isCollapsed = false;  
+	let isSidebarOpen = false; 
+
+	const MOBILE_BREAKPOINT = 768;  
 
 	function checkLayoutMode() {
 		if (!browser) return;
-
-		const screenWidth = window.innerWidth; 
+		const screenWidth = window.innerWidth;
 		const currentlyMobile = screenWidth < MOBILE_BREAKPOINT;
 
 		if (currentlyMobile !== isMobile) {
 			isMobile = currentlyMobile;
-
 			if (isMobile) {
-				isCollapsed = true;
-				isSidebarOpen = false;
+				isCollapsed = true;  
+				isSidebarOpen = false;  
 			} else {
-				isSidebarOpen = false;
-				const savedState = sessionStorage.getItem('isCollapsed');
-				isCollapsed = savedState === 'true';
+				isSidebarOpen = false;  
+				const savedState = sessionStorage.getItem('isDesktopSidebarCollapsed');
+				isCollapsed = savedState === 'true';  
 			}
 		} else {
-			if (!isMobile && sessionStorage.getItem('isCollapsed') === null) { 
-				sessionStorage.setItem('isCollapsed', 'false'); 
-				isCollapsed = false;
-			}
-		}
+            
+            if (!isMobile && sessionStorage.getItem('isDesktopSidebarCollapsed') === null) {
+                sessionStorage.setItem('isDesktopSidebarCollapsed', 'false');
+                isCollapsed = false;
+            }
+        }
 	}
 
 	function toggleSidebarDesktop() {
 		if (!browser || isMobile) return; 
 		isCollapsed = !isCollapsed;
-		sessionStorage.setItem('isCollapsed', String(isCollapsed));
+		sessionStorage.setItem('isDesktopSidebarCollapsed', String(isCollapsed));
 	}
 
 	function toggleSidebarMobile() {
-		if (!browser || !isMobile) return; 
+		if (!browser || !isMobile) return;  
 		isSidebarOpen = !isSidebarOpen;
 	}
 
@@ -53,461 +67,435 @@
 		}
 	}
 
-	function logout() {
-		if (browser) { 
-			sessionStorage.removeItem('isCollapsed');
-		}
-		console.log('Logging out...');
-		closeSidebarMobile();
-		goto('/');
-	}
+    async function handleLogout() {
+        if (browser) {
+            sessionStorage.removeItem('isDesktopSidebarCollapsed');  
+            // sessionStorage.removeItem('isCollapsed');  
+        }
+        console.log('Logging out...');
+        closeSidebarMobile();  
+        try {
+            await firebaseSignOut(firebaseAppAuth);  
+            
+            goto('/'); 
+        } catch (error) {
+            console.error("Logout error:", error);
+           
+        }
+    }
+
+    interface MenuItemDef {
+        href: string;
+        icon: string;
+        alt: string;
+        text: string;
+        roles: Array<UserProfileForLayout['role']>; 
+    }
+
+    const allMenuItems: MenuItemDef[] = [
+        { href: "/dashboard", icon: "/images/icon-dashboard.png", alt: "Dashboard", text: "Dashboard", roles: ['userDentist', 'userSecretary'] },
+
+        { href: "/appointment", icon: "/images/appointment.png", alt: "Book Appointment", text: "Book Appointment", roles: ['userDentist'] }, // Assuming this is for booking FOR dentist view
+       // { href: "/patient-list", icon: "/images/icon-patient.png", alt: "Patient List", text: "Patient List", roles: ['userDentist'] },
+        { href: "/prescription", icon: "/images/prescription1.png", alt: "Prescriptions", text: "Prescriptions", roles: ['userDentist'] },
+        { href: "/medicine-list", icon: "/images/medicinelist.png", alt: "Medicines List", text: "Medicines List", roles: ['userDentist'] },
+        { href: "/appointment/manage", icon: "/images/calendar.png", alt: "Manage Appointments", text: "Appointments", roles: ['userSecretary'] }, // Icon needed
+        { href: "/secretary/manage-availability", icon: "/images/24-hours.png", alt: "Manage Availability", text: "Availability", roles: ['userSecretary',] }, // Icon needed
+        { href: "/secretary/payment", icon: "/images/wallet (1).png", alt: "Payments", text: "Payments", roles: ['userSecretary'] }, // Icon needed
+    ];
+
+    $: visibleMenuItems = layoutCurrentUser?.role
+        ? allMenuItems.filter(item => item.roles.includes(layoutCurrentUser?.role))
+        : [];
+
+    let displayFirstName = '';
+    let displayLastName = '';
+
+    $: {  
+        if (layoutCurrentUser?.displayName) {
+            const nameParts = layoutCurrentUser.displayName.split(' ');
+            displayFirstName = nameParts[0] || '';  
+            displayLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+        } else if (layoutCurrentUser?.email) {
+            displayFirstName = layoutCurrentUser.email.split('@')[0];  
+            displayLastName = '';
+        } else {
+            displayFirstName = 'User'; 
+            displayLastName = '';
+        }
+    }
 
 	onMount(() => {
-     
-		checkLayoutMode(); 
-		window.addEventListener('resize', checkLayoutMode); 
+        const unsubscribeAuth = onAuthStateChanged(firebaseAppAuth, async (user) => {
+            if (user) {
+                const userDocRef = doc(firebaseAppDb, "users", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    layoutCurrentUser = { uid: user.uid, ...userDocSnap.data() } as UserProfileForLayout;
+                } else {
+                    console.warn(`User ${user.uid} authenticated but profile not found in Firestore.`);
+                    layoutCurrentUser = {  
+                        uid: user.uid,
+                        email: user.email,
+                        displayName: user.displayName,
+                        photoURL: user.photoURL,
+                        role: undefined 
+                    };
+                }
+                
+                const currentPath = $page.url.pathname;
+                if (currentPath === '/' || currentPath.startsWith('/login') || currentPath.startsWith('/register') || currentPath.startsWith('/auth')) {
+                    if (layoutCurrentUser?.role === 'userDentist') goto('/dashboard');
+                    else if (layoutCurrentUser?.role === 'userSecretary') goto('/manage-availability');  
+                    // else goto('/some-default-page');  
+                }
 
-		const pageUnsubscribe = page.subscribe(() => {
-			if (browser && isMobile && isSidebarOpen) { 
-				closeSidebarMobile();
+            } else {
+                layoutCurrentUser = null;
+                const currentPath = $page.url.pathname;
+                if (currentPath !== '/' && !currentPath.startsWith('/login') && !currentPath.startsWith('/register') && !currentPath.startsWith('/auth')) {
+                   if(browser) goto('/login?redirect=' + encodeURIComponent(currentPath));  
+                }
+            }
+            layoutAuthLoading = false;
+        });
+
+		checkLayoutMode();  
+		window.addEventListener('resize', checkLayoutMode);
+
+		const pageUnsubscribe = page.subscribe((currentPage) => {  
+			if (browser && isMobile && isSidebarOpen) {
+				closeSidebarMobile();  
 			}
+           
+            if (!layoutCurrentUser && currentPage.url.pathname !== '/' && !currentPage.url.pathname.startsWith('/login') && !currentPage.url.pathname.startsWith('/register') && !currentPage.url.pathname.startsWith('/auth')) {
+                
+            }
 		});
 
-		return () => {
-			if (browser) { 
+		return () => {  
+			if (browser) {
 				window.removeEventListener('resize', checkLayoutMode);
 			}
 			pageUnsubscribe();
+            unsubscribeAuth();  
 		};
 	});
 
 </script>
 
-<div class="app-layout">
-	{#if isMobile}
-		<header class="app-header">
-			<button on:click={toggleSidebarMobile} class="hamburger-btn" aria-label="Toggle Menu" aria-expanded={isSidebarOpen}>
-				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-				</svg>
-			</button>
-			<!--<span class="header-title">Patient Management</span>-->
-		</header>
-	{/if}
-
-	<div class="sidebar {isMobile ? (isSidebarOpen ? 'open' : 'closed-mobile') : (isCollapsed ? 'collapsed' : 'open-desktop')}">
-		<div class="sidebar-header">
+{#if layoutAuthLoading}
+    <div class="loading-screen">  
+        <p>Loading Application...</p>
+    </div>
+{:else}
+    <div class="app-layout">
+        {#if layoutCurrentUser} 
             {#if isMobile}
-                 <button on:click={closeSidebarMobile} class="close-sidebar-btn" aria-label="Close Menu"></button>
+                <header class="app-header">
+                    <button on:click={toggleSidebarMobile} class="hamburger-btn" aria-label="Toggle Menu" aria-expanded={isSidebarOpen}>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                    </button>
+                 
+                </header>
             {/if}
-			<div class="circle-background">
-				<img src={'/images/logo(landing) copy.png'} alt="Logo" />
-			</div>
 
-			<!-- 	{#if (!isMobile && !isCollapsed) || (isMobile && isSidebarOpen)}
-				<div class="name-container">
-					<span>Alfred Domingo</span>
-					<span>Fernalyn Domingo</span>
-				</div>
-			{/if}-->
-		</div>
+            <div class="sidebar {isMobile ? (isSidebarOpen ? 'open' : 'closed-mobile') : (isCollapsed ? 'collapsed' : 'open-desktop')}">
+                <div class="sidebar-header">
+                    {#if isMobile && isSidebarOpen} 
+                        <button on:click={closeSidebarMobile} class="close-sidebar-btn" aria-label="Close Menu">×</button>
+                    {/if}
+                    <div class="circle-background">
+                        <img src={layoutCurrentUser.photoURL || '/images/logo(landing) copy.png'} alt="User or Logo" />
+                    </div>
 
-		<ul class="sidebar-menu">
-            <li><a href="/dashboard"><img class="icon" src="/images/icon-dashboard.png" alt="Dashboard" /><span class="text">Dashboard</span></a></li>
-            <li><a href="/appointment"><img class="icon" src="/images/appointment.png" alt="Appointment" /><span class="text">Appointment</span></a></li>
-            <li><a href="/prescription"><img class="icon" src="/images/prescription1.png" alt="Prescriptions" /><span class="text">Prescriptions</span></a></li>
-            <li><a href="/medicine-list"><img class="icon" src="/images/medicinelist.png" alt="Medicines List" /><span class="text">Medicines List</span></a></li>
-		</ul>
+                    {#if (!isMobile && !isCollapsed) || (isMobile && isSidebarOpen)}
+                        <div class="name-container">
+                            <span>{displayFirstName}</span>
+                            {#if displayLastName}<span>{displayLastName}</span>{/if}
+                            {#if layoutCurrentUser.role}
+                                <span style="font-size: 0.7rem; opacity: 0.8; margin-top:3px; text-transform: capitalize;">
+                                    ({layoutCurrentUser.role.replace('user','')})
+                                </span>
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
 
-	<button class="logout-btn" on:click={logout}>
-    {#if isMobile || (!isMobile && !isCollapsed)}
-        <!-- Laging ipakita ito sa mobile, O kapag desktop at hindi collapsed -->
-        <img src="/images/logout-icon.png" alt="Logout" class="logout-icon" />
-        <span>Logout</span>
-    {:else if !isMobile && isCollapsed}
-        <!-- Para lang ito sa desktop collapsed view -->
-        <img src="/images/logout-icon.png" alt="Logout" class="logout-icon" />
-    {/if}
-</button>
+                <ul class="sidebar-menu">
+                    {#each visibleMenuItems as item (item.href)}
+                        <li>
+                           
+                            <a href={item.href} class:active={$page.url.pathname === item.href || ($page.url.pathname.startsWith(item.href) && item.href !== '/' && item.href.length > 1 && $page.url.pathname.charAt(item.href.length) === '/') }>
+                                <img class="icon" src={item.icon} alt={item.alt} />
+                                <span class="text">{item.text}</span>
+                            </a>
+                        </li>
+                    {/each}
+                </ul>
 
-		{#if !isMobile}
-			<button class="toggle-btn" on:click={toggleSidebarDesktop} aria-label={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}>
-				{isCollapsed ? '➡️' : '⬅️'}
-			</button>
-		{/if}
-	</div>
+                <button class="logout-btn" on:click={handleLogout}>
+                    {#if (isMobile && isSidebarOpen) || (!isMobile && !isCollapsed)}
+                        <img src="/images/logout-icon.png" alt="Logout" class="logout-icon" />
+                        <span>Logout</span>
+                    {:else} 
+                        <img src="/images/logout-icon.png" alt="Logout" class="logout-icon" />
+                    {/if}
+                </button>
 
-    {#if isMobile && isSidebarOpen}
-        <div class="backdrop" on:click={closeSidebarMobile} aria-hidden="true"></div>
-    {/if}
+                {#if !isMobile}  
+                    <button class="toggle-btn" on:click={toggleSidebarDesktop} aria-label={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}>
+                        {isCollapsed ? '➡️' : '⬅️'}
+                    </button>
+                {/if}
+            </div>
 
-	<main class="content {isMobile ? 'mobile' : (isCollapsed ? 'collapsed' : 'desktop')}">
-		<slot />
-	</main>
-</div>
+            {#if isMobile && isSidebarOpen}
+                <div class="backdrop" on:click={closeSidebarMobile} aria-hidden="true"></div>
+            {/if}
+        {/if} <!-- End of #if layoutCurrentUser -->
+
+        <main class="content {isMobile ? 'mobile' : (layoutCurrentUser && isCollapsed ? 'collapsed' : 'desktop')} {layoutCurrentUser ? '' : 'no-sidebar'}">
+            <slot />
+        </main>
+    </div>
+{/if}
+
 <style>
 	:root {
 		--sidebar-width-desktop: 11.6rem;
-		--sidebar-width-collapsed: 4.22rem;
-		--sidebar-width-mobile: 200px; 
+		--sidebar-width-collapsed: 4.22rem; 
+		--sidebar-width-mobile: 250px;  
+        --header-height-mobile: 56px; 
 	
-		--sidebar-bg-color: #334eac;
+		--sidebar-bg-color: #334eac;  
 		--sidebar-text-color: white;
-		--content-bg-color: #f4f7f6;
+		--sidebar-hover-bg-color: #4a69bd;  
+        --sidebar-active-bg-color: #2c3e50; 
+		--content-bg-color: #f4f7f6;  
 		--sidebar-transition: 0.3s ease-in-out;
 	}
+
+    .loading-screen {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-size: 1.2rem;
+        color: #333;
+    }
 
 	.app-layout {
 		min-height: 100vh;
 		background-color: var(--content-bg-color);
 	}
 
+/* Mobile Header */
 	.app-header {
-		display: none;
-		position: sticky;
+		/* display: none; /* Controlled by #if isMobile in template */
+		position: sticky; 
 		top: 0;
 		width: 100%;
 		background-color: var(--sidebar-bg-color);
 		color: var(--sidebar-text-color);
 		padding: 0.75rem 1rem;
+		height: var(--header-height-mobile);
+		display: flex; 
 		align-items: center;
-		z-index: 900;
+		z-index: 900; 
 		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 	}
-
 	.hamburger-btn {
-		background: none;
-		border: none;
-		color: white;
-		cursor: pointer;
-		padding: 0.5rem;
-		margin-right: 1rem;
+		background: none; border: none; color: var(--sidebar-text-color); cursor: pointer;
+		padding: 0.5rem; margin-right: 0.5rem;
 	}
+	.hamburger-btn svg { display: block; width: 24px; height: 24px; }
+	/* .header-title { font-size: 1.1rem; font-weight: 500; margin-left: auto; margin-right: auto; } */
 
-	.hamburger-btn svg {
-		display: block;
-		width: 24px;
-		height: 24px;
-	}
 
-	.header-title {
-		font-size: 1.1rem;
-		font-weight: 500;
-	}
-
+/* Sidebar General */
 	.sidebar {
 		position: fixed;
-		top: 0;
-		left: 0;
+		top: 0; left: 0;
 		background-color: var(--sidebar-bg-color);
 		color: var(--sidebar-text-color);
 		height: 100vh;
 		display: flex;
 		flex-direction: column;
-		overflow-x: hidden;
-		overflow-y: auto;
-		box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
-		transition: transform var(--sidebar-transition), width var(--sidebar-transition);
+		overflow-x: hidden; 
+		overflow-y: auto;  
+		box-shadow: 2px 0 5px rgba(0,0,0,0.2);
 	}
 
+/* Sidebar Header (User Info) */
 	.sidebar-header {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 20px 0;
-		flex-shrink: 0;
+		display: flex; flex-direction: column; align-items: center;
+		padding: 20px 10px; /* Adjusted padding */
+		flex-shrink: 0; 
 		position: relative;
 	}
-
 	.sidebar-header .circle-background {
-		display: flex;
-		justify-content: center;
-		align-items: center;
+		display: flex; justify-content: center; align-items: center;
 		background-color: white;
 		border-radius: 50%;
 		overflow: hidden;
 		flex-shrink: 0;
-		transition: width 0.3s ease, height 0.3s ease;
+		transition: width var(--sidebar-transition), height var(--sidebar-transition);
 	}
-
 	.sidebar-header .circle-background img {
-		display: block;
-		max-width: 90%;
-		height: auto;
+		display: block; width: 100%; height: 100%; object-fit: cover;
 	}
-
 	.name-container {
-		margin-top: 11px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		flex-shrink: 0;
+		margin-top: 10px; display: flex; flex-direction: column; align-items: center;
+		flex-shrink: 0; text-align: center;
 	}
-
 	.name-container span {
-		margin-top: 2px;
-		font-size: 0.9rem;
-		white-space: nowrap;
-		text-align: center;
+		margin-top: 2px; font-size: 0.9rem; white-space: nowrap;
+        max-width: calc(var(--sidebar-width-desktop) - 40px); /* Prevent overflow */
+        overflow: hidden; text-overflow: ellipsis;
 	}
+    .name-container span:last-child { font-size: 0.75rem; opacity: 0.8; text-transform: capitalize;}
 
+
+/* Sidebar Menu Items */
 	.sidebar-menu {
-		list-style: none;
-		padding: 0;
-		padding-top: 2rem;
-		margin: 0;
-		flex-grow: 1;
+		list-style: none; padding: 0; margin: 0;
+		padding-top: 0.5rem; /* Reduced */
+		flex-grow: 1; 
 	}
-
-	.sidebar-menu li {
-		padding: 0;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
-	}
-
-	.sidebar-menu li:hover {
-		background-color: #007bb5;
-	}
-
-	.sidebar-menu a {
-		display: flex;
-		align-items: center;
-		text-decoration: none;
-		color: white;
+	.sidebar-menu li a {
+		display: flex; align-items: center; text-decoration: none;
+		color: var(--sidebar-text-color);
 		width: 100%;
-		padding: 12px 20px;
-		white-space: nowrap;
-		overflow: hidden;
+		padding: 10px 20px; /* Slightly less padding */
+		white-space: nowrap; overflow: hidden; 
+        transition: background-color 0.2s ease;
 	}
+	.sidebar-menu li a:hover { background-color: var(--sidebar-hover-bg-color); }
+	.sidebar-menu li a.active { background-color: var(--sidebar-active-bg-color); font-weight: 500; }
 
 	.sidebar-menu a .icon {
-		width: 24px;
-		height: 24px;
+		width: 20px; height: 20px; /* Slightly smaller icons */
 		flex-shrink: 0;
 		transition: margin-right var(--sidebar-transition);
 	}
-
 	.sidebar-menu a .text {
-		font-size: 0.95rem;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		opacity: 1;
-		transition: opacity 0.1s ease, width var(--sidebar-transition);
-		margin-left: 15px;
+		font-size: 0.9rem; /* Slightly smaller text */
+		overflow: hidden; text-overflow: ellipsis;
+		opacity: 1; 
+		transition: opacity 0.1s ease 0.1s, width var(--sidebar-transition);  
+		margin-left: 12px; /* Adjusted space */
 	}
 
+/* Logout & Toggle Buttons */
 	.logout-btn {
 		background-color: transparent;
-		border: 1px solid rgba(255, 255, 255, 0.5);
-		color: white;
-		cursor: pointer;
-		font-size: 0.95rem;
-		padding: 8px 15px;
-		margin: 15px;
-		margin-top: auto;
-		border-radius: 20px;
-		text-align: center;
+		border: 1px solid rgba(255,255,255,0.3);
+		color: var(--sidebar-text-color); cursor: pointer; font-size: 0.9rem;
+		padding: 8px 15px; margin: 15px; margin-top: auto;  
+		border-radius: 20px; text-align: center;
 		transition: background-color 0.2s ease, padding var(--sidebar-transition), border-color 0.2s ease;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		gap: 8px;
+		display: flex; align-items: center; justify-content: center;
+		flex-shrink: 0; gap: 8px;
 	}
+	.logout-btn:hover { background-color: var(--sidebar-hover-bg-color); border-color: var(--sidebar-hover-bg-color); }
+	.logout-btn img.logout-icon { width: 16px; height: 16px; }  
 
-	.logout-btn:hover {
-		background-color: #007bb5;
-		border-color: #007bb5;
+	.toggle-btn {  
+		display: none;  
+		cursor: pointer; background-color: rgba(0,0,0,0.1); border: none;
+		color: var(--sidebar-text-color); font-size: 1rem; padding: 8px 0;
+		text-align: center; flex-shrink: 0; width: 100%;
+		margin-top: 10px;  
 	}
-
-	.logout-btn img.logout-icon {
-		width: 18px;
-		height: 18px;
-	}
+	.toggle-btn:hover { background-color: rgba(0,0,0,0.2); }
 
 	@media (max-width: 767px) {
-		.app-header {
-			display: flex;
-		}
-
 		.sidebar {
 			width: var(--sidebar-width-mobile);
-			transform: translateX(-100%);
-			z-index: 1000;
+			transform: translateX(-100%); 
+			z-index: 1000; 
 			transition: transform var(--sidebar-transition);
 		}
+		.sidebar.open { transform: translateX(0); }  
 
-		.sidebar.open {
-			transform: translateX(0);
-		}
+		.sidebar-header .circle-background { width: 60px; height: 60px; margin-top: 20px; }  
+        .name-container span { max-width: calc(var(--sidebar-width-mobile) - 40px); }
+		.sidebar-menu a .text { opacity: 1; width: auto; margin-left: 12px; }  
 
-		.sidebar-header .circle-background {
-			width: 80px;
-			height: 80px;
-		}
-
-		.sidebar-menu a .icon {
-			
-		}
-
-		.sidebar-menu a .text {
-			opacity: 1;
-			width: auto;
-			margin-left: 15px;
-		}
-
-		.logout-btn {
-			padding: 8px 15px;
-		}
-
-		.logout-btn span {
-			display: inline;
-		}
+		.logout-btn { justify-content: flex-start; padding: 10px 20px; }  
+		.logout-btn span { display: inline; }
 
 		.content.mobile {
 			margin-left: 0;
-			padding-top: var(--header-height-mobile);
-			transition: filter var(--sidebar-transition);
+			padding-top: var(--header-height-mobile);  
 			width: 100%;
 		}
-
 		.close-sidebar-btn {
-			position: absolute;
-			top: 10px;
-			right: 15px;
-			background: none;
-			border: none;
-			color: rgba(255, 255, 255, 0.7);
-			font-size: 1.5rem;
-			cursor: pointer;
-			padding: 5px;
-			line-height: 1;
-			display: block;
+			position: absolute; top: 5px; right: 10px;
+			background: none; border: none; color: rgba(255,255,255,0.7);
+			font-size: 1.8rem; cursor: pointer; padding: 5px; line-height: 1;
+			display: block; z-index: 10;
 		}
-
-		.close-sidebar-btn:hover {
-			color: white;
-		}
-
-		.toggle-btn {
-			display: none;
-		}
+		.close-sidebar-btn:hover { color: var(--sidebar-text-color); }
 
 		.backdrop {
-			position: fixed;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-			background-color: rgba(0, 0, 0, 0.5);
-			z-index: 999;
-			opacity: 0;
-			visibility: hidden;
-			transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s;
+			position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+			background-color: rgba(0,0,0,0.5); z-index: 999;
+			opacity: 0; visibility: hidden;
+			transition: opacity var(--sidebar-transition), visibility 0s linear var(--sidebar-transition);  
 		}
-
-		.sidebar.open + .backdrop {
-			opacity: 1;
-			visibility: visible;
-			transition: opacity 0.3s ease-in-out, visibility 0s linear 0s;
+		.sidebar.open ~ .backdrop {  
+			opacity: 1; visibility: visible;
+			transition: opacity var(--sidebar-transition), visibility 0s linear 0s; 
 		}
 	}
 
 	@media (min-width: 768px) {
-		.sidebar {
-			transform: none;
+		.app-header { display: none; }
+		.close-sidebar-btn { display: none; }
+		.backdrop { display: none; }
+
+		.sidebar {  
+			transform: none; 
 			width: var(--sidebar-width-desktop);
-			z-index: 50;
+			z-index: 50; 
 			transition: width var(--sidebar-transition);
 		}
-
-		.sidebar.collapsed {
+		.sidebar.collapsed { 
 			width: var(--sidebar-width-collapsed);
-			overflow: hidden;
 		}
+		.sidebar-header .circle-background { width: 70px; height: 70px; }  
+		.sidebar.collapsed .sidebar-header .circle-background { width: 40px; height: 40px; }  
+        .name-container span { max-width: calc(var(--sidebar-width-desktop) - 40px); }
+        .sidebar.collapsed .name-container { display: none; }  
 
-		.sidebar-header .circle-background {
-			width: 80px;
-			height: 80px;
-		}
-
-		.sidebar.collapsed .sidebar-header .circle-background {
-			width: 50px;
-			height: 50px;
-		}
-
-		.sidebar-menu a .icon {
-			
-		}
 
 		.sidebar.collapsed .sidebar-menu a {
-			justify-content: center;
-			padding: 12px 0;
+			justify-content: center; padding: 12px 10px;  
 		}
-
-		.sidebar.collapsed .sidebar-menu a .icon {
-			margin-right: 0;
-		}
-
+		.sidebar.collapsed .sidebar-menu a .icon { margin-right: 0; }
 		.sidebar.collapsed .sidebar-menu a .text {
-			opacity: 0;
-			width: 0;
-			margin-left: 0;
+			opacity: 0; width: 0; margin-left: 0;
+            transition-delay: 0s;  
 		}
 
-		.logout-btn {
-			padding: 8px 15px;
-		}
-
-		.logout-btn span {
-			display: inline;
-		}
-
+		.logout-btn span { display: inline; }  
 		.sidebar.collapsed .logout-btn {
-			width: auto;
-			padding: 8px;
-			margin: 15px auto;
+			width: auto; padding: 8px; margin: 15px auto;  
 		}
+		.sidebar.collapsed .logout-btn span { display: none; } 
 
-		.sidebar.collapsed .logout-btn span {
-			display: none;
-		}
-
-		.content.desktop {
-			margin-left: var(--sidebar-width-desktop);
-			padding-top: 0;
+		.content { 
+			padding-top: 0; 
 			transition: margin-left var(--sidebar-transition);
-			width: auto;
 		}
+        .content.desktop { margin-left: var(--sidebar-width-desktop); } 
+		.content.collapsed { margin-left: var(--sidebar-width-collapsed); }  
+        .content.no-sidebar { margin-left: 0 !important; } 
 
-		.content.collapsed {
-			margin-left: var(--sidebar-width-collapsed);
-		}
-
-		.close-sidebar-btn {
-			display: none;
-		}
-
-		.backdrop {
-			display: none;
-		}
-
-		.toggle-btn {
-			display: block;
-			cursor: pointer;
-			background-color: rgba(0, 0, 0, 0.1);
-			border: none;
-			color: white;
-			font-size: 1rem;
-			padding: 8px 0;
-			text-align: center;
-			flex-shrink: 0;
-			width: 100%;
-			margin-top: 10px;
-		}
-
-		.toggle-btn:hover {
-			background-color: rgba(0, 0, 0, 0.2);
-		}
+		.toggle-btn { display: block; }  
 	}
 </style>

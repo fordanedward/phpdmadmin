@@ -70,6 +70,11 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {#each payments as payment}
         <div class="bg-white border border-gray-200 rounded-lg shadow p-5 flex flex-col gap-2">
+          {#if payment.cancellationStatus === 'requested'}
+            <span class="inline-block px-2 py-1 rounded bg-yellow-100 text-yellow-800 text-xs font-semibold mb-2">
+              Refund Requested
+            </span>
+          {/if}
           <div class="flex items-center gap-3 mb-2">
             <div class="flex-1">
               <p class="font-semibold text-lg text-gray-800">{payment.patientName}</p>
@@ -86,7 +91,22 @@
             <div><span class="font-medium">Date:</span> {payment.date}</div>
             <div><span class="font-medium">Time:</span> {payment.time}</div>
             <div><span class="font-medium">Service:</span> {payment.service}</div>
-            <div><span class="font-medium">Amount:</span> {payment.amount || '-'}</div>
+            <div><span class="font-medium">Amount:</span> {payment.amount || payment.paymentAmount || '-'}</div>
+            {#if payment.cancellationStatus}
+              <div>
+                <span class="font-medium">Refund Status:</span>
+                <span class="ml-1 px-2 py-1 rounded
+                  {payment.cancellationStatus === 'requested' ? 'bg-yellow-100 text-yellow-800' : ''}
+                  {payment.cancellationStatus === 'Approved' ? 'bg-green-100 text-green-800' : ''}
+                  {payment.cancellationStatus === 'Declined' ? 'bg-red-100 text-red-800' : ''}
+                ">
+                  {payment.cancellationStatus === 'requested' ? 'Refund Requested'
+                    : payment.cancellationStatus === 'Approved' ? 'Refund Approved'
+                    : payment.cancellationStatus === 'Declined' ? 'Refund Declined'
+                    : payment.cancellationStatus}
+                </span>
+              </div>
+            {/if}
           </div>
         </div>
       {/each}
