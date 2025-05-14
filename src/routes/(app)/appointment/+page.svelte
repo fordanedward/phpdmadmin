@@ -53,6 +53,7 @@
     patientName?: string;
     patientAge?: number;
     patientEmail?: string;
+    paymentStatus?: string;
     [key: string]: any;
   };
 
@@ -845,6 +846,11 @@
                       </div>
 
                       <p class="text-sm text-gray-600 mt-1">Service: {appointment.service}</p>
+                      {#if appointment.status === 'Accepted' && appointment.paymentStatus === 'paid'}
+                        <span class="inline-block text-xs font-medium px-2.5 py-0.5 rounded bg-green-100 text-green-800 ml-1">
+                          Paid
+                        </span>
+                      {/if}
                       {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
                          <p class="text-sm text-gray-600">Sub-services: {appointment.subServices.join(', ')}</p>
                       {/if}
@@ -957,6 +963,11 @@
                                {/if}
                                <p class="text-gray-600">{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {appointment.time}</p>
                                <p class="text-gray-600 mt-1">Service: {appointment.service}</p>
+                               {#if appointment.status === 'Accepted' && appointment.paymentStatus === 'paid'}
+                                 <span class="inline-block text-xs font-medium px-2.5 py-0.5 rounded bg-green-100 text-green-800 ml-1">
+                                   Paid
+                                 </span>
+                               {/if}
                                {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
                                    <p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>
                                {/if}
@@ -992,6 +1003,11 @@
                                <p class="text-gray-600 italic">Requests reschedule to:</p>
                                <p class="text-gray-600 font-medium">{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {appointment.time}</p>
                                <p class="text-gray-600 mt-1">Service: {appointment.service}</p>
+                               {#if appointment.status === 'Accepted' && appointment.paymentStatus === 'paid'}
+                                 <span class="inline-block text-xs font-medium px-2.5 py-0.5 rounded bg-green-100 text-green-800 ml-1">
+                                   Paid
+                                 </span>
+                               {/if}
                                {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
                                  <p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>
                                {/if}
@@ -1026,6 +1042,11 @@
                                {/if}
                                <p class="text-gray-600">{new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {appointment.time}</p>
                                <p class="text-gray-600 mt-1">Service: {appointment.service}</p>
+                               {#if appointment.status === 'Accepted' && appointment.paymentStatus === 'paid'}
+                                 <span class="inline-block text-xs font-medium px-2.5 py-0.5 rounded bg-green-100 text-green-800 ml-1">
+                                   Paid
+                                 </span>
+                               {/if}
                                {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
                                 <p class="text-xs text-gray-500">Subs: {appointment.subServices.join(', ')}</p>
                                {/if}

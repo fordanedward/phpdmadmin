@@ -64,10 +64,10 @@
     function getRedirectPath(firestoreRole: FirestoreRole | string | undefined): string {
         switch(firestoreRole) {
             case 'userDentist': return '/dashboard';
-            case 'userAdmin': return '/admin/panel';
-            case 'userSecretary': return '/secretary/dashboard';
-            case 'userPatient': return '/patient/profile'; 
-            case 'userSuper': return '/superuser/panel';
+           // case 'userAdmin': return '/admin/panel';
+            case 'userSecretary': return '/secretary/manage-availability';
+           // case 'userPatient': return '/patient/profile'; 
+           // case 'userSuper': return '/superuser/panel';
             default:
                 console.warn(`Unknown or undefined role '${firestoreRole}' for redirection. Redirecting to generic profile.`);
                 return '/auth/profile'; 
