@@ -101,7 +101,7 @@
   let qtyRefills = '';  
   let instructions = ''; 
   let selectedMedicine: Medicine | null = null;  
-  // interface PrescriptionMedicine {  
+ // interface PrescriptionMedicine {  
   //   medicine: string;
   //   dosage: string;
   //   instructions: string;
@@ -688,9 +688,11 @@
   // const addSelectedMedicine = async () => { /* Not implemented in provided snippet */ };
   // const addManualMedicine = () => { /* Not implemented in provided snippet */ };
 
-  const submitPrescription = async () => {
+const submitPrescription = async () => {
     try {
-      if (selectedAppointment && prescriber && (selectedMedicine || medication.trim()) && qtyRefills.trim()) {
+      // Validate minimum fields
+      if (selectedAppointment && prescriber && (selectedMedicine !== null || medication.trim()) && qtyRefills.trim()) {
+        // Check for existing prescription for this appointment
         const existingPrescriptionQuery = query(
           collection(db, "prescriptions"),
           where("appointmentId", "==", selectedAppointment.id)
@@ -702,8 +704,28 @@
           return;
         }
 
+        // Parse quantity from qtyRefills
+        let quantityToDeduct = 0;
+        const qtyMatch = qtyRefills.match(/(\d+)/);
+        if (qtyMatch) quantityToDeduct = parseInt(qtyMatch[1], 10);
+
+        // Deduct from inventory if using selectedMedicine from stock
+        if (selectedMedicine !== null && quantityToDeduct > 0) {
+          const medicineRef = doc(db, "medicines", selectedMedicine.id);
+          // Find medicine in availableMedicines
+          const med = availableMedicines.find(m => m.id === selectedMedicine!.id);
+          if (med && med.quantity >= quantityToDeduct) {
+            await updateDoc(medicineRef, {
+              quantity: med.quantity - quantityToDeduct
+            });
+          } else {
+            await Swal.fire('Insufficient Stock', 'Not enough stock for this medicine.', 'error');
+            return;
+          }
+        }
+
         const medicineToAdd = {  
-          medicine: selectedMedicine ? selectedMedicine.name : medication.trim(),
+          medicine: selectedMedicine !== null ? selectedMedicine.name : medication.trim(),
           dosage: qtyRefills.trim(),
           instructions: instructions.trim(),
         };
@@ -722,18 +744,17 @@
         prescriptionAdded = true; 
         closePrescriptionModal();
         await Swal.fire('Success!', 'Prescription successfully added!', 'success');
- 
+
+        // Reset fields after submission
         medication = '';
         qtyRefills = '';
         instructions = '';
-        selectedMedicine = null;
         prescriber = '';
-        
       } else {
         let message = "Cannot submit prescription: ";
         if (!selectedAppointment) message += "No appointment selected. ";
         if (!prescriber) message += "Prescriber not selected. ";
-        if (!selectedMedicine && !medication.trim()) message += "No medicine selected or entered. ";
+        if (selectedMedicine === null && !medication.trim()) message += "No medicine selected or entered. ";
         if (!qtyRefills.trim()) message += "Dosage/Qty is required.";
         await Swal.fire('Missing Information', message, 'warning');
       }
@@ -743,7 +764,7 @@
     }
   };
 
-  const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => {
+const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => {
     const now = new Date();
     const todayDateStr = now.toDateString();  
 
@@ -1195,11 +1216,11 @@
             <label class="block text-sm font-semibold text-gray-700 mb-1">Medicine <span class="text-red-500">*</span></label>
             <div class="flex gap-2">
               <select id="availableMedicine" bind:value={selectedMedicine} class="flex-1 border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" aria-label="Select Medicine from Stock" on:change={() => { if(selectedMedicine) medication = ''; }}>
-                <option value={null}>-- Select Medicine --</option>
-                {#each availableMedicines as med (med.id)}
-                  <option value={med}>{med.name} (Stock: {med.quantity})</option>
-                {/each}
-              </select>
+    <option value={null}>-- Select Medicine --</option>
+    {#each availableMedicines as med (med.id)}
+        <option value={med}>{med.name} (Stock: {med.quantity})</option>
+    {/each}
+</select>
               <span class="text-gray-400 self-center">or</span>
               <input id="manualMedication" type="text" bind:value={medication} placeholder="e.g., Paracetamol 500mg" class="flex-1 border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" aria-label="Enter Medicine Manually" on:input={() => { if(medication.trim()) selectedMedicine = null; }} disabled={!!selectedMedicine} />
               {#if medication}
@@ -1208,8 +1229,8 @@
             </div>
             <p class="text-xs text-gray-500 mt-1">Choose from stock or enter manually. Only one allowed.</p>
             {#if selectedMedicine && selectedMedicine.quantity <= 5}
-              <p class="text-xs text-red-500 mt-1">Warning: Low stock for this medicine!</p>
-            {/if}
+    <p class="text-xs text-red-500 mt-1">Warning: Low stock for this medicine!</p>
+{/if}
             {#if !selectedMedicine && !medication.trim() && formTriedSubmit}
               <p class="text-xs text-red-500 mt-1">Medicine is required.</p>
             {/if}
@@ -1248,8 +1269,7 @@
             <div class="bg-gray-50 border border-gray-200 rounded p-3 mt-4">
               <h4 class="text-sm font-semibold mb-2 text-gray-700">Prescription Summary</h4>
               <ul class="text-sm text-gray-700 list-disc ml-5">
-                <li><b>Medicine:</b> {selectedMedicine ? selectedMedicine.name : medication}</li>
-                <li><b>Dosage/Qty:</b> {qtyRefills}</li>
+<li><b>Medicine:</b> {selectedMedicine ? selectedMedicine.name : medication}</li>                <li><b>Dosage/Qty:</b> {qtyRefills}</li>
                 {#if instructions.trim()}<li><b>Instructions:</b> {instructions}</li>{/if}
                 <li><b>Prescriber:</b> {prescriber}</li>
                 <li><b>Date Visited:</b> {dateVisited}</li>

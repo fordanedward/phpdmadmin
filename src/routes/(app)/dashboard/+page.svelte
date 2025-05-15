@@ -358,7 +358,14 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
 			labels: lineChartLabels,
 			datasets: [
 				{ label: 'New Appointments', data: lineChartNewAppointmentsData, borderColor: '#4caf50', backgroundColor: 'rgba(76, 175, 80, 0.2)', tension: 0.3, fill: true },
-				{ label: 'Cumulative Patients (Registered This Month)', data: lineChartTotalPatientsData, borderColor: '#f44336', backgroundColor: 'rgba(244, 67, 54, 0.2)', tension: 0.3, fill: true }
+{
+  label: 'Cumulative Patients (Registered This Month)',
+  data: lineChartTotalPatientsData,
+  borderColor: '#2196f3', // blue
+  backgroundColor: 'rgba(33, 150, 243, 0.2)', // light blue background
+  tension: 0.3,
+  fill: true
+}
 			]
 		};
 
