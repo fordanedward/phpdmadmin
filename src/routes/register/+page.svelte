@@ -61,6 +61,8 @@
 
     let isGoogleSigningIn = false;
 
+    let selectedRole: 'userDentist' | 'userSecretary' = 'userDentist';
+
     function generateSixDigitId(): string {
         const min = 100000; 
         const max = 999999; 
@@ -131,7 +133,7 @@
             return;
         }
         // Only allow dentist and secretary roles (default to dentist)
-        const firestoreRole = 'userDentist';
+        const firestoreRole = selectedRole;
         showToast("Registering...", "info", 0);
 
         let createdAuthUser = null; 
@@ -213,7 +215,7 @@
             const userDocRef = doc(db, "users", user.uid); 
             const userDocSnap = await getDoc(userDocRef);
 
-            let finalRole = 'userDentist';
+            let finalRole: string = selectedRole;
             let displayableCustomId: string | null = null;
 
             if (userDocSnap.exists()) {
@@ -245,7 +247,7 @@
                 }
                 displayableCustomId = customUserId;
 
-                finalRole = 'userDentist';
+                finalRole = selectedRole;
                 const newUser_Data = {
                     firebaseUid: user.uid,
                     customUserId: customUserId,
@@ -332,6 +334,13 @@
 
         <form on:submit|preventDefault={handleRegistration}>
             <div class="mb-6">
+                <Label for="role" class="block mb-2">Register as</Label>
+                <select id="role" bind:value={selectedRole} class="border p-2 w-full">
+                    <option value="userDentist">Dentist</option>
+                    <option value="userSecretary">Secretary</option>
+                </select>
+            </div>
+            <div class="mb-6">
                 <Label for="email" class="block mb-2">Email</Label>
                 <Input type="email" id="email" placeholder="name@example.com" class="border p-2 w-full" bind:value={email} required />
             </div>
@@ -345,7 +354,7 @@
             </div>
             <div class="mb-6">
                 <Button type="submit" class="w-full p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                    Register
+                    Register as {selectedRole === 'userDentist' ? 'Dentist' : 'Secretary'}
                 </Button>
             </div>
         </form>
@@ -364,7 +373,7 @@
                 class="w-full p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 flex items-center justify-center"
             >
                 <GoogleSolid class="w-5 h-5 mr-2" />
-                {isGoogleSigningIn ? 'Connecting...' : 'Sign up with Google'}
+                {isGoogleSigningIn ? 'Connecting...' : `Sign up with Google as ${selectedRole === 'userDentist' ? 'Dentist' : 'Secretary'}`}
             </Button>
         </div>
 
