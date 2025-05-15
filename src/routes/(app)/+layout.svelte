@@ -95,7 +95,7 @@
     const allMenuItems: MenuItemDef[] = [
         { href: "/dashboard", icon: "/images/icon-dashboard.png", alt: "Dashboard", text: "Dashboard", roles: ['userDentist', 'userSecretary'] },
 
-        { href: "/appointment", icon: "/images/appointment.png", alt: "Book Appointment", text: "Book Appointment", roles: ['userDentist'] }, // Assuming this is for booking FOR dentist view
+        { href: "/appointment", icon: "/images/appointment.png", alt: "Book Appointment", text: "Appointment", roles: ['userDentist'] }, // Assuming this is for booking FOR dentist view
        // { href: "/patient-list", icon: "/images/icon-patient.png", alt: "Patient List", text: "Patient List", roles: ['userDentist'] },
         { href: "/prescription", icon: "/images/prescription1.png", alt: "Prescriptions", text: "Prescriptions", roles: ['userDentist'] },
         { href: "/medicine-list", icon: "/images/medicinelist.png", alt: "Medicines List", text: "Medicines List", roles: ['userDentist'] },

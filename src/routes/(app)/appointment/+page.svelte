@@ -113,6 +113,8 @@
 
   export const appointmentStore = writable<Appointment[]>([]);
 
+  let formTriedSubmit = false;
+
   onMount(() => {
       let unsubscribeAppointments: Unsubscribe = () => {};
 
@@ -1174,69 +1176,100 @@
 
 
   {#if isPrescriptionModalOpen}
-  <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 p-4" role="dialog" aria-modal="true"> <!-- Ensure z-index is high -->
-    <button
-        type="button"
-        aria-label="Close Modal"
-        tabindex="-1"
-        class="fixed inset-0 w-full h-full bg-transparent cursor-default"
-        on:click={closePrescriptionModal}
-      ></button>
-    <div class="modal-content bg-white p-6 rounded-lg shadow-xl relative w-full max-w-lg mx-auto max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
-       <button class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold" on:click={closePrescriptionModal} aria-label="Close Modal">×</button>
-       {#if selectedAppointment}
-           <h2 class="text-xl font-bold mb-5">
-              Add Prescription for
-              <!-- MODIFIED for direct patientName -->
-               {#if selectedAppointment.patientName && selectedAppointment.patientName !== 'Unknown Patient'}
-                  {selectedAppointment.patientName}
-               {:else}
-                  Patient ID: {selectedAppointment.patientId}
-               {/if}
-           </h2>
-           <form on:submit|preventDefault={submitPrescription} class="space-y-4">
-              <div>
-                <label for="dateVisited" class="block text-sm font-medium text-gray-700 mb-1">Date Visited</label>
-                <input id="dateVisited" type="date" bind:value={dateVisited} required class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" />
-              </div>
-              <div>
-                 <label for="availableMedicine" class="block text-sm font-medium text-gray-700 mb-1">Available Medicines</label>
-                 <select id="availableMedicine" bind:value={selectedMedicine} class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500">
-                    <option value={null}>-- Select from Stock --</option>
-                    {#each availableMedicines as med (med.id)} <option value={med}>{med.name} (Stock: {med.quantity})</option> {/each}
-                 </select>
-              </div>
-               <div>
-                 <label for="manualMedication" class="block text-sm font-medium text-gray-700 mb-1">Or Enter Medication Manually</label>
-                 <input id="manualMedication" type="text" bind:value={medication} placeholder="e.g., Paracetamol 500mg" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" />
-               </div>
-               <div>
-                 <label for="qtyRefills" class="block text-sm font-medium text-gray-700 mb-1">Dosage / Qty / Refills</label>
-                 <input id="qtyRefills" type="text" bind:value={qtyRefills} required placeholder="e.g., 1 tablet 3x a day / 30 tablets" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" />
-               </div>
-               <div>
-                 <label for="instructions" class="block text-sm font-medium text-gray-700 mb-1">Instructions</label>
-                 <textarea id="instructions" bind:value={instructions} rows="3" placeholder="e.g., Take with food" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500"></textarea>
-               </div>
-               <div>
-                 <label for="prescriber" class="block text-sm font-medium text-gray-700 mb-1">Prescriber</label>
-                 <select id="prescriber" bind:value={prescriber} required class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500">
-                    <option value="" disabled>-- Select Prescriber --</option>
-                    <option value="Alfred Domingo">Alfred Domingo</option>
-                    <option value="Fernalyn Domingo">Fernalyn Domingo</option>
-                 </select>
-              </div>
-              <div class="flex justify-end pt-4">
-                  <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md mr-3" on:click={closePrescriptionModal}>Cancel</button>
-                 <button type="submit" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500" disabled={!prescriber || (!selectedMedicine && !medication.trim()) || !qtyRefills.trim()}>Submit Prescription</button>
-              </div>
-           </form>
-       {:else}
-          <p class="text-center text-red-500">Error: No appointment context found for prescription.</p>
-          <div class="flex justify-end pt-4">
-            <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md mr-3" on:click={closePrescriptionModal}>Close</button>
+  <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 p-4">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-auto relative max-h-[90vh] overflow-y-auto hide-scrollbar" role="dialog" aria-modal="true" aria-labelledby="prescription-title" on:click|stopPropagation>
+      <button type="button" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold" on:click={closePrescriptionModal} aria-label="Close Modal">×</button>
+      {#if selectedAppointment}
+        <h2 id="prescription-title" class="text-xl font-bold mb-5">
+          Add Prescription for {selectedAppointment.patientName || `Patient ID: ${selectedAppointment.patientId}`}
+        </h2>
+        <form on:submit|preventDefault={submitPrescription} class="space-y-5">
+          <!-- Section: Visit Details -->
+          <div>
+            <label for="dateVisited" class="block text-sm font-semibold text-gray-700 mb-1">Date Visited <span class="text-red-500">*</span></label>
+            <input id="dateVisited" type="date" bind:value={dateVisited} required class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" aria-required="true" />
           </div>
-       {/if}
+
+          <!-- Section: Medicine -->
+          <div class="mb-2">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Medicine <span class="text-red-500">*</span></label>
+            <div class="flex gap-2">
+              <select id="availableMedicine" bind:value={selectedMedicine} class="flex-1 border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" aria-label="Select Medicine from Stock" on:change={() => { if(selectedMedicine) medication = ''; }}>
+                <option value={null}>-- Select Medicine --</option>
+                {#each availableMedicines as med (med.id)}
+                  <option value={med}>{med.name} (Stock: {med.quantity})</option>
+                {/each}
+              </select>
+              <span class="text-gray-400 self-center">or</span>
+              <input id="manualMedication" type="text" bind:value={medication} placeholder="e.g., Paracetamol 500mg" class="flex-1 border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" aria-label="Enter Medicine Manually" on:input={() => { if(medication.trim()) selectedMedicine = null; }} disabled={!!selectedMedicine} />
+              {#if medication}
+                <button type="button" class="ml-1 text-xs text-gray-500 hover:text-red-500" on:click={() => medication = ''} aria-label="Clear manual medicine">✕</button>
+              {/if}
+            </div>
+            <p class="text-xs text-gray-500 mt-1">Choose from stock or enter manually. Only one allowed.</p>
+            {#if selectedMedicine && selectedMedicine.quantity <= 5}
+              <p class="text-xs text-red-500 mt-1">Warning: Low stock for this medicine!</p>
+            {/if}
+            {#if !selectedMedicine && !medication.trim() && formTriedSubmit}
+              <p class="text-xs text-red-500 mt-1">Medicine is required.</p>
+            {/if}
+          </div>
+
+          <!-- Section: Dosage -->
+          <div>
+            <label for="qtyRefills" class="block text-sm font-semibold text-gray-700 mb-1">Dosage / Quantity <span class="text-red-500">*</span></label>
+            <input id="qtyRefills" type="text" bind:value={qtyRefills} required placeholder="e.g., 1 tablet 3x a day / 30 tablets" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" aria-required="true" />
+            {#if !qtyRefills.trim() && formTriedSubmit}
+              <p class="text-xs text-red-500 mt-1">Dosage/Quantity is required.</p>
+            {/if}
+          </div>
+
+          <!-- Section: Instructions -->
+          <div>
+            <label for="instructions" class="block text-sm font-semibold text-gray-700 mb-1">Instructions</label>
+            <textarea id="instructions" bind:value={instructions} rows="3" placeholder="e.g., Take with food" class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500"></textarea>
+          </div>
+
+          <!-- Section: Prescriber -->
+          <div>
+            <label for="prescriber" class="block text-sm font-semibold text-gray-700 mb-1">Prescriber <span class="text-red-500">*</span></label>
+            <select id="prescriber" bind:value={prescriber} required class="w-full border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" aria-required="true">
+              <option value="" disabled>-- Select Prescriber --</option>
+              <option value="Alfred Domingo">Alfred Domingo</option>
+              <option value="Fernalyn Domingo">Fernalyn Domingo</option>
+            </select>
+            {#if !prescriber && formTriedSubmit}
+              <p class="text-xs text-red-500 mt-1">Prescriber is required.</p>
+            {/if}
+          </div>
+
+          <!-- Section: Summary -->
+          {#if (selectedMedicine || medication.trim()) && qtyRefills.trim() && prescriber}
+            <div class="bg-gray-50 border border-gray-200 rounded p-3 mt-4">
+              <h4 class="text-sm font-semibold mb-2 text-gray-700">Prescription Summary</h4>
+              <ul class="text-sm text-gray-700 list-disc ml-5">
+                <li><b>Medicine:</b> {selectedMedicine ? selectedMedicine.name : medication}</li>
+                <li><b>Dosage/Qty:</b> {qtyRefills}</li>
+                {#if instructions.trim()}<li><b>Instructions:</b> {instructions}</li>{/if}
+                <li><b>Prescriber:</b> {prescriber}</li>
+                <li><b>Date Visited:</b> {dateVisited}</li>
+              </ul>
+            </div>
+          {/if}
+
+          <div class="flex justify-end pt-4">
+            <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md mr-3" on:click={closePrescriptionModal}>Cancel</button>
+            <button type="submit" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50" disabled={!prescriber || (!selectedMedicine && !medication.trim()) || !qtyRefills.trim()} on:click={() => formTriedSubmit = true}>
+              Submit Prescription
+            </button>
+          </div>
+        </form>
+      {:else}
+        <p class="text-center text-red-500">Error: No appointment context found for prescription.</p>
+        <div class="flex justify-end pt-4">
+          <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md mr-3" on:click={closePrescriptionModal}>Close</button>
+        </div>
+      {/if}
     </div>
   </div>
 {/if}
@@ -1260,5 +1293,12 @@
    
     .fixed.inset-0 {
         z-index: 50; 
+    }
+
+    .hide-scrollbar {
+      scrollbar-width: none; /* Firefox */
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
     }
 </style>
