@@ -7,14 +7,14 @@
 
     import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
     import { doc, getDoc } from 'firebase/firestore';
-    import { auth as firebaseAppAuth, db as firebaseAppDb } from '$lib/firebaseConfig';  
+    import { auth as firebaseAppAuth, db as firebaseAppDb } from '$lib/firebaseConfig.js';  
  
     interface UserProfileForLayout {
         uid: string;
         email: string | null;
         displayName: string | null;
         photoURL: string | null;
-        role?: 'userDentist' | 'userAdmin' | 'userSecretary' | 'userPatient' | 'userSuper'; // Match your Firestore roles
+        role?: 'userDentist' | 'userAdmin' | 'userSecretary' | 'userPatient' | 'userSuper'; 
     }
     let layoutCurrentUser: UserProfileForLayout | null = null;
     let layoutAuthLoading: boolean = true;
@@ -430,7 +430,7 @@
 
 		.content.mobile {
 			margin-left: 0;
-			padding-top: var(--header-height-mobile);  
+			
 			width: 100%;
 		}
 		.close-sidebar-btn {

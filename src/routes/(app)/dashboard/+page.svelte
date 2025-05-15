@@ -881,423 +881,366 @@ function downloadExcelReport(
      console.log(`Reactive block triggered for: ${selectedYear}-${selectedMonth}`);
      handleMonthYearChange();
  }
+
+ // Add function to handle card clicks
+ function handleCardClick(tableType: typeof openTable): void {
+     openTable = openTable === tableType ? null : tableType;
+ }
 </script>
 
 
 	<!-- Main Content Area -->
-	<div class="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto">
-		<!-- Header/Summary Section -->
-		<section class="mb-6" aria-labelledby="summary-heading">
-			<div class="flex justify-between items-center flex-wrap gap-4 mb-4">
-				<h2 id="summary-heading" class="text-xl sm:text-2xl font-semibold text-gray-700">
-					Dashboard Summary
-				</h2>
-				<div class="flex items-center gap-2 sm:gap-4 flex-wrap">
-					<label for="exportTypeSelect" class="font-medium text-sm">Export Format:</label>
-					<select
-						id="exportTypeSelect"
-						bind:value={exportType}
-						class="border border-gray-300 rounded px-2 py-1 text-sm appearance-none bg-white pr-8 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-					>
-						<option value="excel">Excel (.xlsx)</option>
-						<option value="pdf">PDF (.pdf)</option>
-					</select>
-					<button
-						on:click={generateReport}
-						class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded text-sm font-medium transition duration-200 ease-in-out bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow hover:from-blue-600 hover:to-blue-700 hover:shadow-md hover:-translate-y-px focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-						disabled={!allPatients.length && !allAppointments.length && !allPrescriptions.length}
-					>
-						<span class="fas fa-download text-xs" aria-hidden="true"></span> Download Report
-					</button>
+	<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+		<div class="container mx-auto px-4 py-8">
+			<!-- Header Section -->
+			<div class="mb-8">
+				<div class="flex justify-between items-center">
+					<div>
+						<h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
+						<p class="text-gray-600 mt-2">Welcome to your dental clinic dashboard</p>
+					</div>
+					<div class="flex items-center gap-4">
+						<div class="flex items-center gap-2">
+							<label for="exportTypeSelect" class="text-sm font-medium text-gray-600">Export Format:</label>
+							<select
+								id="exportTypeSelect"
+								bind:value={exportType}
+								class="border border-gray-300 rounded px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+							>
+								<option value="excel">Excel</option>
+							</select>
+						</div>
+						<button
+							on:click={generateReport}
+							class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+							</svg>
+							Generate Report
+						</button>
+					</div>
 				</div>
 			</div>
-		</section>
 
-		<!-- Stats Cards Section -->
-		<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" aria-label="Statistics Summary">
-			<!-- Monthly Appointments Card -->
-			<button
-				class="relative bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between cursor-pointer overflow-hidden transition duration-200 ease-in-out shadow hover:shadow-lg hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 text-left"
-				on:click={() => handleOpenTable('monthlyAppointments')}
-				aria-controls="monthly-appointments-table"
-				aria-expanded={openTable === 'monthlyAppointments'}
-			>
-				<div
-					class="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-t-lg"
-				></div>
-				<span class="icon fas fa-calendar-day text-2xl text-gray-600 mr-3 mt-1" aria-hidden="true"></span>
-				<div class="text-right flex-grow">
-					<h3 class="text-xl sm:text-2xl font-bold text-gray-800">{stats.monthlyAppointments}</h3>
-					<p class="text-xs sm:text-sm text-gray-500">This Month's Appts</p>
+			<!-- Stats Cards -->
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('monthlyAppointments')}>
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-600">This Month's Appointments</p>
+							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.monthlyAppointments}</h3>
+						</div>
+						<div class="p-3 bg-blue-50 rounded-lg">
+							<svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+							</svg>
+						</div>
+					</div>
 				</div>
-			</button>
-
-			<!-- Total Appointments Card -->
-			<button
-				class="relative bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between cursor-pointer overflow-hidden transition duration-200 ease-in-out shadow hover:shadow-lg hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 text-left"
-				on:click={() => handleOpenTable('appointments')}
-				aria-controls="all-appointments-table"
-				aria-expanded={openTable === 'appointments'}
-			>
-				<div
-					class="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-lg"
-				></div>
-				<span class="icon fas fa-calendar-alt text-2xl text-gray-600 mr-3 mt-1" aria-hidden="true"></span>
-				<div class="text-right flex-grow">
-					<h3 class="text-xl sm:text-2xl font-bold text-gray-800">{stats.newAppointments}</h3>
-					<p class="text-xs sm:text-sm text-gray-500">Total Appointments</p>
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('appointments')}>
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-600">Total Appointments</p>
+							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.newAppointments}</h3>
+						</div>
+						<div class="p-3 bg-green-50 rounded-lg">
+							<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+							</svg>
+						</div>
+					</div>
 				</div>
-			</button>
-
-			<!-- Total Patients Card -->
-			<button
-				class="relative bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between cursor-pointer overflow-hidden transition duration-200 ease-in-out shadow hover:shadow-lg hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 text-left"
-				on:click={() => handleOpenTable('patients')}
-				aria-controls="all-patients-table"
-				aria-expanded={openTable === 'patients'}
-			>
-				<div
-					class="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-green-400 to-teal-500 rounded-t-lg"
-				></div>
-				<span class="icon fas fa-users text-2xl text-gray-600 mr-3 mt-1" aria-hidden="true"></span>
-				<div class="text-right flex-grow">
-					<h3 class="text-xl sm:text-2xl font-bold text-gray-800">{stats.totalPatients}</h3>
-					<p class="text-xs sm:text-sm text-gray-500">Total Patients</p>
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('prescriptions')}>
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-600">Total Prescriptions</p>
+							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.totalPrescriptions}</h3>
+						</div>
+						<div class="p-3 bg-purple-50 rounded-lg">
+							<svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+							</svg>
+						</div>
+					</div>
 				</div>
-			</button>
-
-			<!-- Total Prescriptions Card -->
-			<button
-				class="relative bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between cursor-pointer overflow-hidden transition duration-200 ease-in-out shadow hover:shadow-lg hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 text-left"
-				on:click={() => handleOpenTable('prescriptions')}
-				aria-controls="all-prescriptions-table"
-				aria-expanded={openTable === 'prescriptions'}
-			>
-				<div
-					class="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-purple-400 to-pink-500 rounded-t-lg"
-				></div>
-				<span
-					class="icon fas fa-file-prescription text-2xl text-gray-600 mr-3 mt-1"
-					aria-hidden="true"
-				></span>
-				<div class="text-right flex-grow">
-					<h3 class="text-xl sm:text-2xl font-bold text-gray-800">{stats.totalPrescriptions}</h3>
-					<p class="text-xs sm:text-sm text-gray-500">Total Prescriptions</p>
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('patients')}>
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-600">Total Patients</p>
+							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.totalPatients}</h3>
+						</div>
+						<div class="p-3 bg-orange-50 rounded-lg">
+							<svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+							</svg>
+						</div>
+					</div>
 				</div>
-			</button>
-		</section>
-
-		<!-- Charts Section -->
-		<section class="mb-6" aria-labelledby="charts-heading">
-			<h2 id="charts-heading" class="sr-only">Data Charts</h2>
-
-			<!-- Filter Controls for Charts/Monthly Table -->
-			<div
-				class="flex items-center flex-wrap gap-3 sm:gap-4 p-3 sm:p-4 bg-white border border-gray-200 rounded-lg mb-6 shadow-sm"
-			>
-				<label for="yearSelect" class="font-medium text-sm mr-1">Year:</label>
-				<select
-					id="yearSelect"
-					bind:value={selectedYear}
-					class="border border-gray-300 rounded px-2 py-1 text-sm appearance-none bg-white pr-8 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-				>
-					{#each YEARS as year}
-						<option value={year}>{year}</option>
-					{/each}
-				</select>
-				<label for="monthSelect" class="font-medium text-sm mr-1">Month:</label>
-				<select
-					id="monthSelect"
-					bind:value={selectedMonth}
-					class="border border-gray-300 rounded px-2 py-1 text-sm appearance-none bg-white pr-8 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-				>
-					{#each MONTH_NAMES as month, index}
-						<option value={index + 1}>{month}</option>
-					{/each}
-				</select>
-				<span class="text-xs text-gray-500 hidden sm:inline"
-					>(Filters Line Chart & Monthly Table)</span
-				>
 			</div>
 
-			<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-				<!-- Line Chart: Appts & Reg -->
-				<div
-					class="bg-white border border-gray-200 rounded-lg p-4 shadow flex flex-col md:col-span-2 xl:col-span-2"
-				>
-					<h3 class="text-base font-medium text-center mb-3 text-gray-700">
-						Appts & Patient Reg. ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})
-					</h3>
-					<div class="flex-grow h-64 sm:h-72">
+			<!-- Charts Section -->
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">Appointment Trends</h3>
+					<div class="h-80">
 						<canvas id="lineChart"></canvas>
 					</div>
 				</div>
 
-				<!-- Pie Chart: Status -->
-				<div class="bg-white border border-gray-200 rounded-lg p-4 shadow flex flex-col">
-					<h3 class="text-base font-medium text-center mb-3 text-gray-700">
-						Appointment Status (All Time)
-					</h3>
-					<div class="flex-grow flex items-center justify-center h-64 sm:h-72">
-						<canvas id="appointmentStatusPieChart" class="max-h-full w-auto"></canvas>
-					</div>
-				</div>
-
-				<!-- Doughnut Chart: Gender -->
-				<div class="bg-white border border-gray-200 rounded-lg p-4 shadow flex flex-col">
-					<h3 class="text-base font-medium text-center mb-3 text-gray-700">Gender Distribution</h3>
-					<div class="flex-grow flex items-center justify-center h-64 sm:h-72">
-						<canvas id="genderDistributionDoughnutChart" class="max-h-full w-auto"></canvas>
-					</div>
-				</div>
-
-				<!-- Bar Chart: Weekly -->
-				<div class="bg-white border border-gray-200 rounded-lg p-4 shadow flex flex-col">
-					<h3 class="text-base font-medium text-center mb-3 text-gray-700">
-						Weekly Appointments (This Week)
-					</h3>
-					<div class="flex-grow h-64 sm:h-72">
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">Weekly Appointments</h3>
+					<div class="h-80">
 						<canvas id="weeklyAppointmentsBarChart"></canvas>
 					</div>
 				</div>
 
-				<!-- Line Chart: Completed/Missed -->
-				<div
-					class="bg-white border border-gray-200 rounded-lg p-4 shadow flex flex-col md:col-span-2 xl:col-span-3"
-				>
-					<h3 class="text-base font-medium text-center mb-3 text-gray-700">
-						Completed vs Missed (Current Year)
-					</h3>
-					<div class="flex-grow h-64 sm:h-72">
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">Appointment Status</h3>
+					<div class="h-80">
+						<canvas id="appointmentStatusPieChart"></canvas>
+					</div>
+				</div>
+
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">Gender Distribution</h3>
+					<div class="h-80">
+						<canvas id="genderDistributionDoughnutChart"></canvas>
+					</div>
+				</div>
+
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:col-span-2">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">Completed vs Missed Appointments</h3>
+					<div class="h-80">
 						<canvas id="completedMissedLineChart"></canvas>
 					</div>
 				</div>
 			</div>
-		</section>
 
-		<!-- Data Tables Section -->
-		<section aria-labelledby="data-tables-heading">
-			<h2 id="data-tables-heading" class="sr-only">Detailed Data Tables</h2>
-
-			{#if openTable === 'patients'}
-				<div
-					class="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm overflow-x-auto"
-					id="all-patients-table"
-					aria-live="polite"
-				>
-					<h3 class="mb-3 text-lg font-semibold text-gray-700">All Patients</h3>
-					<table class="w-full border-collapse">
-						<thead>
-							<tr class="bg-blue-500 text-white">
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Name</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Age</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Gender</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Phone</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Registered</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each allPatients as patient (patient.id)}
-								<tr class="hover:bg-gray-100 even:bg-gray-50">
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{patient.name} {patient.lastName}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{patient.age ?? 'N/A'}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{patient.gender ?? 'N/A'}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{patient.phone ?? 'N/A'}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{patient.registrationDate ?? 'N/A'}</td
-									>
-								</tr>
-							{:else}
+			<!-- Data Tables Section -->
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+					<div class="flex justify-between items-center mb-4">
+						<h3 class="text-lg font-semibold text-gray-800">Recent Appointments</h3>
+						<button
+							class="text-sm text-blue-600 hover:text-blue-800"
+							on:click={() => handleOpenTable('appointments')}
+						>
+							View All
+						</button>
+					</div>
+					<div class="overflow-x-auto">
+						<table class="min-w-full divide-y divide-gray-200">
+							<thead>
 								<tr>
-									<td colspan="5" class="border border-gray-300 px-3 py-2 text-sm text-center"
-										>No patients found or data loading...</td
-									>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
+							</thead>
+							<tbody class="divide-y divide-gray-200">
+								{#each allAppointments.slice(0, 5) as appointment}
+									<tr class="hover:bg-gray-50">
+										<td class="px-4 py-3 text-sm text-gray-900">{appointment.patientName}</td>
+										<td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
+										<td class="px-4 py-3">
+											<span class="px-2 py-1 text-xs font-medium rounded-full
+												{appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+												appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+												'bg-red-100 text-red-800'}">
+												{appointment.status}
+											</span>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
 				</div>
-			{/if}
 
-			{#if openTable === 'appointments'}
-				<div
-					class="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm overflow-x-auto"
-					id="all-appointments-table"
-					aria-live="polite"
-				>
-					<h3 class="mb-3 text-lg font-semibold text-gray-700">All Appointments</h3>
-					<table class="w-full border-collapse">
-						<thead>
-							<tr class="bg-blue-500 text-white">
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Patient</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Date</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Time</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Service</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Status</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each allAppointments as appt (appt.id)}
-								<tr class="hover:bg-gray-100 even:bg-gray-50">
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{appt.patientName}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle">{appt.date}</td>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{appt.time ?? 'N/A'}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{appt.service ?? 'N/A'}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle">{appt.status}</td>
-								</tr>
-							{:else}
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+					<div class="flex justify-between items-center mb-4">
+						<h3 class="text-lg font-semibold text-gray-800">Recent Prescriptions</h3>
+						<button
+							class="text-sm text-blue-600 hover:text-blue-800"
+							on:click={() => handleOpenTable('prescriptions')}
+						>
+							View All
+						</button>
+					</div>
+					<div class="overflow-x-auto">
+						<table class="min-w-full divide-y divide-gray-200">
+							<thead>
 								<tr>
-									<td colspan="5" class="border border-gray-300 px-3 py-2 text-sm text-center"
-										>No appointments found or data loading...</td
-									>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Medicines</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
+							</thead>
+							<tbody class="divide-y divide-gray-200">
+								{#each allPrescriptions.slice(0, 5) as prescription}
+									<tr class="hover:bg-gray-50">
+										<td class="px-4 py-3 text-sm text-gray-900">{prescription.patientName}</td>
+										<td class="px-4 py-3 text-sm text-gray-500">{prescription.date}</td>
+										<td class="px-4 py-3 text-sm text-gray-500">
+											{#each prescription.medicines as medicine}
+												<div>{medicine.medicine}</div>
+											{/each}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
 				</div>
-			{/if}
-
-			{#if openTable === 'monthlyAppointments'}
-				<div
-					class="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm overflow-x-auto"
-					id="monthly-appointments-table"
-					aria-live="polite"
-				>
-					<h3 class="mb-3 text-lg font-semibold text-gray-700">
-						Appointments for {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
-					</h3>
-					<table class="w-full border-collapse">
-						<thead>
-							<tr class="bg-blue-500 text-white">
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Patient</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Date</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Time</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Service</th>
-								<th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Status</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each monthlyAppointmentsData as appt (appt.id)}
-								<tr class="hover:bg-gray-100 even:bg-gray-50">
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{appt.patientName}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle">{appt.date}</td>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{appt.time ?? 'N/A'}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle"
-										>{appt.service ?? 'N/A'}</td
-									>
-									<td class="border border-gray-300 px-3 py-2 text-sm align-middle">{appt.status}</td>
-								</tr>
-							{:else}
-								<tr>
-									<td colspan="5" class="border border-gray-300 px-3 py-2 text-sm text-center"
-										>No appointments found for this period.</td
-									>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			{/if}
-
-			{#if openTable === 'prescriptions'}
-<div
-  class="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm overflow-x-auto"
-  id="all-prescriptions-table"
-  aria-live="polite"
->
-  <h3 class="mb-3 text-lg font-semibold text-gray-700">All Prescriptions</h3>
-  <table class="w-full border-collapse">
-    <thead>
-      <tr class="bg-blue-500 text-white">
-        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Patient</th>
-        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Prescriber</th>
-        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Prescr. Date</th>
-        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Medication</th>
-        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Dosage</th>
-        <th class="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Instructions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each allPrescriptions as pres (pres.id)}
-        {#if pres.medicines && pres.medicines.length > 0}
-          {#each pres.medicines as med, i (med.medicine + i)}
-            <tr class="hover:bg-gray-100 even:bg-gray-50">
-              {#if i === 0}
-                <td
-                  rowspan={pres.medicines.length}
-                  class="border border-gray-300 px-3 py-2 text-sm align-middle"
-                >
-                  {pres.patientName}
-                </td>
-                <td
-                  rowspan={pres.medicines.length}
-                  class="border border-gray-300 px-3 py-2 text-sm align-middle"
-                >
-                  {pres.prescriber}
-                </td>
-                <td
-                  rowspan={pres.medicines.length}
-                  class="border border-gray-300 px-3 py-2 text-sm align-middle"
-                >
-                  {pres.dateVisited
-                    ? new Date(pres.dateVisited).toLocaleDateString('en-US')
-                    : 'N/A'}
-                </td>
-              {/if}
-              <td class="border border-gray-300 px-3 py-2 text-sm align-middle">{med.medicine}</td>
-              <td class="border border-gray-300 px-3 py-2 text-sm align-middle">{med.dosage}</td>
-              <td class="border border-gray-300 px-3 py-2 text-sm align-middle">
-                {med.instructions ?? 'N/A'}
-              </td>
-            </tr>
-          {/each}
-        {:else}
-          <tr class="hover:bg-gray-100 even:bg-gray-50">
-            <td class="border border-gray-300 px-3 py-2 text-sm align-middle">{pres.patientName}</td>
-            <td class="border border-gray-300 px-3 py-2 text-sm align-middle">{pres.prescriber}</td>
-            <td class="border border-gray-300 px-3 py-2 text-sm align-middle">
-              {pres.dateVisited
-                ? new Date(pres.dateVisited).toLocaleDateString('en-US')
-                : 'N/A'}
-            </td>
-            <td
-              colspan="3"
-              class="border border-gray-300 px-3 py-2 text-sm align-middle text-center italic"
-            >
-              No medicines listed.
-            </td>
-          </tr>
-        {/if}
-      {:else}
-        <tr>
-          <td colspan="6" class="border border-gray-300 px-3 py-2 text-sm text-center">
-            No prescriptions found or data loading...
-          </td>
-        </tr>
-      {/each}
-    </tbody>
-  </table>
-</div>
-{/if}
-		</section>
+			</div>
+		</div>
 	</div>
+
+<!-- Full Table Views -->
+{#if openTable}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-11/12 max-w-6xl max-h-[90vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">
+                    {openTable === 'appointments' ? 'All Appointments' :
+                     openTable === 'patients' ? 'All Patients' :
+                     openTable === 'prescriptions' ? 'All Prescriptions' :
+                     'Monthly Appointments'}
+                </h2>
+                <button
+                    class="text-gray-500 hover:text-gray-700"
+                    on:click={() => openTable = null}
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            {#if openTable === 'appointments'}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {#each allAppointments as appointment}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-sm text-gray-900">{appointment.patientName}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{appointment.time}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{appointment.service}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 text-xs font-medium rounded-full
+                                            {appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                            appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-red-100 text-red-800'}">
+                                            {appointment.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            {:else if openTable === 'patients'}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration Date</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {#each allPatients as patient}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-sm text-gray-900">{patient.name} {patient.lastName}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.age}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.gender}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.registrationDate}</td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            {:else if openTable === 'prescriptions'}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Medicines</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescriber</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {#each allPrescriptions as prescription}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-sm text-gray-900">{prescription.patientName}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{prescription.date}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">
+                                        {#each prescription.medicines as medicine}
+                                            <div>{medicine.medicine} - {medicine.dosage}</div>
+                                        {/each}
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{prescription.prescriber}</td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            {:else if openTable === 'monthlyAppointments'}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {#each monthlyAppointmentsData as appointment}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-sm text-gray-900">{appointment.patientName}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{appointment.time}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{appointment.service}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 text-xs font-medium rounded-full
+                                            {appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                            appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-red-100 text-red-800'}">
+                                            {appointment.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            {/if}
+        </div>
+    </div>
+{/if}
+
+<style>
+	/* Add any additional styles here */
+</style>
 
 

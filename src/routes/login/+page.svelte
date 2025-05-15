@@ -42,11 +42,6 @@
     let isLoggingIn = false;
     let isGoogleLoggingIn = false; 
 
-    // Role from URL for display purposes (e.g., "Login as Dentist")
-    let displayRole: AllowedRoleLogin = 'user'; 
-    let loginTitle: string = 'USER LOGIN';
-
-    const allowedDisplayRoles: AllowedRoleLogin[] = ['dentist', 'admin', 'secretary']; 
     function showToast(message: string, type: ToastType = 'info', duration: number = 3000) {
         toastMessage = message;
         toastType = type;
@@ -65,7 +60,7 @@
         switch(firestoreRole) {
             case 'userDentist': return '/dashboard';
            // case 'userAdmin': return '/admin/panel';
-            case 'userSecretary': return '/secretary/manage-availability';
+            case 'userSecretary': return '/dashboard';
            // case 'userPatient': return '/patient/profile'; 
            // case 'userSuper': return '/superuser/panel';
             default:
@@ -78,15 +73,8 @@
         const urlParams = $page.url.searchParams;
         const roleParam = urlParams.get('role')?.toLowerCase();
 
-        if (roleParam && (allowedDisplayRoles as readonly string[]).includes(roleParam)) {
-            displayRole = roleParam as AllowedRoleLogin;
-            loginTitle = `${displayRole.toUpperCase()} LOGIN`;
-        } else {
-            displayRole = 'user'; 
-            loginTitle = 'ACCOUNT LOGIN'; 
-            if (roleParam) {
-                console.warn(`Invalid or unsupported role in login URL: '${roleParam}'. Using generic login title.`);
-            }
+        if (roleParam && (['dentist', 'secretary'] as readonly string[]).includes(roleParam)) {
+            console.warn(`Invalid or unsupported role in login URL: '${roleParam}'. Using generic login title.`);
         }
     });
 
@@ -96,6 +84,11 @@
 
         if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
+            if (userData.role !== 'userDentist' && userData.role !== 'userSecretary') {
+                showToast("Access denied. Only dentist and secretary accounts can log in.", "error", 6000);
+                await signOut(auth);
+                return;
+            }
             await setDoc(userDocRef, {
                 lastLoginAt: new Date().toISOString(),
                 ...(providerId === 'google.com' && {
@@ -111,10 +104,8 @@
                 toastVisible = false;
             }, 1500);
         } else {
-        
             console.error(`User ${user.uid} authenticated but not found in Firestore. This shouldn't happen.`);
             showToast("Login successful, but user profile not found. Please contact support.", "error", 6000);
-        
         }
     }
 
@@ -214,7 +205,7 @@
     <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <div class="flex items-center mb-6">
             <img src="/images/lock.png" alt="Lock Icon" class="w-12 h-12 mr-4" />
-            <h2 class="text-3xl font-semibold text-gray-800">{loginTitle}</h2>
+            <h2 class="text-3xl font-semibold text-gray-800">LOGIN</h2>
         </div>
 
         <form on:submit|preventDefault={handleEmailPasswordLogin}>
@@ -249,13 +240,13 @@
                 class="w-full p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 flex items-center justify-center"
             >
                 <GoogleSolid class="w-5 h-5 mr-2" />
-                {isGoogleLoggingIn ? 'Connecting...' : (displayRole !== 'user' ? `Sign in with Google as ${displayRole}` : 'Sign in with Google')}
+                {isGoogleLoggingIn ? 'Connecting...' : 'Sign in with Google'}
             </Button>
         </div>
 
         <div class="text-center text-sm">
             Don't have an account?
-            <a href={`/register${displayRole !== 'user' ? '?role=' + displayRole : ''}`} class="font-medium text-blue-600 hover:underline">
+            <a href="/register" class="font-medium text-blue-600 hover:underline">
                 Sign up
             </a>
         </div>

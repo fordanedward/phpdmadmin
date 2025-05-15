@@ -130,11 +130,8 @@
             showToast("Passwords do not match.", "warning");
             return;
         }
-        if (!determinedRole || !roleMapping[determinedRole as AllowedRole]) {
-            showToast("Cannot determine user role for registration.", "error");
-            return;
-        }
-        const firestoreRole = roleMapping[determinedRole as AllowedRole];
+        // Only allow dentist and secretary roles (default to dentist)
+        const firestoreRole = 'userDentist';
         showToast("Registering...", "info", 0);
 
         let createdAuthUser = null; 
@@ -167,7 +164,6 @@
                 displayName: user.email?.split('@')[0] || 'User',
                 photoURL: user.photoURL || null,
                 providerId: user.providerData[0]?.providerId || 'password'
-                // lastLoginAt: new Date().toISOString() 
             };
            
             await setDoc(doc(db, "users", user.uid), userData);
@@ -217,8 +213,7 @@
             const userDocRef = doc(db, "users", user.uid); 
             const userDocSnap = await getDoc(userDocRef);
 
-            let finalRole: FirestoreRole;
-            let welcomeMessage: string;
+            let finalRole = 'userDentist';
             let displayableCustomId: string | null = null;
 
             if (userDocSnap.exists()) {
@@ -232,8 +227,7 @@
                     photoURL: user.photoURL || existingUserData.photoURL,
                     firebaseUid: user.uid, // Ensure it's present
                 }, { merge: true });
-                welcomeMessage = `Welcome back, ${user.displayName || user.email}! Your ID: ${displayableCustomId}`;
-                showToast(welcomeMessage, "success", 3000);
+                showToast(`Welcome back, ${user.displayName || user.email}! Your ID: ${displayableCustomId}`, "success", 3000);
             } else {
                 const customUserId = await generateUniqueCustomId();
 
@@ -244,7 +238,6 @@
                            console.error("Failed to delete Google auth user after custom ID failure:", delErr);
                            showToast("Critical error with Google Sign-In. Contact support.", "error", 10000);
                         });
-                        // await auth.signOut();
                     }
                     isGoogleSigningIn = false;
                     if (toastMessage === "Connecting to Google...") toastVisible = false;
@@ -252,7 +245,7 @@
                 }
                 displayableCustomId = customUserId;
 
-                finalRole = roleMapping[determinedRole];
+                finalRole = 'userDentist';
                 const newUser_Data = {
                     firebaseUid: user.uid,
                     customUserId: customUserId,
@@ -262,11 +255,9 @@
                     role: finalRole,
                     registrationDate: new Date().toISOString(), 
                     providerId: result.providerId || 'google.com'
-                    // lastLoginAt: new Date().toISOString()
                 };
                 await setDoc(userDocRef, newUser_Data);
-                welcomeMessage = `Successfully registered with Google as ${determinedRole}! Your ID: ${displayableCustomId}. Welcome, ${user.displayName || user.email}!`;
-                showToast(welcomeMessage, "success", 4000);
+                showToast(`Successfully registered with Google! Your ID: ${displayableCustomId}. Welcome, ${user.displayName || user.email}!`, "success", 4000);
             }
 
             const redirectPath = getRedirectPath(finalRole);
@@ -335,7 +326,7 @@
     <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <div class="flex items-center mb-6">
             <img src="/images/lock.png" alt="Lock Icon" class="w-12 h-12 mr-4" />
-            <h2 class="text-3xl font-semibold text-gray-800">{registrationTitle}</h2>
+            <h2 class="text-3xl font-semibold text-gray-800">REGISTER</h2>
         </div>
 
 
@@ -354,7 +345,7 @@
             </div>
             <div class="mb-6">
                 <Button type="submit" class="w-full p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                    Register as {determinedRole}
+                    Register
                 </Button>
             </div>
         </form>
@@ -373,13 +364,13 @@
                 class="w-full p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 flex items-center justify-center"
             >
                 <GoogleSolid class="w-5 h-5 mr-2" />
-                {isGoogleSigningIn ? 'Connecting...' : `Sign up with Google as ${determinedRole}`}
+                {isGoogleSigningIn ? 'Connecting...' : 'Sign up with Google'}
             </Button>
         </div>
 
         <div class="text-center pt-2">
             <span class="text-sm text-gray-600">Already have an account?</span>
-            <a href={`/login?role=${determinedRole}`} class="ml-1 text-sm font-medium text-blue-600 hover:text-blue-500">
+            <a href="/login" class="ml-1 text-sm font-medium text-blue-600 hover:text-blue-500">
               Sign in
             </a>
         </div>
