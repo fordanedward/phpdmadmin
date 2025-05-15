@@ -250,21 +250,31 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
 
     const snapshot = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PRESCRIPTIONS));
 
-    const prescriptions = snapshot.docs.map(doc => {
-      const data = doc.data();
+    // Fetch appointment date for each prescription
+    const prescriptions = await Promise.all(snapshot.docs.map(async docSnap => {
+      const data = docSnap.data();
       const patientName = patientMap.get(data.patientId)?.name || 'Unknown';
       const patientLastName = patientMap.get(data.patientId)?.lastName || '';
+      let appointmentDate = '';
+      if (data.appointmentId) {
+        const appointmentRef = doc(db, FIRESTORE_COLLECTIONS.APPOINTMENTS, data.appointmentId);
+        const appointmentSnap = await getDoc(appointmentRef);
+        if (appointmentSnap.exists()) {
+          appointmentDate = appointmentSnap.data().date || '';
+        }
+      }
       return {
-        id: doc.id,
+        id: docSnap.id,
         appointmentId: data.appointmentId || 'N/A',
         patientId: data.patientId || 'N/A',
-        patientName: `${patientName} ${patientLastName}`.trim(), // Combine first and last name
+        patientName: `${patientName} ${patientLastName}`.trim(),
         prescriber: data.prescriber || 'N/A',
         medicines: data.medicines || [],
+        date: appointmentDate, // <-- This is the appointment date!
         dateVisited: data.dateVisited || 'N/A',
         createdAt: data.createdAt,
       } as Prescription;
-    });
+    }));
 
     console.log(`Fetched ${prescriptions.length} prescriptions.`);
     return prescriptions;
@@ -1052,9 +1062,11 @@ function downloadExcelReport(
 										<td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
 										<td class="px-4 py-3">
 											<span class="px-2 py-1 text-xs font-medium rounded-full
-												{appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-												appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-												'bg-red-100 text-red-800'}">
+												{appointment.status && appointment.status.toLowerCase().includes('completed') ? 'bg-green-100 text-green-800' :
+												appointment.status && appointment.status.toLowerCase().includes('pending') ? 'bg-yellow-100 text-yellow-800' :
+												appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
+												appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
+												'bg-gray-300 text-gray-700'}">
 												{appointment.status}
 											</span>
 										</td>
@@ -1146,9 +1158,11 @@ function downloadExcelReport(
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.service}</td>
                                     <td class="px-4 py-3">
                                         <span class="px-2 py-1 text-xs font-medium rounded-full
-                                            {appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                            appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-red-100 text-red-800'}">
+                                            {appointment.status && appointment.status.toLowerCase().includes('completed') ? 'bg-green-100 text-green-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('pending') ? 'bg-yellow-100 text-yellow-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
+                                            'bg-gray-300 text-gray-700'}">
                                             {appointment.status}
                                         </span>
                                     </td>
@@ -1230,9 +1244,11 @@ function downloadExcelReport(
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.service}</td>
                                     <td class="px-4 py-3">
                                         <span class="px-2 py-1 text-xs font-medium rounded-full
-                                            {appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                            appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-red-100 text-red-800'}">
+                                            {appointment.status && appointment.status.toLowerCase().includes('completed') ? 'bg-green-100 text-green-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('pending') ? 'bg-yellow-100 text-yellow-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
+                                            'bg-gray-300 text-gray-700'}">
                                             {appointment.status}
                                         </span>
                                     </td>
