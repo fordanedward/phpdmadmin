@@ -4,7 +4,7 @@
 	import { initializeApp } from 'firebase/app';
 	import { getFirestore, collection, updateDoc, getDocs, deleteDoc, doc, Timestamp, deleteField } from 'firebase/firestore';
 	import Swal from 'sweetalert2';
-
+	import { EyeOutline } from 'flowbite-svelte-icons';
 	// --- Firebase Initialization ---
 	const app = initializeApp(firebaseConfig);
 	const db = getFirestore(app);
@@ -92,9 +92,10 @@
 	async function fetchPrescribedPatients() {
 		try {
 			const prescriptionsSnapshot = await getDocs(collection(db, "prescriptions"));
-			const prescriptionsData: PrescriptionDetail[] = prescriptionsSnapshot.docs.map(docSnap => { // Added type
+			const prescriptionsData: PrescriptionDetail[] = prescriptionsSnapshot.docs.map(docSnap => {
 				const data = docSnap.data();
 				const medicines = data.medicines || [];
+				// Do not format dateVisited here, handle it after merging with appointment
 				return {
 					id: docSnap.id,
 					appointmentId: data.appointmentId,
@@ -102,6 +103,7 @@
 					medications: medicines.map((m: { medicine: any; }) => m.medicine || 'N/A').join(', '),
 					prescriber: data.prescriber || 'N/A',
 					dosage: medicines.map((m: { dosage: any; }) => m.dosage || 'N/A').join(', '),
+					dateVisited: data.dateVisited // keep as raw value for now
 				};
 			});
 
@@ -111,11 +113,11 @@
 				const data = docSnap.data();
 				appointmentsMap.set(docSnap.id, {
 					patientId: data.patientId,
-					date: data.date ? new Date(data.date.seconds * 1000).toLocaleDateString() : 'N/A',
+					date: data.date // keep as raw value for now
 				});
 			});
 
-			const patientPrescriptionsMap = new Map<string, PrescriptionDetail[]>(); // Typed map
+			const patientPrescriptionsMap = new Map<string, PrescriptionDetail[]>();
 			prescriptionsData.forEach(prescription => {
 				const appointment = appointmentsMap.get(prescription.appointmentId);
 				if (appointment && appointment.patientId) {
@@ -123,13 +125,23 @@
 					if (!patientPrescriptionsMap.has(patientId)) {
 						patientPrescriptionsMap.set(patientId, []);
 					}
-                    const currentPrescriptions = patientPrescriptionsMap.get(patientId);
-                    if (currentPrescriptions) {
-                        currentPrescriptions.push({
-                            ...prescription,
-                            dateVisited: appointment.date,
-                        });
-                    }
+					const currentPrescriptions = patientPrescriptionsMap.get(patientId);
+					if (currentPrescriptions) {
+						// Format the dateVisited for display
+						let displayDate = 'N/A';
+						if (prescription.dateVisited) {
+							// Try to parse and format
+							const d = new Date(prescription.dateVisited);
+							displayDate = isNaN(d.getTime()) ? prescription.dateVisited : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+						} else if (appointment.date) {
+							const d = new Date(appointment.date);
+							displayDate = isNaN(d.getTime()) ? appointment.date : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+						}
+						currentPrescriptions.push({
+							...prescription,
+							dateVisited: displayDate
+						});
+					}
 				}
 			});
 
@@ -137,7 +149,7 @@
 				.filter(p => patientPrescriptionsMap.has(p.id))
 				.map(patient => ({
 					...patient,
-					prescriptions: patientPrescriptionsMap.get(patient.id) || [], // Ensures `prescriptions` array exists
+					prescriptions: patientPrescriptionsMap.get(patient.id) || [],
 				}));
 
 			console.log("Processed Prescribed Patients:", prescribedPatients.length);
@@ -486,7 +498,7 @@
 							aria-label="View prescriptions for {patient.fullName}"
 							class="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition duration-150 ease-in-out"
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M3.5 2.75a.75.75 0 0 0-1.5 0v14.5a.75.75 0 0 0 1.5 0v-4.392l1.657-.828a.75.75 0 0 0 0-1.344L3.5 9.858v-4.392Zm13.96 4.418-1.656.828a.75.75 0 0 0 0 1.344l1.656.828v4.392a.75.75 0 0 0 1.5 0V7.168a.75.75 0 0 0-.62-1.46l-1.657-.828a.75.75 0 0 0-.88 0l-1.656.828a.75.75 0 0 0 0 1.344l1.656.828ZM12 7.5a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 12 7.5Zm.75 4.75a.75.75 0 0 0 0 1.5h1.5a.75.75 0 0 0 0-1.5h-1.5Z" /><path fill-rule="evenodd" d="M8.5 2a.5.5 0 0 0-.5.5v15a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-15a.5.5 0 0 0-.5-.5h-3Zm-1.5 3A.5.5 0 0 1 7.5 4.5h5a.5.5 0 0 1 0 1h-5A.5.5 0 0 1 7 5Zm0 3A.5.5 0 0 1 7.5 7.5h5a.5.5 0 0 1 0 1h-5A.5.5 0 0 1 7 8Zm0 3a.5.5 0 0 1 7.5 10.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5Z" clip-rule="evenodd" /></svg>
+							<EyeOutline/>
 						</button>
                         {/if}
 					</div>
