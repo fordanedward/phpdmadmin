@@ -1,4 +1,7 @@
 @import 'tailwindcss/base';       /* Core Tailwind CSS reset */
 @import 'tailwindcss/components'; /* Predefined Tailwind components */
 @import 'tailwindcss/utilities';  /* Utility classes */
-@import "@fortawesome/fontawesome-free/css/all.css"; /* Font Awesome styles */
+
+body {
+  font-family: 'Poppins', sans-serif;
+}
