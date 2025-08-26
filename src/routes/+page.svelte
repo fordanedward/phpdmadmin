@@ -274,7 +274,7 @@
 
 <main>
     <div class="left-section">
-        <h1>Welcome to PHP Digital Member Portal (Admin)</h1>
+        <h1>Welcome to PHP Digital Member Admin</h1>
         <h2>We provide health solutions so we can achieve healthy, happy, and productive lives.</h2>
     </div>
     <div class="right-section">
