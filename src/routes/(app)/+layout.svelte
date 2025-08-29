@@ -101,7 +101,7 @@
         { href: "/medicine-list", icon: "/images/medicinelist.png", alt: "Medicines List", text: "Medicines List", roles: ['userDentist'] },
         { href: "/appointment/manage", icon: "/images/calendar.png", alt: "Manage Appointments", text: "Appointments", roles: ['userSecretary'] }, // Icon needed
         { href: "/secretary/manage-availability", icon: "/images/24-hours.png", alt: "Manage Availability", text: "Availability", roles: ['userSecretary',] }, // Icon needed
-        { href: "/secretary/payment", icon: "/images/wallet (1).png", alt: "Payments", text: "Payments", roles: ['userSecretary'] }, // Icon needed
+       // { href: "/secretary/payment", icon: "/images/wallet (1).png", alt: "Payments", text: "Payments", roles: ['userSecretary'] }, // Icon needed
     ];
 
     $: visibleMenuItems = layoutCurrentUser?.role
@@ -131,18 +131,7 @@
                 const userDocRef = doc(firebaseAppDb, "users", user.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
-                    const userData = userDocSnap.data();
-                    
-                    // Check if user is archived
-                    if (userData.isArchived) {
-                        console.warn(`User ${user.uid} is archived, signing out.`);
-                        await firebaseSignOut(firebaseAppAuth);
-                        layoutCurrentUser = null;
-                        layoutAuthLoading = false;
-                        return;
-                    }
-                    
-                    layoutCurrentUser = { uid: user.uid, ...userData } as UserProfileForLayout;
+                    layoutCurrentUser = { uid: user.uid, ...userDocSnap.data() } as UserProfileForLayout;
                 } else {
                     console.warn(`User ${user.uid} authenticated but profile not found in Firestore.`);
                     layoutCurrentUser = {  
