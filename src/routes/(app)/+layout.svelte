@@ -131,7 +131,18 @@
                 const userDocRef = doc(firebaseAppDb, "users", user.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
-                    layoutCurrentUser = { uid: user.uid, ...userDocSnap.data() } as UserProfileForLayout;
+                    const userData = userDocSnap.data();
+                    
+                    // Check if user is archived
+                    if (userData.isArchived) {
+                        console.warn(`User ${user.uid} is archived, signing out.`);
+                        await firebaseSignOut(firebaseAppAuth);
+                        layoutCurrentUser = null;
+                        layoutAuthLoading = false;
+                        return;
+                    }
+                    
+                    layoutCurrentUser = { uid: user.uid, ...userData } as UserProfileForLayout;
                 } else {
                     console.warn(`User ${user.uid} authenticated but profile not found in Firestore.`);
                     layoutCurrentUser = {  
@@ -208,7 +219,7 @@
                         <button on:click={closeSidebarMobile} class="close-sidebar-btn" aria-label="Close Menu">×</button>
                     {/if}
                     <div class="circle-background">
-                        <img src={layoutCurrentUser.photoURL || '/images/logo(landing) copy.png'} alt="User or Logo" />
+                        <img src={layoutCurrentUser.photoURL || '/images/digital member portal.png'} alt="User or Logo" />
                     </div>
 
                     {#if (!isMobile && !isCollapsed) || (isMobile && isSidebarOpen)}
@@ -247,7 +258,7 @@
 
                 {#if !isMobile}  
                     <button class="toggle-btn" on:click={toggleSidebarDesktop} aria-label={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}>
-                        {isCollapsed ? '➡️' : '⬅️'}
+                        {isCollapsed ? '→' : '←'}
                     </button>
                 {/if}
             </div>

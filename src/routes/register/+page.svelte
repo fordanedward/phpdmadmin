@@ -1,4 +1,5 @@
 <script lang="ts">
+    // @ts-nocheck
     import { Label, Input, Toast, Button } from 'flowbite-svelte';
     import {
         CheckOutline,
@@ -10,9 +11,9 @@
     import {
         getAuth,
         createUserWithEmailAndPassword,
-        GoogleAuthProvider,
-        signInWithPopup,
-        deleteUser 
+        GoogleAuthProvider,     
+        signInWithPopup,       
+        deleteUser
     } from 'firebase/auth';
     import { firebaseConfig } from "$lib/firebaseConfig";
     import { initializeApp, getApps, getApp } from "firebase/app";
@@ -20,20 +21,14 @@
         getFirestore,
         doc,
         setDoc,
-        getDoc,
-        Timestamp,
+        getDoc, 
         collection,
-        query,     
-        where,    
-        getDocs    
+        query,
+        where,
+        getDocs
     } from "firebase/firestore";
     import { goto } from '$app/navigation';
-    import { page } from '$app/stores';
     import { onMount } from 'svelte';
-
-    type AllowedRole = 'dentist' | 'admin' | 'secretary';
-    type FirestoreRole = 'userDentist' | 'userAdmin' | 'userSecretary';
-    type ToastType = 'info' | 'success' | 'warning' | 'error';
 
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const auth = getAuth(app);
@@ -42,17 +37,9 @@
     let email: string = '';
     let password: string = '';
     let confirmPassword: string = '';
+    let selectedRole: 'userDentist' | 'userSecretary' = 'userDentist';
 
-    const allowedRoles: AllowedRole[] = ['dentist', 'admin', 'secretary'];
-    const roleMapping: Record<AllowedRole, FirestoreRole> = {
-        dentist: 'userDentist',
-        admin: 'userAdmin',
-        secretary: 'userSecretary'
-    };
-
-    let determinedRole: AllowedRole = allowedRoles[0];
-    let registrationTitle: string = `${allowedRoles[0].toUpperCase()} REGISTRATION`;
-
+    type ToastType = 'info' | 'success' | 'warning' | 'error';
     let toastVisible: boolean = false;
     let toastMessage: string = '';
     let toastType: ToastType = 'info';
@@ -60,34 +47,7 @@
     let toastTimeoutId: number | null = null;
 
     let isGoogleSigningIn = false;
-
-    let selectedRole: 'userDentist' | 'userSecretary' = 'userDentist';
-
-    function generateSixDigitId(): string {
-        const min = 100000; 
-        const max = 999999; 
-        const randomNumber = Math.floor(Math.random() * (max - min + 1)) + min;
-        return randomNumber.toString();
-    }
-
-    async function isCustomIdTaken(customIdToCheck: string): Promise<boolean> {
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("customUserId", "==", customIdToCheck));
-        const querySnapshot = await getDocs(q);
-        return !querySnapshot.empty; 
-    }
-
-    async function generateUniqueCustomId(maxRetries: number = 10): Promise<string | null> {
-        for (let i = 0; i < maxRetries; i++) {
-            const potentialId = generateSixDigitId();
-            if (!(await isCustomIdTaken(potentialId))) {
-                return potentialId; 
-            }
-            console.warn(`Custom ID ${potentialId} is already taken. Retrying... (${i + 1}/${maxRetries})`);
-        }
-        console.error("Failed to generate a unique custom ID after several retries.");
-        return null;
-    }
+    let isPageLoaded = false; 
 
     function showToast(message: string, type: ToastType = 'info', duration: number = 3000) {
         toastMessage = message;
@@ -103,100 +63,95 @@
         }
     }
 
-    function getRedirectPath(firestoreRole: FirestoreRole | string): string {
-        switch(firestoreRole) {
-            case 'userDentist': return '/dashboard';
-            case 'userAdmin': return '/admin/panel';
-            case 'userSecretary': return '/dashboard';
-            default:
-                console.warn(`Unexpected firestoreRole '${firestoreRole}' for redirection. Redirecting to default path '/auth/profile'.`);
-                return '/auth/profile';
-        }
+    function generateSixDigitId(): string {
+        const min = 100000;
+        const max = 999999;
+        const randomNumber = Math.floor(Math.random() * (max - min + 1)) + min;
+        return randomNumber.toString();
     }
 
-    onMount(() => {
-        const urlParams = $page.url.searchParams;
-        const roleParam = urlParams.get('role')?.toLowerCase();
-        if (roleParam && (allowedRoles as readonly string[]).includes(roleParam)) {
-            determinedRole = roleParam as AllowedRole;
-        } else {
-            determinedRole = allowedRoles[0];
-            if (roleParam) console.warn(`Invalid role in URL: '${roleParam}'. Defaulting to '${allowedRoles[0]}'.`);
-            else console.log(`No role in URL. Defaulting to '${allowedRoles[0]}'.`);
+    async function isCustomIdTaken(customIdToCheck: string): Promise<boolean> {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("customUserId", "==", customIdToCheck));
+        const querySnapshot = await getDocs(q);
+        return !querySnapshot.empty;
+    }
+
+    async function generateUniqueCustomId(maxRetries: number = 10): Promise<string | null> {
+        for (let i = 0; i < maxRetries; i++) {
+            const potentialId = generateSixDigitId();
+            if (!(await isCustomIdTaken(potentialId))) {
+                return potentialId;
+            }
+            console.warn(`Custom Admin ID ${potentialId} is already taken. Retrying... (${i + 1}/${maxRetries})`);
         }
-        registrationTitle = `${determinedRole.toUpperCase()} REGISTRATION`;
-    });
+        console.error("Failed to generate a unique custom Admin ID after several retries.");
+        return null;
+    }
 
     async function handleRegistration() {
         if (password !== confirmPassword) {
             showToast("Passwords do not match.", "warning");
             return;
         }
-        // Only allow dentist and secretary roles (default to dentist)
-        const firestoreRole = selectedRole;
-        showToast("Registering...", "info", 0);
 
-        let createdAuthUser = null; 
+        showToast("Registering...", "info", 0);
+        let createdAuthUser = null;
 
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-            createdAuthUser = user; 
+            createdAuthUser = user;
 
-            const customUserId = await generateUniqueCustomId();
+            const customAdminId = await generateUniqueCustomId();
 
-            if (!customUserId) {
-                showToast("Failed to generate a unique User ID. Please try again later.", "error", 6000);
+            if (!customAdminId) {
+                showToast("Failed to generate a unique Admin ID. Please try again later.", "error", 6000);
                 if (createdAuthUser) {
                     await deleteUser(createdAuthUser).catch(delErr => {
                         console.error("Failed to delete auth user after custom ID generation failure:", delErr);
-                        showToast("Critical error: Please contact support. Auth account might be orphaned.", "error", 10000);
+                        showToast("Critical error: Admin account might be orphaned. Contact support.", "error", 10000);
                     });
                 }
                 if (toastMessage === "Registering...") toastVisible = false;
                 return;
             }
 
-            const userData = {
-                firebaseUid: user.uid, 
-                customUserId: customUserId, 
+            await setDoc(doc(db, "users", user.uid), {
+                firebaseUid: user.uid,
+                customUserId: customAdminId,
                 email: user.email,
-                role: firestoreRole,
-                registrationDate: new Date().toISOString(), 
-                displayName: user.email?.split('@')[0] || 'User',
+                role: selectedRole,
+                displayName: user.email?.split('@')[0] || 'Admin',
                 photoURL: user.photoURL || null,
-                providerId: user.providerData[0]?.providerId || 'password'
-            };
-           
-            await setDoc(doc(db, "users", user.uid), userData);
+                providerId: user.providerData[0]?.providerId || 'password',
+                registrationDate: new Date().toISOString()
+            });
 
-            showToast(`Registration successful! Your User ID: ${customUserId}. Welcome, ${user.email}`, "success", 5000);
-            const redirectPath = getRedirectPath(firestoreRole);
-            window.setTimeout(() => { goto(redirectPath); toastVisible = false; }, 2500);
+            showToast(`Registration successful! Your Admin ID: ${customAdminId}. Welcome, ${user.email}`, "success", 5000);
+            setTimeout(() => {
+                goto('/dashboard'); 
+                toastVisible = false;
+            }, 2500);
 
-        } catch (err) {
-            console.error("Email/Pass Registration Error:", err);
-            let userFriendlyMessage = "An unexpected error occurred. Please try again.";
-            if (err instanceof Error) {
-                const firebaseError = err as any; 
+        } catch (error) {
+            console.error("Admin Registration Error:", error);
+            let userFriendlyMessage = "An unexpected error occurred during registration. Please try again.";
+            if (error instanceof Error) {
+                const firebaseError = error as any;
                 if (firebaseError.code) {
                     switch (firebaseError.code) {
-                        case 'auth/email-already-in-use': userFriendlyMessage = "Email already registered. Try logging in or use a different email."; break;
-                        case 'auth/invalid-email': userFriendlyMessage = "Invalid email address."; break;
-                        case 'auth/operation-not-allowed': userFriendlyMessage = "Registration currently not available."; break;
-                        case 'auth/weak-password': userFriendlyMessage = "Password is too weak (min. 6 characters)."; break;
-                        default: userFriendlyMessage = "Registration failed. Please try again."; break;
+                        case 'auth/email-already-in-use': userFriendlyMessage = "This email is already registered. Try logging in or use a different email."; break;
+                        case 'auth/invalid-email': userFriendlyMessage = "The email address is not valid."; break;
+                        case 'auth/operation-not-allowed': userFriendlyMessage = "Admin registration is currently not allowed."; break;
+                        case 'auth/weak-password': userFriendlyMessage = "The password is too weak (minimum 6 characters)."; break;
+                        default: userFriendlyMessage = "Admin registration failed. Please check your details and try again."; break;
                     }
-                } else { userFriendlyMessage = "Registration error. Check input and try again."; }
-            } else if (typeof err === 'string') { userFriendlyMessage = "Registration failed: " + err; }
+                } else { userFriendlyMessage = "Registration error. Please check your input and try again."; }
+            } else if (typeof error === 'string') { userFriendlyMessage = "Registration failed: " + error; }
 
-            if (createdAuthUser && !(err as any).code?.startsWith('auth/')) { 
-                console.warn("Attempting to clean up auth user due to non-auth error post-creation:", err);
-                // await deleteUser(createdAuthUser).catch(delErr => {
-                //     console.error("Cleanup failed for auth user on non-auth error:", delErr);
-                // });
+            if (createdAuthUser && !(error as any).code?.startsWith('auth/')) {
             }
-
             showToast(userFriendlyMessage, "error", 6000);
         }
     }
@@ -212,29 +167,34 @@
             const user = result.user;
             createdAuthUserForGoogle = user;
 
-            const userDocRef = doc(db, "users", user.uid); 
+            const userDocRef = doc(db, "users", user.uid);
             const userDocSnap = await getDoc(userDocRef);
 
-            let finalRole: string = selectedRole;
+            let welcomeMessage: string;
             let displayableCustomId: string | null = null;
 
             if (userDocSnap.exists()) {
                 const existingUserData = userDocSnap.data();
-                finalRole = existingUserData.role as FirestoreRole;
+                if (existingUserData.role !== selectedRole) {
+                    console.warn(`User ${user.email} exists with role ${existingUserData.role}, but attempting ${selectedRole} login/registration.`);
+                }
+
                 displayableCustomId = existingUserData.customUserId || "N/A";
 
                 await setDoc(userDocRef, {
                     lastLoginAt: new Date().toISOString(),
                     displayName: user.displayName || existingUserData.displayName,
                     photoURL: user.photoURL || existingUserData.photoURL,
-                    firebaseUid: user.uid, // Ensure it's present
+                    firebaseUid: user.uid,
+                    role: selectedRole,
                 }, { merge: true });
-                showToast(`Welcome back, ${user.displayName || user.email}! Your ID: ${displayableCustomId}`, "success", 3000);
+                welcomeMessage = `Welcome back, ${user.displayName || user.email}! Your Admin ID: ${displayableCustomId}`;
+                showToast(welcomeMessage, "success", 3000);
             } else {
-                const customUserId = await generateUniqueCustomId();
+                const customAdminId = await generateUniqueCustomId();
 
-                if (!customUserId) {
-                    showToast("Failed to generate a unique User ID for Google Sign-In. Please try again.", "error", 6000);
+                if (!customAdminId) {
+                    showToast("Failed to generate a unique Admin ID for Google Sign-In. Please try again.", "error", 6000);
                     if (createdAuthUserForGoogle) {
                         await deleteUser(createdAuthUserForGoogle).catch(delErr => {
                            console.error("Failed to delete Google auth user after custom ID failure:", delErr);
@@ -245,26 +205,26 @@
                     if (toastMessage === "Connecting to Google...") toastVisible = false;
                     return;
                 }
-                displayableCustomId = customUserId;
+                displayableCustomId = customAdminId;
 
-                finalRole = selectedRole;
                 const newUser_Data = {
                     firebaseUid: user.uid,
-                    customUserId: customUserId,
+                    customUserId: customAdminId,
                     email: user.email,
-                    displayName: user.displayName,
+                    displayName: user.displayName || user.email?.split('@')[0] || 'Admin',
                     photoURL: user.photoURL,
-                    role: finalRole,
-                    registrationDate: new Date().toISOString(), 
-                    providerId: result.providerId || 'google.com'
+                    role: selectedRole,
+                    registrationDate: new Date().toISOString(),
+                    providerId: result.providerId || 'google.com',
+                    lastLoginAt: new Date().toISOString()
                 };
                 await setDoc(userDocRef, newUser_Data);
-                showToast(`Successfully registered with Google! Your ID: ${displayableCustomId}. Welcome, ${user.displayName || user.email}!`, "success", 4000);
+                welcomeMessage = `Successfully registered with Google! Your Admin ID: ${displayableCustomId}. Welcome, ${user.displayName || user.email}!`;
+                showToast(welcomeMessage, "success", 4000);
             }
 
-            const redirectPath = getRedirectPath(finalRole);
-            window.setTimeout(() => {
-                goto(redirectPath);
+            setTimeout(() => {
+                goto('/dashboard');
                 toastVisible = false;
             }, 1500);
 
@@ -277,19 +237,13 @@
                         userFriendlyMessage = "Google Sign-In cancelled.";
                         break;
                     case 'auth/account-exists-with-different-credential':
-                        userFriendlyMessage = "An account already exists with this email address using a different sign-in method. Try logging in with that method.";
+                        userFriendlyMessage = "An account already exists with this email using a different sign-in method. Try logging in with that method.";
                         break;
                     case 'auth/popup-blocked':
-                        userFriendlyMessage = "Google Sign-In popup was blocked by your browser. Please allow popups and try again.";
+                        userFriendlyMessage = "Google Sign-In popup was blocked. Please allow popups and try again.";
                         break;
                     default:
                         userFriendlyMessage = "Google Sign-In failed. Please try again later.";
-                }
-            }
-    
-            if (createdAuthUserForGoogle && err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/account-exists-with-different-credential') {
-                if (toastMessage !== "Failed to generate a unique User ID for Google Sign-In. Please try again.") {
-
                 }
             }
             showToast(userFriendlyMessage, "error", 6000);
@@ -300,6 +254,13 @@
             }
         }
     }
+
+    onMount(() => {
+        // Trigger page load animation
+        setTimeout(() => {
+            isPageLoaded = true;
+        }, 100);
+    });
 
 </script>
 
@@ -324,64 +285,172 @@
     </div>
 {/if}
 
-<div class="min-h-screen bg-gradient-to-r from-[#094361] to-[#128AC7] flex items-center justify-center px-4 py-8">
-    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <div class="flex items-center mb-6">
-            <img src="/images/lock.png" alt="Lock Icon" class="w-12 h-12 mr-4" />
-            <h2 class="text-3xl font-semibold text-gray-800">REGISTER</h2>
+<style>
+/* Animation styles for register page */
+.register-container {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.register-container.loaded {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.register-logo {
+    opacity: 0;
+    transform: scale(0.8) rotate(-5deg);
+    transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.1s;
+}
+
+.register-logo.loaded {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+}
+
+.register-form {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.2s;
+}
+
+.register-form.loaded {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.register-title {
+    opacity: 0;
+    transform: translateY(15px);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.3s;
+}
+
+.register-title.loaded {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.register-field {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.register-field.loaded {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.register-field:nth-child(1) { transition-delay: 0.4s; }
+.register-field:nth-child(2) { transition-delay: 0.5s; }
+.register-field:nth-child(3) { transition-delay: 0.6s; }
+.register-field:nth-child(4) { transition-delay: 0.7s; }
+
+.register-button {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) 1s;
+}
+
+.register-button.loaded {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.google-register-button {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) 1.1s;
+}
+
+.google-register-button.loaded {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.login-link {
+    opacity: 0;
+    transform: translateY(15px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) 1.2s;
+}
+
+.login-link.loaded {
+    opacity: 1;
+    transform: translateY(0);
+}
+</style>
+
+<div class="h-screen bg-[#f4c542] flex items-center justify-center px-4 py-4 overflow-hidden">
+    <div class="flex items-center w-full max-w-6xl">
+        <!-- Logo on the left side -->
+        <div class="flex-1 hidden lg:flex justify-center">
+            <img 
+                src="/images/digital member portal.png" 
+                alt="Digital Member Portal Logo" 
+                class="register-logo {isPageLoaded ? 'loaded' : ''} max-w-full h-auto" 
+                style="width: clamp(360px, 32vw, 480px); max-height: 70vh;"
+                />
         </div>
+        
+        <!-- Registration form on the right side -->
+        <div class="register-container {isPageLoaded ? 'loaded' : ''} bg-white p-6 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-auto">
+            <div class="flex justify-center mb-6">
+                <h2 class="register-title {isPageLoaded ? 'loaded' : ''} text-3xl font-semibold text-gray-800 text-center">REGISTER</h2>
+            </div>
 
+        <div class="register-form {isPageLoaded ? 'loaded' : ''}">
+            <form on:submit|preventDefault={handleRegistration}>
+                <div class="register-field {isPageLoaded ? 'loaded' : ''} mb-6">
+                    <Label for="role" class="block mb-2">Register as</Label>
+                    <select id="role" bind:value={selectedRole} class="border p-2 w-full">
+                        <option value="userDentist">Dentist</option>
+                        <option value="userSecretary">Secretary</option>
+                    </select>
+                </div>
+                <div class="register-field {isPageLoaded ? 'loaded' : ''} mb-6">
+                    <Label for="email" class="block mb-2">Email</Label>
+                    <Input type="email" id="email" placeholder="name@example.com" class="border p-2 w-full" bind:value={email} required />
+                </div>
+                <div class="register-field {isPageLoaded ? 'loaded' : ''} mb-6">
+                    <Label for="password" class="block mb-2">Password</Label>
+                    <Input type="password" id="password" placeholder="••••••••" class="border p-2 w-full" bind:value={password} required />
+                </div>
+                <div class="register-field {isPageLoaded ? 'loaded' : ''} mb-6">
+                    <Label for="confirmPassword" class="block mb-2">Confirm Password</Label>
+                    <Input type="password" id="confirmPassword" placeholder="••••••••" class="border p-2 w-full" bind:value={confirmPassword} required />
+                </div>
+                <div class="register-button {isPageLoaded ? 'loaded' : ''} mb-4">
+                    <Button type="submit" class="w-full p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        Register as {selectedRole === 'userDentist' ? 'Dentist' : 'Secretary'}
+                    </Button>
+                </div>
+            </form>
 
-        <form on:submit|preventDefault={handleRegistration}>
-            <div class="mb-6">
-                <Label for="role" class="block mb-2">Register as</Label>
-                <select id="role" bind:value={selectedRole} class="border p-2 w-full">
-                    <option value="userDentist">Dentist</option>
-                    <option value="userSecretary">Secretary</option>
-                </select>
+            <div class="my-6 flex items-center">
+                <hr class="flex-grow border-gray-300">
+                <span class="mx-4 text-gray-500 text-sm">OR</span>
+                <hr class="flex-grow border-gray-300">
             </div>
-            <div class="mb-6">
-                <Label for="email" class="block mb-2">Email</Label>
-                <Input type="email" id="email" placeholder="name@example.com" class="border p-2 w-full" bind:value={email} required />
-            </div>
-            <div class="mb-6">
-                <Label for="password" class="block mb-2">Password</Label>
-                <Input type="password" id="password" placeholder="••••••••" class="border p-2 w-full" bind:value={password} required />
-            </div>
-            <div class="mb-6">
-                <Label for="confirmPassword" class="block mb-2">Confirm Password</Label>
-                <Input type="password" id="confirmPassword" placeholder="••••••••" class="border p-2 w-full" bind:value={confirmPassword} required />
-            </div>
-            <div class="mb-6">
-                <Button type="submit" class="w-full p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                    Register as {selectedRole === 'userDentist' ? 'Dentist' : 'Secretary'}
+
+            <div class="google-register-button {isPageLoaded ? 'loaded' : ''} mb-4">
+                <Button
+                    on:click={handleGoogleSignIn}
+                    disabled={isGoogleSigningIn}
+                    class="w-full p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 flex items-center justify-center"
+                >
+                    <GoogleSolid class="w-5 h-5 mr-2" />
+                    {isGoogleSigningIn ? 'Connecting...' : `Sign up with Google as ${selectedRole === 'userDentist' ? 'Dentist' : 'Secretary'}`}
                 </Button>
             </div>
-        </form>
 
-        <div class="my-6 flex items-center">
-            <hr class="flex-grow border-gray-300">
-            <span class="mx-4 text-gray-500 text-sm">OR</span>
-            <hr class="flex-grow border-gray-300">
+            <div class="login-link {isPageLoaded ? 'loaded' : ''} text-center pt-2">
+                <span class="text-sm text-gray-600">Already have an account?</span>
+                <a href="/login" class="ml-1 text-sm font-medium text-blue-600 hover:text-blue-500">
+                  Sign in
+                </a>
+            </div>
         </div>
-
-
-        <div class="mb-6">
-            <Button
-                on:click={handleGoogleSignIn}
-                disabled={isGoogleSigningIn}
-                class="w-full p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 flex items-center justify-center"
-            >
-                <GoogleSolid class="w-5 h-5 mr-2" />
-                {isGoogleSigningIn ? 'Connecting...' : `Sign up with Google as ${selectedRole === 'userDentist' ? 'Dentist' : 'Secretary'}`}
-            </Button>
-        </div>
-
-        <div class="text-center pt-2">
-            <span class="text-sm text-gray-600">Already have an account?</span>
-            <a href="/login" class="ml-1 text-sm font-medium text-blue-600 hover:text-blue-500">
-              Sign in
-            </a>
         </div>
     </div>
 </div>

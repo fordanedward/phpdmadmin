@@ -97,6 +97,11 @@ interface Prescription {
 		todaysPrescriptions: number;
 		totalPrescriptions: number;
 		monthlyAppointments: number;
+		// New patient analytics
+		newPatientsThisMonth: number;
+		activePatients: number;
+		archivedPatients: number;
+		topAgeGroup: string;
 	}
 
 	interface DailyAppointmentCount {
@@ -107,7 +112,8 @@ interface Prescription {
 	let isCollapsed = false;
 	let stats: Stats = {
 		newAppointments: 0, totalPatients: 0, todaysPatients: 0, todaysAppointments: 0,
-		todaysPrescriptions: 0, totalPrescriptions: 0, monthlyAppointments: 0
+		todaysPrescriptions: 0, totalPrescriptions: 0, monthlyAppointments: 0,
+		newPatientsThisMonth: 0, activePatients: 0, archivedPatients: 0, topAgeGroup: ''
 	};
 
 	let allAppointments: Appointment[] = [];
@@ -126,6 +132,10 @@ interface Prescription {
 	let genderDistributionChartInstance: Chart | null = null;
 	let weeklyAppointmentsChartInstance: Chart | null = null;
 	let completedMissedChartInstance: Chart | null = null;
+	// New patient analytics charts
+	let patientGrowthChartInstance: Chart | null = null;
+	let patientAgeDistributionChartInstance: Chart | null = null;
+	let patientRegistrationChartInstance: Chart | null = null;
 
 	// Chart Data (populated by functions)
 	let lineChartLabels: string[] = [];
@@ -291,6 +301,7 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
 		const statsResult: Stats = {
 			newAppointments: 0, totalPatients: 0, todaysPatients: 0, todaysAppointments: 0,
 			todaysPrescriptions: 0, totalPrescriptions: 0, monthlyAppointments: 0,
+			newPatientsThisMonth: 0, activePatients: 0, archivedPatients: 0, topAgeGroup: ''
 		};
 		try {
 			 // Ensure data is available, fetch if not
@@ -312,6 +323,44 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
 					return appDate.getFullYear() === currentYear && appDate.getMonth() + 1 === currentMonth;
 				} catch (e) { return false; }
 			}).length;
+
+			// Calculate new patient analytics
+			statsResult.newPatientsThisMonth = allPatients.filter(p => {
+				try {
+					if (p.registrationDate && p.registrationDate !== 'N/A') {
+						const regDate = new Date(p.registrationDate);
+						return regDate.getFullYear() === currentYear && regDate.getMonth() + 1 === currentMonth;
+					}
+					return false;
+				} catch (e) { return false; }
+			}).length;
+
+			// Calculate age statistics
+			const patientsWithAge = allPatients.filter(p => p.age && p.age > 0);
+			if (patientsWithAge.length > 0) {
+				// Find top age group
+				const ageGroups = {
+					'0-17': 0, '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56-65': 0, '65+': 0
+				};
+				patientsWithAge.forEach(p => {
+					const age = p.age || 0;
+					if (age <= 17) ageGroups['0-17']++;
+					else if (age <= 25) ageGroups['18-25']++;
+					else if (age <= 35) ageGroups['26-35']++;
+					else if (age <= 45) ageGroups['36-45']++;
+					else if (age <= 55) ageGroups['46-55']++;
+					else if (age <= 65) ageGroups['56-65']++;
+					else ageGroups['65+']++;
+				});
+
+				const maxCount = Math.max(...Object.values(ageGroups));
+				statsResult.topAgeGroup = Object.keys(ageGroups).find(key => ageGroups[key as keyof typeof ageGroups] === maxCount) || '';
+			}
+
+			// Note: activePatients and archivedPatients would need to be calculated from patientProfiles collection
+			// For now, we'll set them to 0 and they can be updated when we fetch from patientProfiles
+			statsResult.activePatients = allPatients.length; // Assuming all patients in users collection are active
+			statsResult.archivedPatients = 0; // This would need to be calculated from patientProfiles
 
 			console.log("Dashboard stats fetched:", statsResult);
 			return statsResult;
@@ -565,6 +614,251 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
 			type: 'line', data: lineData, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { title: { display: true, text: 'Number of Appointments' }, beginAtZero: true } } }
 		});
 		console.log('Completed/Missed line chart updated.');
+	}
+
+	// --- Patient Analytics Functions ---
+	async function updateAndRenderPatientGrowthChart(): Promise<void> {
+		console.log('Updating patient growth chart...');
+		const canvas = document.getElementById('patientGrowthChart') as HTMLCanvasElement | null;
+		if (!canvas) {
+			console.error('Patient growth chart canvas not found.');
+			return;
+		}
+
+		if (!allPatients.length) allPatients = await fetchAllPatients();
+
+		// Group patients by registration month
+		const patientsByMonth: Record<string, number> = {};
+		const cumulativePatients: Record<string, number> = {};
+		let cumulative = 0;
+
+		allPatients.forEach(patient => {
+			if (patient.registrationDate && patient.registrationDate !== 'N/A') {
+				try {
+					const date = new Date(patient.registrationDate);
+					const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+					patientsByMonth[monthKey] = (patientsByMonth[monthKey] || 0) + 1;
+				} catch (e) {
+					console.warn(`Invalid registration date: ${patient.registrationDate}`);
+				}
+			}
+		});
+
+		// Calculate cumulative patients
+		const sortedMonths = Object.keys(patientsByMonth).sort();
+		sortedMonths.forEach(month => {
+			cumulative += patientsByMonth[month];
+			cumulativePatients[month] = cumulative;
+		});
+
+		const chartData = {
+			labels: sortedMonths,
+			datasets: [
+				{
+					label: 'New Patients',
+					data: sortedMonths.map(month => patientsByMonth[month]),
+					borderColor: '#10b981',
+					backgroundColor: 'rgba(16, 185, 129, 0.2)',
+					tension: 0.3,
+					fill: true
+				},
+				{
+					label: 'Total Patients',
+					data: sortedMonths.map(month => cumulativePatients[month]),
+					borderColor: '#3b82f6',
+					backgroundColor: 'rgba(59, 130, 246, 0.2)',
+					tension: 0.3,
+					fill: true
+				}
+			]
+		};
+
+		if (patientGrowthChartInstance) patientGrowthChartInstance.destroy();
+		patientGrowthChartInstance = new Chart(canvas, {
+			type: 'line',
+			data: chartData,
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					legend: { position: 'top' },
+					title: {
+						display: true,
+						text: 'Patient Growth Over Time'
+					}
+				},
+				scales: {
+					x: {
+						title: { display: true, text: 'Month' }
+					},
+					y: {
+						title: { display: true, text: 'Number of Patients' },
+						beginAtZero: true
+					}
+				}
+			}
+		});
+		console.log('Patient growth chart updated.');
+	}
+
+	async function updateAndRenderPatientAgeDistributionChart(): Promise<void> {
+		console.log('Updating patient age distribution chart...');
+		const canvas = document.getElementById('patientAgeDistributionChart') as HTMLCanvasElement | null;
+		if (!canvas) {
+			console.error('Patient age distribution chart canvas not found.');
+			return;
+		}
+
+		if (!allPatients.length) allPatients = await fetchAllPatients();
+
+		// Define age groups
+		const ageGroups = {
+			'0-17': 0,
+			'18-25': 0,
+			'26-35': 0,
+			'36-45': 0,
+			'46-55': 0,
+			'56-65': 0,
+			'65+': 0
+		};
+
+		// Count patients by age group
+		allPatients.forEach(patient => {
+			if (patient.age && patient.age > 0) {
+				if (patient.age <= 17) ageGroups['0-17']++;
+				else if (patient.age <= 25) ageGroups['18-25']++;
+				else if (patient.age <= 35) ageGroups['26-35']++;
+				else if (patient.age <= 45) ageGroups['36-45']++;
+				else if (patient.age <= 55) ageGroups['46-55']++;
+				else if (patient.age <= 65) ageGroups['56-65']++;
+				else ageGroups['65+']++;
+			}
+		});
+
+		const chartData = {
+			labels: Object.keys(ageGroups),
+			datasets: [{
+				label: 'Number of Patients',
+				data: Object.values(ageGroups),
+				backgroundColor: [
+					'#ef4444', '#f97316', '#eab308', '#22c55e',
+					'#3b82f6', '#8b5cf6', '#ec4899'
+				],
+				borderColor: [
+					'#dc2626', '#ea580c', '#ca8a04', '#16a34a',
+					'#2563eb', '#7c3aed', '#db2777'
+				],
+				borderWidth: 2
+			}]
+		};
+
+		if (patientAgeDistributionChartInstance) patientAgeDistributionChartInstance.destroy();
+		patientAgeDistributionChartInstance = new Chart(canvas, {
+			type: 'bar',
+			data: chartData,
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					legend: { display: false },
+					title: {
+						display: true,
+						text: 'Patient Age Distribution'
+					}
+				},
+				scales: {
+					x: {
+						title: { display: true, text: 'Age Groups' }
+					},
+					y: {
+						title: { display: true, text: 'Number of Patients' },
+						beginAtZero: true
+					}
+				}
+			}
+		});
+		console.log('Patient age distribution chart updated.');
+	}
+
+	async function updateAndRenderPatientRegistrationChart(): Promise<void> {
+		console.log('Updating patient registration chart...');
+		const canvas = document.getElementById('patientRegistrationChart') as HTMLCanvasElement | null;
+		if (!canvas) {
+			console.error('Patient registration chart canvas not found.');
+			return;
+		}
+
+		if (!allPatients.length) allPatients = await fetchAllPatients();
+
+		// Get last 12 months
+		const months = [];
+		const currentDate = new Date();
+		for (let i = 11; i >= 0; i--) {
+			const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+			months.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+		}
+
+		// Count new patients per month
+		const newPatientsByMonth = months.map(month => {
+			const count = allPatients.filter(patient => {
+				if (patient.registrationDate && patient.registrationDate !== 'N/A') {
+					try {
+						const date = new Date(patient.registrationDate);
+						const patientMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+						return patientMonth === month;
+					} catch (e) {
+						return false;
+					}
+				}
+				return false;
+			}).length;
+			return count;
+		});
+
+		const chartData = {
+			labels: months.map(month => {
+				const [year, monthNum] = month.split('-');
+				return `${MONTH_NAMES[parseInt(monthNum) - 1]} ${year}`;
+			}),
+			datasets: [{
+				label: 'New Patient Registrations',
+				data: newPatientsByMonth,
+				borderColor: '#8b5cf6',
+				backgroundColor: 'rgba(139, 92, 246, 0.2)',
+				tension: 0.3,
+				fill: true,
+				pointBackgroundColor: '#8b5cf6',
+				pointBorderColor: '#ffffff',
+				pointBorderWidth: 2
+			}]
+		};
+
+		if (patientRegistrationChartInstance) patientRegistrationChartInstance.destroy();
+		patientRegistrationChartInstance = new Chart(canvas, {
+			type: 'line',
+			data: chartData,
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					legend: { position: 'top' },
+					title: {
+						display: true,
+						text: 'New Patient Registrations (Last 12 Months)'
+					}
+				},
+				scales: {
+					x: {
+						title: { display: true, text: 'Month' }
+					},
+					y: {
+						title: { display: true, text: 'New Patients' },
+						beginAtZero: true
+					}
+				}
+			}
+		});
+		console.log('Patient registration chart updated.');
 	}
 
 	// --- Report Generation ---
@@ -850,7 +1144,11 @@ function downloadExcelReport(
 				updateAndRenderGenderDistributionChart(),
 				updateAndRenderWeeklyAppointmentsChart(),
 				updateAndRenderCompletedMissedChart(),
-				updateAndRenderLineChart(currentYear, currentMonth)
+				updateAndRenderLineChart(currentYear, currentMonth),
+				// New patient analytics charts
+				updateAndRenderPatientGrowthChart(),
+				updateAndRenderPatientAgeDistributionChart(),
+				updateAndRenderPatientRegistrationChart()
 			]);
 
 			// Fetch data for the default view of the monthly table
@@ -868,6 +1166,10 @@ function downloadExcelReport(
 		genderDistributionChartInstance?.destroy();
 		weeklyAppointmentsChartInstance?.destroy();
 		completedMissedChartInstance?.destroy();
+		// Clean up new patient analytics charts
+		patientGrowthChartInstance?.destroy();
+		patientAgeDistributionChartInstance?.destroy();
+		patientRegistrationChartInstance?.destroy();
 	});
 
     async function handleMonthYearChange() {
@@ -984,12 +1286,59 @@ function downloadExcelReport(
 				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('patients')}>
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">Total Patients</p>
+							<p class="text-sm font-medium text-gray-600">Total Members</p>
 							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.totalPatients}</h3>
 						</div>
 						<div class="p-3 bg-orange-50 rounded-lg">
 							<svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+							</svg>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Enhanced Patient Analytics Cards -->
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-600">New Patients This Month</p>
+							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.newPatientsThisMonth}</h3>
+						</div>
+						<div class="p-3 bg-emerald-50 rounded-lg">
+							<svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+							</svg>
+						</div>
+					</div>
+				</div>
+
+
+
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-600">Top Age Group</p>
+							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.topAgeGroup}</h3>
+						</div>
+						<div class="p-3 bg-pink-50 rounded-lg">
+							<svg class="w-6 h-6 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+							</svg>
+						</div>
+					</div>
+				</div>
+
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-600">Active Patients</p>
+							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.activePatients}</h3>
+						</div>
+						<div class="p-3 bg-teal-50 rounded-lg">
+							<svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 							</svg>
 						</div>
 					</div>
@@ -1030,6 +1379,33 @@ function downloadExcelReport(
 					<h3 class="text-lg font-semibold text-gray-800 mb-4">Completed vs Missed Appointments</h3>
 					<div class="h-80">
 						<canvas id="completedMissedLineChart"></canvas>
+					</div>
+				</div>
+			</div>
+
+			<!-- Patient Analytics Section -->
+			<div class="mb-8">
+				<h2 class="text-2xl font-bold text-gray-800 mb-6">Patient Analytics</h2>
+				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+						<h3 class="text-lg font-semibold text-gray-800 mb-4">Patient Growth Over Time</h3>
+						<div class="h-80">
+							<canvas id="patientGrowthChart"></canvas>
+						</div>
+					</div>
+
+					<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+						<h3 class="text-lg font-semibold text-gray-800 mb-4">Patient Age Distribution</h3>
+						<div class="h-80">
+							<canvas id="patientAgeDistributionChart"></canvas>
+						</div>
+					</div>
+
+					<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:col-span-2">
+						<h3 class="text-lg font-semibold text-gray-800 mb-4">New Patient Registrations (Last 12 Months)</h3>
+						<div class="h-80">
+							<canvas id="patientRegistrationChart"></canvas>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -1123,7 +1499,7 @@ function downloadExcelReport(
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-gray-800">
                     {openTable === 'appointments' ? 'All Appointments' :
-                     openTable === 'patients' ? 'All Patients' :
+                     openTable === 'patients' ? 'All Members' :
                      openTable === 'prescriptions' ? 'All Prescriptions' :
                      'Monthly Appointments'}
                 </h2>

@@ -245,10 +245,18 @@
 		const archiveDate = new Date();
 
 		try {
+			// Archive the patient profile
 			const patientRef = doc(db, 'patientProfiles', patientId);
 			await updateDoc(patientRef, {
 				isArchived: true,
 				remark: remark.trim() || 'Archived without specific remark',
+				dateArchived: Timestamp.fromDate(archiveDate)
+			});
+
+			// Also archive the user account to prevent login
+			const userRef = doc(db, 'users', patientId);
+			await updateDoc(userRef, {
+				isArchived: true,
 				dateArchived: Timestamp.fromDate(archiveDate)
 			});
 
@@ -262,7 +270,7 @@
 
 			closeRemarkModal();
 			applyFiltersAndSorting();
-			Swal.fire('Archived!', 'The patient has been archived.', 'success');
+			Swal.fire('Archived!', 'The patient has been archived and their account access has been revoked.', 'success');
 		} catch (error) {
 			console.error('Error archiving patient:', error);
 			Swal.fire('Error', 'Could not archive patient. Please try again.', 'error');
@@ -272,7 +280,7 @@
 	async function unarchivePatient(patientId: string) {
 		const result = await Swal.fire({
 			title: 'Unarchive Patient?',
-			text: 'Do you want to move this patient back to the active list?',
+			text: 'Do you want to move this patient back to the active list and restore their account access?',
 			icon: 'question',
 			showCancelButton: true,
 			confirmButtonColor: '#3085d6',
@@ -282,10 +290,18 @@
 
 		if (result.isConfirmed) {
 			try {
+				// Unarchive the patient profile
 				const patientRef = doc(db, 'patientProfiles', patientId);
 				await updateDoc(patientRef, {
 					isArchived: false,
 					remark: 'Unarchived',
+					dateArchived: deleteField()
+				});
+
+				// Also restore the user account access
+				const userRef = doc(db, 'users', patientId);
+				await updateDoc(userRef, {
+					isArchived: false,
 					dateArchived: deleteField()
 				});
 
@@ -298,7 +314,7 @@
 				}
 
 				applyFiltersAndSorting();
-				Swal.fire('Unarchived!', 'The patient has been moved to active.', 'success');
+				Swal.fire('Unarchived!', 'The patient has been moved to active and their account access has been restored.', 'success');
 			} catch (error) {
 				console.error('Error unarchiving patient:', error);
 				Swal.fire('Error', 'Could not unarchive patient. Please try again.', 'error');
@@ -326,6 +342,10 @@
         dateArchived: deleteField(),
       });
       await deleteDoc(patientRef);
+
+      // Also delete the user account
+      const userRef = doc(db, 'users', patientId);
+      await deleteDoc(userRef);
 
       // Remove the patient from the local list
       patients = patients.filter((p) => p.id !== patientId);
