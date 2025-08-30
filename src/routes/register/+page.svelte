@@ -404,7 +404,7 @@
                 <div class="register-field {isPageLoaded ? 'loaded' : ''} mb-6">
                     <Label for="role" class="block mb-2">Register as</Label>
                     <select id="role" bind:value={selectedRole} class="border p-2 w-full">
-                        <option value="userDentist">Dentist</option>
+                        <option value="userDentist">Doctor</option>
                         <option value="userSecretary">Secretary</option>
                     </select>
                 </div>
