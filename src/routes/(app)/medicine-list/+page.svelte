@@ -297,373 +297,561 @@ async function deleteMedicine(medicine: Medicine) {
 </script>
 
 
-<!-- svelte-ignore css_unused_selector -->
 <style>
- .container {
-  flex-grow: 1; 
-  overflow-y: auto;
-  padding: 1rem;
-  margin: 0 auto;
-  max-width: 1200px;
 
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+  .dashboard {
+    display: flex;
+    min-height: 100vh;
+    color: #1f2937;
+    background: transparent;
+  }
 
-.container::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
-      .dashboard {
-        display: flex;
-        height: 100vh;
-        overflow: hidden;
-        color: #333;
+  .container {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    margin: 0 auto;
+    max-width: 1400px;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 
-    }
+  .container::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 
-    .container {
-  flex-grow: 1; 
-  overflow-y: auto; 
-  padding: 1rem;
-  margin: 0 auto; 
-  max-width: 1200px;
-}
+  .page-header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
 
-.popup {
+  .page-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1rem;
+  }
+
+  .add-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .add-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+  }
+
+  .add-button:active {
+    transform: translateY(0);
+  }
+
+  .medicines-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .medicine-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .medicine-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .medicine-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  }
+
+  .medicine-image {
+    width: 100%;
+    height: 200px;
+    border-radius: 12px;
+    object-fit: cover;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  }
+
+  .no-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-radius: 12px;
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+  }
+
+  .medicine-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+  }
+
+  .medicine-description {
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .medicine-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .quantity-badge {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-edit {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-edit:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  }
+
+  .btn-delete {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-delete:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  }
+
+  .popup {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 1000;
-}
+    animation: fadeIn 0.3s ease;
+  }
 
-.popup-content {
-    background: #fff;
-    border-radius: 12px;
-    padding: 20px;
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .popup-content {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
     max-width: 500px;
     width: 90%;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-}
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+  }
 
-    .add-button {
-      background: linear-gradient(90deg, #172f85, #6681e2);
-        color: rgb(255, 255, 255);
-        font-weight: 550;
-        padding: 0.5rem 1rem;
-        border-radius: 0.3rem;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.582);
-        display: flex;
-        align-items: center;
-        transition: background 0.3s ease, transform 0.2s ease;
-        border: none;
-        cursor: pointer;
-        outline: none;
-        margin-top: -2.2rem;
-        margin-bottom: 1rem;
-}
-
-.add-button:hover {
-  background: linear-gradient(90deg, #6681e2, #172f85);
-        transform: translateY(2px);
-      }
-
-
-
- 
-.grid {
-    margin-top: 20px;
-    display: grid;
-    gap: 20px;
-}
-.bg-white {
-    border: 1px solid #e0e0e0;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.bg-white:hover {
-    
-  background-color: #f5f5f5; 
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.658); 
-    transform: scale(1.01); 
-}
-
-.controls button {
-  
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    margin: 0 5px;
-    
-    
-}
-span {
-    font-size: 1.1rem;
-    font-weight: 500;
-}
-
-label {
-    font-weight: bold;
-    font-size: 1rem;
-    margin-bottom: 5px;
-}
-
-input,
-textarea {
-    background-color: #f9f9fc;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 10px;
-    font-size: 1rem;
-    width: 100%;
-}
-
-input:focus,
-textarea:focus {
-    border-color: #4a90e2;
-    outline: none;
-    box-shadow: 0 0 4px rgba(74, 144, 226, 0.4);
-}
-
-.cancel-button {
-    background-color: #f44336;
-    color: #fff;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.cancel-button:hover {
-    background-color: #c23628;
-}
-.confirm-button {
-    background-color: #4caf50;
-    color: #fff;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.confirm-button:hover {
-    background-color: #3e8e41;
-}
-
-.image-preview {
-    margin-top: 10px;
-    max-height: 150px;
-    max-width: 100%;
-    border-radius: 8px;
-    object-fit: cover;
-    border: 1px solid #ddd;
-}
-    .container {
-    padding: 1rem;
-    margin: 0 auto; 
-    max-width: 1200px; 
-}
-   
-    @media (min-width: 640px) {
-        .container {
-            padding: 2rem;
-        }
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(30px);
     }
-
-    @media (min-width: 768px) {
-     
+    to { 
+      opacity: 1;
+      transform: translateY(0);
     }
-
-    @media (min-width: 1024px) {
-        .popup-content {
-            width: 600px; 
-        }
-    }
-    .edit-popup {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  width: 800px;
-  max-width: 90%;
-  max-height: 80vh; 
-  overflow-y: auto; 
-  z-index: 1050;
-}
-
-@media (max-width: 768px) {
-  .edit-popup {
-    width: 90%;
-    padding: 15px;
-    max-height: 90vh; 
-  }
-  .edit-popup-content {
-    flex-direction: column;
-    gap: 10px;
   }
 
-  .edit-popup .form-left,
-  .edit-popup .form-right {
-    flex: none;
-    width: 100%;
-  }
-
-  .edit-popup .image-preview {
-    max-height: 150px;
-  }
-
-  .edit-popup .cancel-button,
-  .edit-popup .confirm-button {
-    width: 100%;
-    padding: 10px;
+  .popup-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 1.5rem;
     text-align: center;
   }
-}
-@media (max-width: 480px) {
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-label {
+    display: block;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .form-input,
+  .form-textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: #f9fafb;
+  }
+
+  .form-input:focus,
+  .form-textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+
+  .form-textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  .image-preview {
+    margin-top: 1rem;
+    max-height: 200px;
+    max-width: 100%;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 2px solid #e5e7eb;
+  }
+
+  .popup-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+  }
+
+  .btn-cancel {
+    background: #f3f4f6;
+    color: #374151;
+    border: 2px solid #e5e7eb;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-cancel:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+  }
+
+  .btn-confirm {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-confirm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  }
+
   .edit-popup {
-    width: 95%;
-    padding: 10px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 1050;
+    animation: slideUp 0.3s ease;
   }
 
-  .edit-popup .image-preview {
-    max-height: 120px;
+  .edit-popup-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
   }
 
-  .edit-popup .cancel-button,
-  .edit-popup .confirm-button {
-    font-size: 14px;
-    padding: 8px;
+  .form-left,
+  .form-right {
+    display: flex;
+    flex-direction: column;
   }
-}
-.custom-margin-top {
-    margin-top: -1.8rem; 
-    margin-left: -1rem;
-    padding-bottom: 1.5rem;
-}
 
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .container {
+      padding: 1rem;
+    }
+
+    .page-header {
+      padding: 1.5rem;
+    }
+
+    .page-title {
+      font-size: 2rem;
+    }
+
+    .medicines-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .edit-popup {
+      width: 95%;
+      padding: 1.5rem;
+    }
+
+    .edit-popup-content {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .popup-actions {
+      flex-direction: column;
+    }
+
+    .btn-cancel,
+    .btn-confirm {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .page-title {
+      font-size: 1.75rem;
+    }
+
+    .medicine-card {
+      padding: 1rem;
+    }
+
+    .medicine-image,
+    .no-image {
+      height: 150px;
+    }
+
+    .edit-popup {
+      width: 98%;
+      padding: 1rem;
+    }
+  }
 </style>
 
 <div class="dashboard">
-    <!-- Sidebar -->
- 
-
     <div class="container">
-      <h1 class="text-2xl font-semibold mb-4 margin-top:10px">Manage Medicines</h1>
-      <button class="add-button" on:click={togglePopup} style="margin-top: 10px;">+Add Medicine</button>
+      <div class="page-header">
+        <h1 class="page-title">Manage Medicines</h1>
+        <button class="add-button" on:click={togglePopup}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add Medicine
+        </button>
+      </div>
 
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {#each medicines as medicine, index}
-            <div class="bg-white p-4 rounded-lg shadow-md flex flex-col justify-between h-full">
-              <!-- Image Section -->
-              <div class="w-full h-40 bg-gray-200 mb-4">
-                {#if medicine.imageUrl}
-                  <img src={medicine.imageUrl} alt={medicine.name} class="w-full h-full object-cover rounded" />
-                {:else}
-                  <div class="flex items-center justify-center w-full h-full bg-gray-100 text-gray-500">
-                    No Image Available
-                  </div>
-                {/if}
-              </div>
-        
-              <!-- Medicine Details -->
-              <div class="flex-1">
-                <h2 class="text-lg font-semibold">{medicine.name}</h2>
-                <p class="text-gray-600 mb-4">{medicine.description}</p>
-              </div>
-        
-              <!-- Quantity, Edit, and Delete Section -->
-              <div class="flex justify-between items-center mt-4 border-t pt-3">
-                <!-- Quantity -->
-                <span class="text-sm font-medium text-gray-700">Quantity: {medicine.quantity}</span>
-        
-                <!-- Edit and Delete Buttons -->
-                <!-- svelte-ignore a11y_consider_explicit_label -->
-                <div class="flex gap-2">
-                  <!-- svelte-ignore a11y_consider_explicit_label -->
-                  <button
-                    class="px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600 flex items-center gap-1"
-                    on:click={() => openEditPopup(medicine)}
-                  >
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button
-                    class="px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600 flex items-center gap-1"
-                    on:click={() => deleteMedicine(medicine)}
-                  >
-                    <i class="fas fa-trash"></i> 
-                  </button>
+      <div class="medicines-grid">
+        {#each medicines as medicine, index}
+          <div class="medicine-card">
+            <!-- Image Section -->
+            <div class="medicine-image-container">
+              {#if medicine.imageUrl}
+                <img src={medicine.imageUrl} alt={medicine.name} class="medicine-image" />
+              {:else}
+                <div class="no-image">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21,15 16,10 5,21"></polyline>
+                  </svg>
+                  <span>No Image Available</span>
                 </div>
+              {/if}
+            </div>
+      
+            <!-- Medicine Details -->
+            <div class="medicine-content">
+              <h2 class="medicine-name">{medicine.name}</h2>
+              <p class="medicine-description">{medicine.description}</p>
+            </div>
+      
+            <!-- Footer with Quantity and Actions -->
+            <div class="medicine-footer">
+              <div class="quantity-badge">
+                {medicine.quantity} units
+              </div>
+              <div class="action-buttons">
+                <button
+                  class="btn-edit"
+                  on:click={() => openEditPopup(medicine)}
+                  aria-label="Edit {medicine.name}"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+                <button
+                  class="btn-delete"
+                  on:click={() => deleteMedicine(medicine)}
+                  aria-label="Delete {medicine.name}"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3,6 5,6 21,6"></polyline>
+                    <path d="M19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </button>
               </div>
             </div>
-          {/each}
-        </div>
+          </div>
+        {/each}
+      </div>
         
-        {#if editPopup && medicineToEdit}
+      {#if editPopup && medicineToEdit}
         <div class="edit-popup">
-          <div class="edit-popup-content landscape-layout">
+          <div class="edit-popup-content">
             <div class="form-left">
-              <h2 class="text-xl font-semibold mb-4">Edit Medicine</h2>
+              <h2 class="popup-title">Edit Medicine</h2>
       
-              <label for="edit-name" class="block text-gray-700 mb-2">Medicine Name</label>
-              <input
-                id="edit-name"
-                type="text"
-                bind:value={medicineToEdit.name}
-                class="border border-gray-300 rounded px-3 py-2 mb-4 w-full"
-                required
-              />
+              <div class="form-group">
+                <label for="edit-name" class="form-label">Medicine Name</label>
+                <input
+                  id="edit-name"
+                  type="text"
+                  bind:value={medicineToEdit.name}
+                  class="form-input"
+                  required
+                />
+              </div>
       
-              <label for="edit-quantity" class="block text-gray-700 mb-2">Quantity</label>
-              <input
-                id="edit-quantity"
-                type="number"
-                bind:value={medicineToEdit.quantity}
-                class="border border-gray-300 rounded px-3 py-2 mb-4 w-full"
-                required
-              />
+              <div class="form-group">
+                <label for="edit-quantity" class="form-label">Quantity</label>
+                <input
+                  id="edit-quantity"
+                  type="number"
+                  bind:value={medicineToEdit.quantity}
+                  class="form-input"
+                  required
+                />
+              </div>
       
-              <label for="edit-description" class="block text-gray-700 mb-2">Description</label>
-              <textarea
-                id="edit-description"
-                bind:value={medicineToEdit.description}
-                class="border border-gray-300 rounded px-3 py-2 mb-4 w-full"
-                rows="4"
-                required
-              ></textarea>
+              <div class="form-group">
+                <label for="edit-description" class="form-label">Description</label>
+                <textarea
+                  id="edit-description"
+                  bind:value={medicineToEdit.description}
+                  class="form-textarea"
+                  rows="4"
+                  required
+                ></textarea>
+              </div>
       
-              <div class="flex justify-between">
-                <button class="cancel-button" on:click={closeEditPopup}>Cancel</button>
-                <button class="confirm-button" on:click={saveEditedMedicine} disabled={!medicineToEdit}>
+              <div class="popup-actions">
+                <button class="btn-cancel" on:click={closeEditPopup}>Cancel</button>
+                <button class="btn-confirm" on:click={saveEditedMedicine} disabled={!medicineToEdit}>
                   Save Changes
                 </button>
               </div>
             </div>
       
             <div class="form-right">
-              <label for="edit-image" class="block text-gray-700 mt-10">Upload Image</label>
-              <input
-                id="edit-image"
-                type="file"
-                accept="image/*"
-                on:change={handleImageUpload}
-                class="border border-gray-300 rounded px-3 py-2 mb-4 w-full"
-              />
+              <div class="form-group">
+                <label for="edit-image" class="form-label">Upload Image</label>
+                <input
+                  id="edit-image"
+                  type="file"
+                  accept="image/*"
+                  on:change={handleImageUpload}
+                  class="form-input"
+                />
+              </div>
               {#if medicineToEdit.imageUrl}
                 <img src={medicineToEdit.imageUrl} alt="Preview" class="image-preview" />
               {/if}
@@ -672,48 +860,66 @@ textarea:focus {
         </div>
       {/if}
       
-        {#if showPopup}
-            <div class="popup">
-                <div class="popup-content">
-                    <h2 class="text-xl font-semibold mb-4">Add New Medicine</h2>
-                    <label for="name" class="block text-gray-700 mb-2">Medicine Name</label>
-                    <input
-                        id="name"
-                        type="text"
-                        bind:value={newMedicine.name}
-                        class="border border-gray-300 rounded px-3 py-2 mb-4 w-full"
-                    />
-                    <label for="quantity" class="block text-gray-700 mb-2">Quantity</label>
-                    <input
-                        id="quantity"
-                        type="number"
-                        bind:value={newMedicine.quantity}
-                        class="border border-gray-300 rounded px-3 py-2 mb-4 w-full"
-                    />
-                    <label for="description" class="block text-gray-700 mb-2">Description</label>
-                    <textarea
-                        id="description"
-                        bind:value={newMedicine.description}
-                        class="border border-gray-300 rounded px-3 py-2 mb-4 w-full"
-                        rows="4"
-                    ></textarea>
-                    <label for="image" class="block text-gray-700 mb-2">Upload Image</label>
-                    <input
-                        id="image"
-                        type="file"
-                        accept="image/*"
-                        on:change={handleImageUpload}
-                        class="border border-gray-300 rounded px-3 py-2 mb-4 w-full"
-                    />
-                    {#if newMedicine.imageUrl}
-                        <img src={newMedicine.imageUrl} alt="Preview of {newMedicine.name}" class="image-preview" />
-                    {/if}
-                    <div class="flex justify-between">
-                        <button class="cancel-button" on:click={togglePopup}>Cancel</button>
-                        <button class="confirm-button" on:click={addMedicine}>Add Medicine</button>
-                    </div>
-                </div>
+      {#if showPopup}
+        <div class="popup">
+          <div class="popup-content">
+            <h2 class="popup-title">Add New Medicine</h2>
+            
+            <div class="form-group">
+              <label for="name" class="form-label">Medicine Name</label>
+              <input
+                id="name"
+                type="text"
+                bind:value={newMedicine.name}
+                class="form-input"
+                placeholder="Enter medicine name"
+              />
             </div>
-        {/if}
+            
+            <div class="form-group">
+              <label for="quantity" class="form-label">Quantity</label>
+              <input
+                id="quantity"
+                type="number"
+                bind:value={newMedicine.quantity}
+                class="form-input"
+                placeholder="Enter quantity"
+                min="0"
+              />
+            </div>
+            
+            <div class="form-group">
+              <label for="description" class="form-label">Description</label>
+              <textarea
+                id="description"
+                bind:value={newMedicine.description}
+                class="form-textarea"
+                rows="4"
+                placeholder="Enter medicine description"
+              ></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label for="image" class="form-label">Upload Image</label>
+              <input
+                id="image"
+                type="file"
+                accept="image/*"
+                on:change={handleImageUpload}
+                class="form-input"
+              />
+            </div>
+            
+            {#if newMedicine.imageUrl}
+              <img src={newMedicine.imageUrl} alt="Preview of {newMedicine.name}" class="image-preview" />
+            {/if}
+            
+            <div class="popup-actions">
+              <button class="btn-cancel" on:click={togglePopup}>Cancel</button>
+              <button class="btn-confirm" on:click={addMedicine}>Add Medicine</button>
+            </div>
+          </div>
+        </div>
+      {/if}
     </div>
 </div>

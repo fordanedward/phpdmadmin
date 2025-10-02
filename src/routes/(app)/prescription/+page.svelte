@@ -383,103 +383,161 @@
 </script>
 
 <!-- Main Container -->
-<div class="p-4 md:p-6 lg:p-8 bg-gray-100 min-h-screen font-sans">
-	<!-- Header/Controls Area -->
-	<div class="mb-6 bg-white p-4 rounded-lg shadow">
-		<h1 class="text-2xl font-semibold text-gray-700 mb-4">Patient Records</h1>
-
-		<div class="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-			<div class="relative flex-grow">
-				<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-gray-400">
-						<path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd" />
-					</svg>
-				</span>
-				<input
-					type="text"
-					placeholder="Search patients by name, phone, address..."
-					bind:value={searchTerm}
-					on:input={handleSearchInput}
-					class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 ease-in-out"
-				/>
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-poppins">
+	<div class="container mx-auto px-4 py-6 md:px-6 lg:px-8">
+		<!-- Header/Controls Area -->
+		<div class="mb-8 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+			<div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+				<h1 class="text-3xl font-bold text-white mb-2">Patient Records & Prescriptions</h1>
+				<p class="text-blue-100 text-lg">Manage patient data and prescription history</p>
 			</div>
+			<div class="p-6">
 
-			<div class="flex-shrink-0">
-				<label for="sort-select" class="sr-only">Sort Patients</label>
-				<select
-					id="sort-select"
-					bind:value={sortCriteria}
-					on:change={handleSortChange}
-					class="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-full bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 ease-in-out appearance-none"
-					style="padding-right: 2.5rem; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22currentColor%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.22%208.22a.75.75%200%200%201%201.06%200L10%2011.94l3.72-3.72a.75.75%200%201%201%201.06%201.06l-4.25%204.25a.75.75%200%200%201-1.06%200L5.22%209.28a.75.75%200%200%201%200-1.06Z%22%20clip-rule%3D%22evenodd%22%20%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 0.7rem center; background-size: 1.2em 1.2em;"
-					aria-label="Sort patients by name or age"
-				>
-					<option value="fullName_asc">Sort by Name: A–Z</option>
-					<option value="fullName_desc">Sort by Name: Z–A</option>
-					<option value="age_asc">Sort by Age: Low to High</option>
-					<option value="age_desc">Sort by Age: High to Low</option>
-				</select>
+				<div class="flex flex-col md:flex-row md:items-center gap-6 mb-6">
+					<div class="relative flex-grow">
+						<span class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-gray-400">
+								<path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd" />
+							</svg>
+						</span>
+						<input
+							type="text"
+							placeholder="Search patients by name, phone, address..."
+							bind:value={searchTerm}
+							on:input={handleSearchInput}
+							class="w-full pl-12 pr-4 py-3 bg-gray-50 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 text-gray-700 placeholder-gray-400"
+						/>
+					</div>
+
+					<div class="flex-shrink-0">
+						<label for="sort-select" class="sr-only">Sort Patients</label>
+						<div class="relative">
+							<select
+								id="sort-select"
+								bind:value={sortCriteria}
+								on:change={handleSortChange}
+								class="px-6 py-3 pr-10 bg-gray-50 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 appearance-none text-gray-700 font-medium"
+							>
+								<option value="fullName_asc">Sort by Name: A–Z</option>
+								<option value="fullName_desc">Sort by Name: Z–A</option>
+								<option value="age_asc">Sort by Age: Low to High</option>
+								<option value="age_desc">Sort by Age: High to Low</option>
+							</select>
+							<div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-gray-400">
+									<path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+								</svg>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="bg-gray-50 rounded-xl p-1">
+					<nav class="flex space-x-1" aria-label="Tabs">
+						<button
+							on:click={() => switchCategory('Active')}
+							class="flex-1 whitespace-nowrap py-3 px-4 rounded-lg font-semibold text-sm transition-all duration-200 ease-in-out {currentCategory === 'Active'
+								? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+								: 'text-gray-600 hover:text-gray-800 hover:bg-white/50'}"
+						>
+							<span class="flex items-center justify-center gap-2">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+								</svg>
+								Active Patients
+								<span class="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs font-medium">
+									{currentCategory === 'Active' ? filteredPatients.length : patients.filter(p => !p.isArchived && prescribedPatients.some(pp => pp.id === p.id)).length}
+								</span>
+							</span>
+						</button>
+						<button
+							on:click={() => switchCategory('Archived')}
+							class="flex-1 whitespace-nowrap py-3 px-4 rounded-lg font-semibold text-sm transition-all duration-200 ease-in-out {currentCategory === 'Archived'
+								? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+								: 'text-gray-600 hover:text-gray-800 hover:bg-white/50'}"
+						>
+							<span class="flex items-center justify-center gap-2">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+								</svg>
+								Archived Patients
+								<span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs font-medium">
+									{currentCategory === 'Archived' ? filteredPatients.length : patients.filter(p => p.isArchived).length}
+								</span>
+							</span>
+						</button>
+					</nav>
+				</div>
 			</div>
 		</div>
-
-		<div class="border-b border-gray-200">
-			<nav class="-mb-px flex space-x-6" aria-label="Tabs">
-				<button
-					on:click={() => switchCategory('Active')}
-					class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition duration-150 ease-in-out {currentCategory === 'Active'
-						? 'border-blue-500 text-blue-600'
-						: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-				>
-					Active Patients ({currentCategory === 'Active' ? filteredPatients.length : patients.filter(p => !p.isArchived && prescribedPatients.some(pp => pp.id === p.id)).length})
-				</button>
-				<button
-					on:click={() => switchCategory('Archived')}
-					class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition duration-150 ease-in-out {currentCategory === 'Archived'
-						? 'border-blue-500 text-blue-600'
-						: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-				>
-					Archived Patients ({currentCategory === 'Archived' ? filteredPatients.length : patients.filter(p => p.isArchived).length})
-				</button>
-			</nav>
-		</div>
-	</div>
-
-	{#if filteredPatients.length > 0}
-		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+		{#if filteredPatients.length > 0}
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 			{#each filteredPatients as patient (patient.id)}
-				<div class="bg-white rounded-lg shadow border border-gray-200 p-4 flex flex-col justify-between transition-shadow duration-200 hover:shadow-md">
+				<div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group">
 					<div>
-						<h3 class="text-lg font-semibold text-gray-800 mb-2">{patient.fullName}</h3>
-						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-20 inline-block">Address:</span> {patient.address}</p>
-						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-20 inline-block">Phone:</span> {patient.phone}</p>
-						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-20 inline-block">Birth Date:</span> {patient.birthday}</p>
-						<p class="text-sm text-gray-600 mb-1"><span class="font-medium text-gray-500 w-20 inline-block">Age:</span> {patient.age}</p>
+						<div class="flex items-center gap-3 mb-4">
+							<div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+								{patient.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
+							</div>
+							<div>
+								<h3 class="text-lg font-bold text-gray-800">{patient.fullName}</h3>
+								<p class="text-sm text-gray-500">Age: {patient.age} years</p>
+							</div>
+						</div>
+
+						<div class="space-y-3">
+							<div class="flex items-start gap-3">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+									<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+								</svg>
+								<p class="text-sm text-gray-600 flex-1">{patient.address}</p>
+							</div>
+							
+							<div class="flex items-center gap-3">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-gray-400 flex-shrink-0">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 6.8 2.07 10.5 9.75 10.5 7.68 0 9.75-3.7 9.75-10.5 0-2.45-1.08-4.95-3.25-6.75-.36-.31-.74-.6-1.12-.83H5.62c-.38.23-.76.52-1.12.83M2.25 6.75c0 6.8 2.07 10.5 9.75 10.5s9.75-3.7 9.75-10.5" />
+								</svg>
+								<p class="text-sm text-gray-600">{patient.phone}</p>
+							</div>
+							
+							<div class="flex items-center gap-3">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-gray-400 flex-shrink-0">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5a2.25 2.25 0 002.25-2.25m-18 0v-18a.75.75 0 00-1.5 0v18a.75.75 0 001.5 0zm18 0v-18a.75.75 0 011.5 0v18a.75.75 0 01-1.5 0z" />
+								</svg>
+								<p class="text-sm text-gray-600">{patient.birthday}</p>
+							</div>
+						</div>
 
 						{#if currentCategory === 'Archived'}
-							<div class="mt-2 pt-2 border-t border-gray-100">
-								<p class="text-sm text-gray-600">
-									<span class="font-medium text-gray-500">Remark:</span>
-									<span class="italic ml-1">{patient.remark || 'No remark provided'}</span>
-								</p>
-								{#if patient.dateArchived}
-								<p class="text-sm text-gray-600 mt-1">
-									<span class="font-medium text-gray-500">Date Archived:</span>
-									<span class="ml-1">{patient.dateArchived}</span>
-								</p>
-								{/if}
+							<div class="mt-4 pt-4 border-t border-gray-200">
+								<div class="bg-yellow-50 rounded-lg p-3">
+									<p class="text-sm text-gray-700 mb-2">
+										<span class="font-semibold text-gray-600">Remark:</span>
+										<span class="italic ml-1">{patient.remark || 'No remark provided'}</span>
+									</p>
+									{#if patient.dateArchived}
+									<p class="text-sm text-gray-500">
+										<span class="font-medium">Archived:</span> {patient.dateArchived}
+									</p>
+									{/if}
+								</div>
 							</div>
 						{/if}
 					</div>
 
-					<div class="mt-4 pt-3 border-t border-gray-200 flex justify-end space-x-2">
+					<div class="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-2">
 						{#if currentCategory === 'Active'}
 							<button
 								on:click={() => openRemarkModal(patient)}
 								title="Archive Patient"
 								aria-label="Archive Patient"
-								class="p-1.5 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded-full transition duration-150 ease-in-out"
+								class="px-3 py-2 bg-yellow-50 text-yellow-600 hover:bg-yellow-100 rounded-lg transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2 text-sm font-medium"
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M3 3.75A.75.75 0 0 1 3.75 3h12.5a.75.75 0 0 1 .75.75v3.19l-1.72-.573a4.5 4.5 0 0 0-5.06 0l-1.72.573V3.75ZM4.75 7.24l.875-.29a3 3 0 0 1 3.375 0l3.75 1.25a3 3 0 0 1 3.375 0l.875.29V16.5a.75.75 0 0 1-.75.75h-12.5a.75.75 0 0 1-.75-.75V7.24Z" clip-rule="evenodd" /></svg>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+									<path fill-rule="evenodd" d="M3 3.75A.75.75 0 0 1 3.75 3h12.5a.75.75 0 0 1 .75.75v3.19l-1.72-.573a4.5 4.5 0 0 0-5.06 0l-1.72.573V3.75ZM4.75 7.24l.875-.29a3 3 0 0 1 3.375 0l3.75 1.25a3 3 0 0 1 3.375 0l.875.29V16.5a.75.75 0 0 1-.75.75h-12.5a.75.75 0 0 1-.75-.75V7.24Z" clip-rule="evenodd" />
+								</svg>
+								Archive
 							</button>
 						{/if}
 
@@ -488,163 +546,270 @@
 								on:click={() => unarchivePatient(patient.id)}
 								title="Unarchive Patient"
 								aria-label="Unarchive Patient"
-								class="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full transition duration-150 ease-in-out"
+								class="px-3 py-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2 text-sm font-medium"
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M5.5 1.75A.75.75 0 0 1 6.25 1h7.5a.75.75 0 0 1 .75.75v2.5h-9v-2.5Zm-2 3.5A.75.75 0 0 1 4.25 5h11.5a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75H4.25a.75.75 0 0 1-.75-.75V5.25ZM8 12a.75.75 0 0 0 0 1.5h4a.75.75 0 0 0 0-1.5H8Z" /></svg>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+									<path d="M5.5 1.75A.75.75 0 0 1 6.25 1h7.5a.75.75 0 0 1 .75.75v2.5h-9v-2.5Zm-2 3.5A.75.75 0 0 1 4.25 5h11.5a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75H4.25a.75.75 0 0 1-.75-.75V5.25ZM8 12a.75.75 0 0 0 0 1.5h4a.75.75 0 0 0 0-1.5H8Z" />
+								</svg>
+								Restore
 							</button>
 						{/if}
 
 						{#if currentCategory === 'Archived'}
-						<button
-						on:click={() => deletePatient(patient.id)}
-						title="Delete Patient"
-						aria-label="Delete Patient"
-						class="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition duration-150 ease-in-out"
-						>
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-							<path
-							fill-rule="evenodd"
-							d="M6.5 3.75a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 .75.75v.75h3.25a.75.75 0 0 1 0 1.5h-.5v10.5a2.25 2.25 0 0 1-2.25 2.25H6.25A2.25 2.25 0 0 1 4 16.5V6h-.5a.75.75 0 0 1 0-1.5H6.5v-.75Zm1.5.75v.75h4.5v-.75H8Zm-2 2.25v10.5c0 .414.336.75.75.75h7.5c.414 0 .75-.336.75-.75V6H6Zm2.25 2.25a.75.75 0 0 1 1.5 0v6a.75.75 0 0 1-1.5 0v-6Zm4.5 0a.75.75 0 0 1 1.5 0v6a.75.75 0 0 1-1.5 0v-6Z"
-							clip-rule="evenodd"
-							/>
-						</svg>
-						</button>
+							<button
+								on:click={() => deletePatient(patient.id)}
+								title="Delete Patient"
+								aria-label="Delete Patient"
+								class="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2 text-sm font-medium"
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+									<path fill-rule="evenodd" d="M6.5 3.75a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 .75.75v.75h3.25a.75.75 0 0 1 0 1.5h-.5v10.5a2.25 2.25 0 0 1-2.25 2.25H6.25A2.25 2.25 0 0 1 4 16.5V6h-.5a.75.75 0 0 1 0-1.5H6.5v-.75Zm1.5.75v.75h4.5v-.75H8Zm-2 2.25v10.5c0 .414.336.75.75.75h7.5c.414 0 .75-.336.75-.75V6H6Zm2.25 2.25a.75.75 0 0 1 1.5 0v6a.75.75 0 0 1-1.5 0v-6Zm4.5 0a.75.75 0 0 1 1.5 0v6a.75.75 0 0 1-1.5 0v-6Z" clip-rule="evenodd" />
+								</svg>
+								Delete
+							</button>
 						{/if}
 
 						{#if currentCategory === 'Active'}
-						<button
-							on:click={() => openPrescriptionModal(patient)}
-							title="View Prescriptions"
-							aria-label="View prescriptions for {patient.fullName}"
-							class="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition duration-150 ease-in-out"
-						>
-							<EyeOutline/>
-						</button>
-                        {/if}
+							<button
+								on:click={() => openPrescriptionModal(patient)}
+								title="View Prescriptions"
+								aria-label="View prescriptions for {patient.fullName}"
+								class="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2 text-sm font-medium"
+							>
+								<EyeOutline class="w-4 h-4"/>
+								View Rx
+							</button>
+						{/if}
 					</div>
 				</div>
 			{/each}
 		</div>
-	{:else}
-		<div class="text-center py-10 px-6 bg-white rounded-lg shadow">
-			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 mx-auto text-gray-400 mb-4">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M15.182 16.318A4.486 4.486 0 0 0 12.016 15a4.486 4.486 0 0 0-3.198 1.318M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75s.168-.75.375-.75.375.336.375.75Zm-.75 0h.008v.015h-.008V9.75Zm4.5 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.75 0h.008v.015h-.008V9.75Z" />
-			</svg>
-			<p class="text-gray-500 text-lg">
-				{#if searchTerm}
-					No patients found matching "{searchTerm}" in the {currentCategory} category.
-				{:else}
-					No patients found in the {currentCategory} category.
-				{/if}
-			</p>
-		</div>
-	{/if}
+		{:else}
+			<div class="text-center py-16 px-6 bg-white rounded-2xl shadow-lg border border-gray-100">
+				<div class="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-gray-400">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M15.182 16.318A4.486 4.486 0 0 0 12.016 15a4.486 4.486 0 0 0-3.198 1.318M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75s.168-.75.375-.75.375.336.375.75Zm-.75 0h.008v.015h-.008V9.75Zm4.5 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.75 0h.008v.015h-.008V9.75Z" />
+					</svg>
+				</div>
+				<h3 class="text-xl font-semibold text-gray-800 mb-2">
+					{#if searchTerm}
+						No patients found for "{searchTerm}"
+					{:else}
+						No patients in {currentCategory}
+					{/if}
+				</h3>
+				<p class="text-gray-500 max-w-sm mx-auto leading-relaxed">
+					{#if searchTerm}
+						Try adjusting your search terms or check a different category.
+					{:else if currentCategory === 'Active'}
+						Active patients with prescriptions will appear here once they are created.
+					{:else}
+						Archived patients will appear here once they are moved from active status.
+					{/if}
+				</p>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <!-- Remark Modal -->
 {#if showRemarkModal && selectedPatientForRemark}
 <div class="fixed inset-0 bg-gray-900 bg-opacity-60 flex justify-center items-center z-[100] transition-opacity duration-300 ease-in-out">
-	<div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md mx-4 transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modal-appear">
-		<h3 class="text-xl font-semibold mb-4 text-gray-800">Archive Patient</h3>
-		<p class="mb-4 text-gray-600">Please provide a reason or remark for archiving <span class="font-medium">{selectedPatientForRemark.fullName}</span>.</p>
-
-		<form on:submit|preventDefault={archivePatient}>
+	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modal-appear">
+		<div class="bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-4 rounded-t-2xl">
+			<div class="flex items-center gap-3">
+				<div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-white">
+						<path fill-rule="evenodd" d="M3 3.75A.75.75 0 0 1 3.75 3h12.5a.75.75 0 0 1 .75.75v3.19l-1.72-.573a4.5 4.5 0 0 0-5.06 0l-1.72.573V3.75ZM4.75 7.24l.875-.29a3 3 0 0 1 3.375 0l0.75 1.25a3 3 0 0 1 3.375 0l.875.29V16.5a.75.75 0 0 1-.75.75h-12.5a.75.75 0 0 1-.75-.75V7.24Z" clip-rule="evenodd" />
+					</svg>
+				</div>
+				<div>
+					<h3 class="text-xl font-bold text-white">Archive Patient</h3>
+					<p class="text-yellow-100 text-sm">Move patient to archived status</p>
+				</div>
+			</div>
+		</div>
+		<div class="p-6">
+			<div class="bg-blue-50 rounded-xl p-4 mb-6">
+				<div class="flex items-center gap-2 mb-2">
+					<div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+						{selectedPatientForRemark.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
+					</div>
+					<span class="font-semibold text-gray-800">{selectedPatientForRemark.fullName}</span>
+				</div>
+				<p class="text-gray-600 text-sm">Please provide a reason for archiving this patient.</p>
+			</div>
+			<form on:submit|preventDefault={archivePatient}>
 			<label for="remark" class="block text-sm font-medium text-gray-700 mb-1">
 				Remark:
 			</label>
-			<textarea
-				id="remark"
-				bind:value={remark}
-				rows="4"
-				class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-				placeholder="e.g., Moved away, Deceased, No longer a patient"
-			></textarea>
+				<textarea
+					id="remark"
+					bind:value={remark}
+					rows="4"
+					class="w-full p-4 bg-gray-50 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:bg-white transition-all duration-200 resize-none text-gray-700 placeholder-gray-400"
+					placeholder="e.g., Moved away, Deceased, No longer a patient..."
+				></textarea>
 
-			<div class="flex justify-end mt-6 space-x-3">
-				<button
-					type="button"
-					on:click={closeRemarkModal}
-					class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition duration-150 ease-in-out text-sm font-medium"
-				>
-					Cancel
-				</button>
-				<button
-					type="submit"
-					class="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition duration-150 ease-in-out text-sm font-medium"
-				>
-					Confirm Archive
-				</button>
-			</div>
-		</form>
+				<div class="flex gap-3 mt-6">
+					<button
+						type="button"
+						on:click={closeRemarkModal}
+						class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 font-medium"
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						class="flex-1 px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-xl hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+					>
+						Confirm Archive
+					</button>
+				</div>
+			</form>
+		</div>
 	</div>
 </div>
 {/if}
 
 <!-- Prescription Details Modal -->
 {#if showPrescriptionModal && currentPatientForModal}
-<div class="fixed inset-0 bg-gray-900 bg-opacity-60 flex justify-center items-center z-[100] transition-opacity duration-300 ease-in-out"> 
-	<div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl mx-4 transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modal-appear max-h-[85vh] flex flex-col">
-		<div class="flex justify-between items-center mb-4 border-b pb-3">
-            <h3 class="text-xl font-semibold text-gray-800">Prescription Details</h3>
-            <button 
-                on:click={closePrescriptionModal} 
-                aria-label="Close prescription details"  
-                class="text-gray-400 hover:text-gray-600"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-            </button>
-        </div>
-
-		<div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-			<p><strong class="text-gray-600">Patient:</strong> {currentPatientForModal.fullName}</p>
-			<p><strong class="text-gray-600">Age:</strong> {currentPatientForModal.age}</p>
-			<p><strong class="text-gray-600">Address:</strong> {currentPatientForModal.address}</p>
-			<p><strong class="text-gray-600">Phone:</strong> {currentPatientForModal.phone}</p>
-			<p><strong class="text-gray-600">Birthday:</strong> {currentPatientForModal.birthday}</p>
+<div class="fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm flex justify-center items-center z-[100] transition-opacity duration-300 ease-in-out"> 
+	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modal-appear max-h-[90vh] flex flex-col">
+		<!-- Modal Header -->
+		<div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 rounded-t-2xl">
+			<div class="flex justify-between items-center">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+						<EyeOutline class="w-5 h-5 text-white"/>
+					</div>
+					<div>
+						<h3 class="text-xl font-bold text-white">Prescription Details</h3>
+						<p class="text-blue-100 text-sm">Complete medication history</p>
+					</div>
+				</div>
+				<button 
+					on:click={closePrescriptionModal} 
+					aria-label="Close prescription details"  
+					class="text-white hover:text-blue-200 transition-colors duration-200"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+				</button>
+			</div>
 		</div>
 
-		<div class="flex-grow overflow-y-auto border rounded-md">
-			{#if currentPatientForModal.prescriptions && currentPatientForModal.prescriptions.length > 0}
-				<table class="min-w-full divide-y divide-gray-200">
-					<thead class="bg-gray-50 sticky top-0">
-						<tr>
-							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Visited</th>
-							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Medications</th>
-							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dosage</th>
-							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking_wider">Instructions</th>
-							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescriber</th>
-						</tr>
-					</thead>
-					<tbody class="bg-white divide-y divide-gray-200">
-						{#each currentPatientForModal.prescriptions as prescription (prescription.id)}
-							<tr class="hover:bg-gray-50">
-								<td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{prescription.dateVisited || 'N/A'}</td>
-								<td class="px-4 py-2 text-sm text-gray-600">{prescription.medications || 'N/A'}</td>
-								<td class="px-4 py-2 text-sm text-gray-600">{prescription.dosage || 'N/A'}</td>
-								<td class="px-4 py-2 text-sm text-gray-600">{prescription.instructions || 'N/A'}</td>
-								<td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{prescription.prescriber || 'N/A'}</td>
+		<!-- Patient Info Section -->
+		<div class="p-6 bg-blue-50 border-b">
+			<div class="flex items-center gap-4 mb-4">
+				<div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+					{currentPatientForModal.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
+				</div>
+				<div>
+					<h4 class="text-xl font-bold text-gray-800">{currentPatientForModal.fullName}</h4>
+					<p class="text-gray-600">Patient Information</p>
+				</div>
+			</div>
+			
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+				<div class="flex items-center gap-2">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-blue-500">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h6.75M8.25 12h12m-12-.75h12m-12 4.5h6.75M12 21L3 3h18l-9 18Z" />
+					</svg>
+					<span><strong class="text-gray-600;">Age:</strong> {currentPatientForModal.age} years</span>
+				</div>
+				<div class="flex items-center gap-2">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-blue-500">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h.75a.75.75 0 0 1-.75-.75v-1.125c0-1.664-1.34-3.125-3-3.125h-2m-2 0c0 1.104-.895 2-2 2h-2m-2.25-6.6c0-.414.336-.75.75-.75h6a.75.75 0 0 1 .75.75v6a.75.75 0 0 1-.75.75H6.75a.75.75 0 0 1-.75-.75v-6Z" />
+					</svg>
+					<span><strong class="text-gray-600">Phone:</strong> {currentPatientForModal.phone}</span>
+				</div>
+				<div class="flex items-start gap-2 col-span-2">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-blue-500 mt-0.5">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+						<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+					</svg>
+					<span><strong class="text-gray-600">Address:</strong> {currentPatientForModal.address}</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Table Container -->
+		<div class="p-6 flex-grow overflow-hidden">
+			<div class="bg-white border-0 rounded-xl shadow-sm overflow-hidden">
+				<div class="overflow-y-auto max-h-96">
+				{#if currentPatientForModal.prescriptions && currentPatientForModal.prescriptions.length > 0}
+					<table class="min-w-full divide-y divide-gray-200">
+						<thead class="bg-gradient-to-r from-blue-50 to-indigo-50 sticky top-0">
+							<tr>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Date Visited</th>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Medications</th>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Dosage</th>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Instructions</th>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Prescriber</th>
 							</tr>
-						{/each}
-					</tbody>
+						</thead>
+						<tbody class="bg-white divide-y divide-gray-100">
+							{#each currentPatientForModal.prescriptions as prescription (prescription.id)}
+								<tr class="hover:bg-blue-50 transition-colors duration-150">
+									<td class="px-6 py-4 whitespace-nowrap">
+										<div class="flex items-center">
+											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-blue-500 mr-2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5a2.25 2.25 0 0 0 2.25-2.25m-18 0v-18a.75.75 0 0 0-1.5 0v18a.75.75 0 0 1-1.5 0zm18 0v-18a.75.75 0 0 1 1.5 0v18a.75.75 0 0 1-1.5 0z" />
+											</svg>
+											<span class="text-sm font-medium text-gray-900">{prescription.dateVisited || 'N/A'}</span>
+										</div>
+									</td>
+									<td class="px-6 py-4 text-sm text-gray-700">{prescription.medications || 'N/A'}</td>
+									<td class="px-6 py-4 text-sm text-gray-700">{prescription.dosage || 'N/A'}</td>
+									<td class="px-6 py-4 text-sm text-gray-700">{prescription.instructions || 'N/A'}</td>
+									<td class="px-6 py-4 whitespace-nowrap">
+										<div class="flex items-center">
+											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-blue-500 mr-2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+											</svg>
+											<span class="text-sm font-medium text-gray-700">{prescription.prescriber || 'N/A'}</span>
+										</div>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
 				</table>
-			{:else}
-				<p class="text-center text-gray-500 py-8">No prescription records found for this patient.</p>
-			{/if}
+				{:else}
+					<div class="text-center py-16">
+						<div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-gray-400">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+								<path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z" />
+							</svg>
+						</div>
+						<h4 class="text-lg font-semibold text-gray-800 mb-2">No Prescriptions Found</h4>
+						<p class="text-gray-500">This patient doesn't have any prescription records yet.</p>
+					</div>
+				{/if}
+				</div>
+			</div>
 		</div>
 
-		<div class="mt-5 pt-4 border-t flex justify-end">
-			<button
-				on:click={closePrescriptionModal}
-				class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-150 ease-in-out text-sm font-medium"
-			>
-				Close
-			</button>
+		<!-- Modal Footer -->
+		<div class="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-2xl">
+			<div class="flex justify-end">
+				<button
+					on:click={closePrescriptionModal}
+					class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+				>
+					Close
+				</button>
+			</div>
 		</div>
 	</div>
 </div>
 {/if}
 		
 <style>
+    :global(.font-poppins) {
+        font-family: 'Poppins', sans-serif;
+    }
+    
     @keyframes modal-appear {
         from {
             opacity: 0;
