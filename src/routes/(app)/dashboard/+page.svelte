@@ -1303,7 +1303,7 @@ function downloadExcelReport(
 				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">New Patients This Month</p>
+							<p class="text-sm font-medium text-gray-600">New Members This Month</p>
 							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.newPatientsThisMonth}</h3>
 						</div>
 						<div class="p-3 bg-emerald-50 rounded-lg">
@@ -1333,7 +1333,7 @@ function downloadExcelReport(
 				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">Active Patients</p>
+							<p class="text-sm font-medium text-gray-600">Active Members</p>
 							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.activePatients}</h3>
 						</div>
 						<div class="p-3 bg-teal-50 rounded-lg">
