@@ -125,6 +125,12 @@
         }
     }
 
+	// Map internal role identifiers to friendly labels for display in the UI.
+	// Map 'userSecretary' => 'Management'
+	$: layoutRoleLabel = layoutCurrentUser?.role
+		? (layoutCurrentUser.role === 'userSecretary' ? 'Management' : layoutCurrentUser.role.replace('user', ''))
+		: '';
+
 	onMount(() => {
         const unsubscribeAuth = onAuthStateChanged(firebaseAppAuth, async (user) => {
             if (user) {
@@ -215,11 +221,11 @@
                         <div class="name-container">
                             <span>{displayFirstName}</span>
                             {#if displayLastName}<span>{displayLastName}</span>{/if}
-                            {#if layoutCurrentUser.role}
-                                <span style="font-size: 0.7rem; opacity: 0.8; margin-top:3px; text-transform: capitalize;">
-                                    ({layoutCurrentUser.role.replace('user','')})
-                                </span>
-                            {/if}
+							{#if layoutCurrentUser.role}
+								<span style="font-size: 0.7rem; opacity: 0.8; margin-top:3px; text-transform: capitalize;">
+									({layoutRoleLabel})
+								</span>
+							{/if}
                         </div>
                     {/if}
                 </div>

@@ -63,6 +63,12 @@
         }
     }
 
+    // Map internal role identifiers to friendly labels for display in the UI.
+    // Specifically map 'userSecretary' => 'Management'.
+    $: roleLabel = userRole
+        ? (userRole === 'userSecretary' ? 'Management' : userRole.replace('user', ''))
+        : '';
+
 
 </script>
 
@@ -250,7 +256,7 @@
                 {/if}
                 {#if userRole}
                     <span style="font-size: 0.75rem; opacity: 0.8; margin-top: 4px;">
-                        ({userRole.replace('user', '')}) <!-- Display role like (Dentist), (Secretary) -->
+                        ({roleLabel})
                     </span>
                 {/if}
             </div>
