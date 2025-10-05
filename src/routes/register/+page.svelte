@@ -37,7 +37,7 @@
     let email: string = '';
     let password: string = '';
     let confirmPassword: string = '';
-    let selectedRole: 'userDentist' | 'userSecretary' = 'userDentist';
+    let selectedRole: 'userDentist' | 'userSecretary' = 'userSecretary';
 
     type ToastType = 'info' | 'success' | 'warning' | 'error';
     let toastVisible: boolean = false;
@@ -401,10 +401,12 @@
 
         <div class="register-form {isPageLoaded ? 'loaded' : ''}">
             <form on:submit|preventDefault={handleRegistration}>
+                <!-- Role selection - Currently only Management available -->
                 <div class="register-field {isPageLoaded ? 'loaded' : ''} mb-6">
                     <Label for="role" class="block mb-2">Register as</Label>
                     <select id="role" bind:value={selectedRole} class="border p-2 w-full">
-                        <option value="userDentist">Doctor</option>
+                        <!-- Doctor option commented out for future use -->
+                        <!-- <option value="userDentist">Doctor</option> -->
                         <option value="userSecretary">Management</option>
                     </select>
                 </div>
@@ -422,7 +424,7 @@
                 </div>
                 <div class="register-button {isPageLoaded ? 'loaded' : ''} mb-4">
                     <Button type="submit" class="w-full p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                        Register as {selectedRole === 'userDentist' ? 'Doctor' : 'Management'}
+                        Register as Management
                     </Button>
                 </div>
             </form>
@@ -440,7 +442,7 @@
                     class="w-full p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 flex items-center justify-center"
                 >
                     <GoogleSolid class="w-5 h-5 mr-2" />
-                    {isGoogleSigningIn ? 'Connecting...' : `Sign up with Google as ${selectedRole === 'userDentist' ? 'Doctor' : 'Management'}`}
+                    {isGoogleSigningIn ? 'Connecting...' : 'Sign up with Google as Management'}
                 </Button>
             </div>
 
