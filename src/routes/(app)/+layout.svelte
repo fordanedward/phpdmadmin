@@ -15,6 +15,7 @@
         displayName: string | null;
         photoURL: string | null;
         role?: 'userDentist' | 'userAdmin' | 'userSecretary' | 'userPatient' | 'userSuper'; 
+        customUserId?: string; // five-digit account ID stored in Firestore
     }
     let layoutCurrentUser: UserProfileForLayout | null = null;
     let layoutAuthLoading: boolean = true;
@@ -226,6 +227,9 @@
 									({layoutRoleLabel})
 								</span>
 							{/if}
+                            {#if layoutCurrentUser.customUserId}
+                                <span style="font-size: 0.7rem; opacity: 0.75; margin-top: 2px;">ID: {layoutCurrentUser.customUserId}</span>
+                            {/if}
                         </div>
                     {/if}
                 </div>
