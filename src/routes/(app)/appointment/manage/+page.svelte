@@ -166,7 +166,7 @@
   
     async function confirmRejection() {
       if (!rejectionReason.trim()) {
-        await Swal.fire('Error!', 'Please provide a reason for rejection.', 'error');
+        await Swal.fire('Error!', 'Please provide a reason for declining.', 'error');
         return;
       }
       showReasonModal = false;
@@ -190,11 +190,11 @@
   
     async function handleRescheduleReject(appointment: any) {
       const result = await Swal.fire({
-        title: 'Reject Reschedule?',
-        text: 'Are you sure you want to reject this reschedule request? The appointment will revert to its previous status.',
+        title: 'Decline Reschedule?',
+        text: 'Are you sure you want to decline this reschedule request? The appointment will revert to its previous status.',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Yes, Reject',
+        confirmButtonText: 'Yes, Decline',
         confirmButtonColor: '#EF4444',
         cancelButtonColor: '#6B7280',
       });
@@ -342,8 +342,8 @@
                     <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Appointment" on:click={() => handleAccept(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Accept
                     </button>
-                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Reject Appointment" on:click={() => openReasonModal(appointment.id)}>
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Reject
+                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Decline Appointment" on:click={() => openReasonModal(appointment.id)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Decline
                     </button>
                   </div>
                 </div>
@@ -389,8 +389,8 @@
                     <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Reschedule" on:click={() => handleRescheduleAccept(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Accept
                     </button>
-                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Reject Reschedule" on:click={() => handleRescheduleReject(appointment)}>
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Reject
+                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Decline Reschedule" on:click={() => handleRescheduleReject(appointment)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Decline
                     </button>
                   </div>
                 </div>
@@ -454,16 +454,16 @@
         <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4 transition-opacity duration-300 ease-out" 
              style="opacity: 1;">
           <div class="bg-white rounded-lg p-5 sm:p-6 w-full max-w-md shadow-xl transform transition-all duration-300 ease-out scale-100">
-            <h2 class="text-lg font-semibold mb-4 text-gray-800">Reason for Rejection</h2>
+            <h2 class="text-lg font-semibold mb-4 text-gray-800">Reason for Decline</h2>
             <textarea
               class="w-full border border-gray-300 rounded p-2 mb-4 focus:ring-blue-500 focus:border-blue-500 text-sm"
               rows="4"
               bind:value={rejectionReason}
-              placeholder="Enter the reason for rejecting this appointment..."
+              placeholder="Enter the reason for declining this appointment..."
             ></textarea>
             <div class="flex justify-end space-x-3">
               <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm font-medium transition-colors" on:click={() => (showReasonModal = false)}>Cancel</button>
-              <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors" on:click={confirmRejection}>Submit Rejection</button>
+              <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors" on:click={confirmRejection}>Submit Declining</button>
             </div>
           </div>
         </div>

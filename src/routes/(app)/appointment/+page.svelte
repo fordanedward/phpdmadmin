@@ -242,7 +242,7 @@
 
     const confirmText = newStatus === 'Accepted'
         ? 'Do you want to accept this appointment request?'
-        : `Do you want to reject this appointment request with reason: "${rejectionReason}"?`;
+        : `Do you want to decline this appointment request with reason: "${rejectionReason}"?`;
 
     const result = await Swal.fire({
         title: 'Are you sure?',
@@ -467,10 +467,10 @@
 
        const result = await Swal.fire({
           title: 'Reject Reschedule?',
-          text: 'Are you sure you want to reject this reschedule request? The appointment will revert to its previous status (likely \'Accepted\' or \'Scheduled\').',
+          text: 'Are you sure you want to decline this reschedule request? The appointment will revert to its previous status (likely \'Accepted\' or \'Scheduled\').',
           icon: 'warning',
           showCancelButton: true,
-          confirmButtonText: 'Yes, Reject',
+          confirmButtonText: 'Yes, Decline',
           cancelButtonText: 'Cancel',
       });
 
@@ -482,12 +482,12 @@
                });
 
                await Swal.fire(
-                   'Rejected!',
+                   'Declined!',
                    'The reschedule request has been rejected. The appointment status has been reverted.',
                    'success'
                );
            } catch (error) {
-               console.error("Error rejecting reschedule:", error);
+               console.error("Error declining reschedule:", error);
                await Swal.fire('Error!', 'An unexpected error occurred. Please try again later.', 'error');
            }
        }
@@ -559,7 +559,7 @@
 
   const confirmRejection = async () => {
       if (!rejectionReason.trim()) {
-          await Swal.fire('Error!', 'Please provide a reason for rejection.', 'error');
+          await Swal.fire('Error!', 'Please provide a reason for decline.', 'error');
           return;
       }
       
@@ -996,7 +996,7 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
                                {/if}
                                <div class="appointment-buttons flex gap-2 justify-end mt-2">
                                    <button class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs px-3 py-1 rounded" on:click={() => updatePendingAppointmentStatus(appointment.id, 'Accepted')}>Accept</button>
-                                   <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => openReasonModal(appointment.id)}>Reject</button>
+                                   <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => openReasonModal(appointment.id)}>Decline</button>
                                </div>
                            </div>
                        {/each}
@@ -1036,7 +1036,7 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
                                {/if}
                                <div class="appointment-buttons flex gap-2 justify-end mt-2">
                                    <button class="bg-green-100 hover:bg-green-200 text-green-700 text-xs px-3 py-1 rounded" on:click={() => acceptReschedule(appointment.id)}>Accept</button>
-                                   <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => rejectReschedule(appointment.id)}>Reject</button>
+                                   <button class="bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1 rounded" on:click={() => rejectReschedule(appointment.id)}>Decline</button>
                                </div>
                            </div>
                        {/each}
@@ -1105,7 +1105,7 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
         ></textarea>
         <div class="flex justify-end space-x-3">
           <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded" on:click={() => (showReasonModal = false)}>Cancel</button>
-          <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" on:click={confirmRejection}>Submit Rejection</button>
+          <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" on:click={confirmRejection}>Submit Decline</button>
         </div>
       </div>
     </div>
