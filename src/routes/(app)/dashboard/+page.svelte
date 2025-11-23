@@ -53,6 +53,7 @@
 
 	interface Patient {
 		id: string;
+		displayId?: string;
 		name: string;
 		lastName: string;
 		age?: number;
@@ -185,18 +186,20 @@ async function fetchAllPatients(): Promise<Patient[]> {
             console.log("Fetched patient data:", data);
             console.log("Raw registration date:", users[doc.id]?.registrationDate); // Access registration date from users
 
-            return {
-                id: doc.id,
-                name: data.name,
-                lastName: data.lastName,
-                age: data.age,
-                birthday: data.birthday,
-                gender: data.gender,
-                phone: data.phone,
-                registrationDate: users[doc.id]?.registrationDate ? 
-                    new Date(users[doc.id].registrationDate).toISOString().split('T')[0] : 
-                    'N/A' // Use registration date from users
-            } as Patient;
+				return {
+					id: doc.id,
+					// Prefer the member-side custom ID for display when available
+					displayId: users[doc.id]?.customUserId || doc.id,
+					name: data.name,
+					lastName: data.lastName,
+					age: data.age,
+					birthday: data.birthday,
+					gender: data.gender,
+					phone: data.phone,
+					registrationDate: users[doc.id]?.registrationDate ? 
+						new Date(users[doc.id].registrationDate).toISOString().split('T')[0] : 
+						'N/A' // Use registration date from users
+				} as Patient;
         });
         patientMap.clear();
         patients.forEach(p => patientMap.set(p.id, p));
@@ -1496,7 +1499,7 @@ function downloadExcelReport(
 					</div>
 					<div>
 						<h2 class="text-lg font-bold text-gray-800">{selectedPatient.name} {selectedPatient.lastName}</h2>
-						<p class="text-sm text-gray-500">Member ID: {selectedPatient.id}</p>
+						<p class="text-sm text-gray-500">Member ID: {selectedPatient.displayId ?? selectedPatient.id}</p>
 					</div>
 				</div>
 				<button aria-label="Close member details" class="text-gray-500 hover:text-gray-700" on:click={() => selectedPatient = null}>

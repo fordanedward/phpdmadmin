@@ -337,6 +337,9 @@
                   <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-1 sm:mt-2">
                     <span class="inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 font-medium">{appointment.date} at {appointment.time}</span>
                     <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700">Service: {appointment.service}</span>
+                    {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
+                      <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
+                    {/if}
                   </div>
                   <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
                     <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Appointment" on:click={() => handleAccept(appointment)}>
@@ -384,6 +387,9 @@
                     {/if}
                     <span class="inline-block px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-medium">Requests to: {appointment.date} at {appointment.time}</span>
                     <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700 mt-1">Service: {appointment.service}</span>
+                    {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
+                      <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700 mt-1">Selected: {appointment.subServices.join(', ')}</span>
+                    {/if}
                   </div>
                   <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
                     <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Reschedule" on:click={() => handleRescheduleAccept(appointment)}>
@@ -428,6 +434,9 @@
                   <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-1 sm:mt-2">
                     <span class="inline-block px-2 py-1 rounded bg-red-100 text-red-700 font-medium">{appointment.date} at {appointment.time}</span>
                     <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700">Service: {appointment.service}</span>
+                    {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
+                      <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
+                    {/if}
                   </div>
                    {#if appointment.cancellationReason}
                     <p class="text-xs text-gray-600 mt-1">Reason: <span class="italic">{appointment.cancellationReason}</span></p>
@@ -463,7 +472,7 @@
             ></textarea>
             <div class="flex justify-end space-x-3">
               <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm font-medium transition-colors" on:click={() => (showReasonModal = false)}>Cancel</button>
-              <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors" on:click={confirmRejection}>Submit Declining</button>
+              <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors" on:click={confirmRejection}>Submit</button>
             </div>
           </div>
         </div>
