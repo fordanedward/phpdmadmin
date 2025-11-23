@@ -83,7 +83,12 @@
 		position: fixed; 
 		top: 0;
 		left: 0;
-		background-color: #00a2e8;
+        /* centralize sidenav color for easy updates */
+        --sidenav-bg: #1e3a66;
+        /* hover and active variants for visible feedback */
+        --sidenav-hover: #163153; /* slightly darker for hover */
+        --sidenav-active: #12273f; /* active/selected state */
+        background-color: var(--sidenav-bg);
 		color: white;
 		width: 11.6rem; 
 		height: 100vh;
@@ -148,9 +153,9 @@
 		overflow-y: auto; 
         overflow-x: hidden;
 	}
-	.sidebar-menu li:hover {
-		background-color: #007bb5;
-	}
+    .sidebar-menu li:hover {
+        background-color: var(--sidenav-hover);
+    }
 	.sidebar-menu a {
 		display: flex; 
 		align-items: center; 
@@ -204,10 +209,10 @@
         flex-shrink: 0; 
         gap: 8px; 
 	}
-	.logout-btn:hover {
-		background-color: #007bb5;
-        border-color: #007bb5;
-	}
+    .logout-btn:hover {
+        background-color: var(--sidenav-hover);
+        border-color: var(--sidenav-hover);
+    }
 	.logout-btn img.logout-icon {
 		width: 18px; 
 		height: 18px;

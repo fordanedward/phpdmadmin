@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { fade, scale } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 
 	import {
@@ -94,14 +95,11 @@ interface Prescription {
 		totalPatients: number;
 		todaysPatients: number;
 		todaysAppointments: number;
-		todaysPrescriptions: number;
-		totalPrescriptions: number;
 		monthlyAppointments: number;
 		// New patient analytics
 		newPatientsThisMonth: number;
 		activePatients: number;
 		archivedPatients: number;
-		topAgeGroup: string;
 	}
 
 	interface DailyAppointmentCount {
@@ -112,16 +110,15 @@ interface Prescription {
 	let isCollapsed = false;
 	let stats: Stats = {
 		newAppointments: 0, totalPatients: 0, todaysPatients: 0, todaysAppointments: 0,
-		todaysPrescriptions: 0, totalPrescriptions: 0, monthlyAppointments: 0,
-		newPatientsThisMonth: 0, activePatients: 0, archivedPatients: 0, topAgeGroup: ''
+		monthlyAppointments: 0,
+		newPatientsThisMonth: 0, activePatients: 0, archivedPatients: 0
 	};
 
 	let allAppointments: Appointment[] = [];
 	let allPatients: Patient[] = [];
-	let allPrescriptions: Prescription[] = [];
 	let monthlyAppointmentsData: Appointment[] = [];
 
-	let openTable: 'patients' | 'appointments' | 'prescriptions' | 'monthlyAppointments' | null = null;
+	let openTable: 'patients' | 'appointments' | 'monthlyAppointments' | null = null;
 	let exportType: 'excel' | 'pdf' = 'excel';
 	let selectedYear = CURRENT_YEAR;
 	let selectedMonth = new Date().getMonth() + 1;
@@ -144,6 +141,11 @@ interface Prescription {
 	let weeklyAppointmentCounts: DailyAppointmentCount[] = []; 
 
 	let patientMap = new Map<string, Patient>();
+	let selectedPatient: Patient | null = null;
+
+	function viewPatientDetails(patientId: string) {
+		selectedPatient = patientMap.get(patientId) || allPatients.find(p => p.id === patientId) || null;
+	}
 
 	// --- Utility Functions ---
 	function getTodayString(): string {
@@ -249,73 +251,32 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 		}
 	}
 
-async function fetchAllPrescriptions(): Promise<Prescription[]> {
-  console.log("Fetching all prescriptions...");
-  try {
-    // Ensure patients are fetched first for mapping names
-    if (patientMap.size === 0) {
-      console.log("Patient map is empty, fetching patients...");
-      await fetchAllPatients();
-    }
-
-    const snapshot = await getDocs(collection(db, FIRESTORE_COLLECTIONS.PRESCRIPTIONS));
-
-    // Fetch appointment date for each prescription
-    const prescriptions = await Promise.all(snapshot.docs.map(async docSnap => {
-      const data = docSnap.data();
-      const patientName = patientMap.get(data.patientId)?.name || 'Unknown';
-      const patientLastName = patientMap.get(data.patientId)?.lastName || '';
-      let appointmentDate = '';
-      if (data.appointmentId) {
-        const appointmentRef = doc(db, FIRESTORE_COLLECTIONS.APPOINTMENTS, data.appointmentId);
-        const appointmentSnap = await getDoc(appointmentRef);
-        if (appointmentSnap.exists()) {
-          appointmentDate = appointmentSnap.data().date || '';
-        }
-      }
-      return {
-        id: docSnap.id,
-        appointmentId: data.appointmentId || 'N/A',
-        patientId: data.patientId || 'N/A',
-        patientName: `${patientName} ${patientLastName}`.trim(),
-        prescriber: data.prescriber || 'N/A',
-        medicines: data.medicines || [],
-        date: appointmentDate, // <-- This is the appointment date!
-        dateVisited: data.dateVisited || 'N/A',
-        createdAt: data.createdAt,
-      } as Prescription;
-    }));
-
-    console.log(`Fetched ${prescriptions.length} prescriptions.`);
-    return prescriptions;
-  } catch (error) {
-    console.error("Error fetching prescriptions:", error);
-    return [];
-  }
-}
+// Prescriptions data and UI removed — dashboard focuses on appointments and patients
 	async function fetchDashboardStats(): Promise<Stats> {
 		console.log("Fetching dashboard stats...");
 		const today = getTodayString();
 		const currentMonth = new Date().getMonth() + 1;
 		const currentYear = new Date().getFullYear();
 		const statsResult: Stats = {
-			newAppointments: 0, totalPatients: 0, todaysPatients: 0, todaysAppointments: 0,
-			todaysPrescriptions: 0, totalPrescriptions: 0, monthlyAppointments: 0,
-			newPatientsThisMonth: 0, activePatients: 0, archivedPatients: 0, topAgeGroup: ''
+			newAppointments: 0,
+			totalPatients: 0,
+			todaysPatients: 0,
+			todaysAppointments: 0,
+			monthlyAppointments: 0,
+			newPatientsThisMonth: 0,
+			activePatients: 0,
+			archivedPatients: 0
 		};
-		try {
-			 // Ensure data is available, fetch if not
-			 if (!allPatients.length) allPatients = await fetchAllPatients();
-			 if (!allAppointments.length) allAppointments = await fetchAllAppointments();
-			 if (!allPrescriptions.length) allPrescriptions = await fetchAllPrescriptions();
+ 		try {
+ 			 // Ensure data is available, fetch if not
+ 			 if (!allPatients.length) allPatients = await fetchAllPatients();
+ 			 if (!allAppointments.length) allAppointments = await fetchAllAppointments();
 
-			statsResult.totalPatients = allPatients.length;
-			statsResult.newAppointments = allAppointments.length;
-			statsResult.totalPrescriptions = allPrescriptions.length;
+ 			statsResult.totalPatients = allPatients.length;
+ 			statsResult.newAppointments = allAppointments.length;
 
-			statsResult.todaysPatients = allPatients.filter(p => p.registrationDate === today).length;
-			statsResult.todaysAppointments = allAppointments.filter(a => a.date === today).length;
-			statsResult.todaysPrescriptions = allPrescriptions.filter(p => p.date === today).length;
+ 			statsResult.todaysPatients = allPatients.filter(p => p.registrationDate === today).length;
+ 			statsResult.todaysAppointments = allAppointments.filter(a => a.date === today).length;
 
 			statsResult.monthlyAppointments = allAppointments.filter(a => {
 				try {
@@ -335,27 +296,7 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
 				} catch (e) { return false; }
 			}).length;
 
-			// Calculate age statistics
-			const patientsWithAge = allPatients.filter(p => p.age && p.age > 0);
-			if (patientsWithAge.length > 0) {
-				// Find top age group
-				const ageGroups = {
-					'0-17': 0, '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56-65': 0, '65+': 0
-				};
-				patientsWithAge.forEach(p => {
-					const age = p.age || 0;
-					if (age <= 17) ageGroups['0-17']++;
-					else if (age <= 25) ageGroups['18-25']++;
-					else if (age <= 35) ageGroups['26-35']++;
-					else if (age <= 45) ageGroups['36-45']++;
-					else if (age <= 55) ageGroups['46-55']++;
-					else if (age <= 65) ageGroups['56-65']++;
-					else ageGroups['65+']++;
-				});
-
-				const maxCount = Math.max(...Object.values(ageGroups));
-				statsResult.topAgeGroup = Object.keys(ageGroups).find(key => ageGroups[key as keyof typeof ageGroups] === maxCount) || '';
-			}
+			// Age-group analytics removed — dashboard focuses on appointments and patients
 
 			// Note: activePatients and archivedPatients would need to be calculated from patientProfiles collection
 			// For now, we'll set them to 0 and they can be updated when we fetch from patientProfiles
@@ -869,14 +810,14 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
 			await Promise.all([
 				allPatients.length === 0 ? fetchAllPatients().then(data => allPatients = data) : Promise.resolve(),
 				allAppointments.length === 0 ? fetchAllAppointments().then(data => allAppointments = data) : Promise.resolve(),
-				allPrescriptions.length === 0 ? fetchAllPrescriptions().then(data => allPrescriptions = data) : Promise.resolve()
+				// prescriptions removed from report
 			]);
 
 			console.log('Data ready for report generation.');
 			 if (exportType === 'pdf') {
-				downloadPdfReport(allAppointments, allPatients, allPrescriptions);
+				downloadPdfReport(allAppointments, allPatients);
 			} else {
-				downloadExcelReport(allAppointments, allPatients, allPrescriptions);
+				downloadExcelReport(allAppointments, allPatients);
 			}
 		} catch (error) {
 			console.error('Failed to fetch data for report:', error);
@@ -884,7 +825,7 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
 		}
 	}
 
-	function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patient[], prescriptionsData: Prescription[]): void {
+function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patient[]): void {
     console.log('Generating PDF Report...');
     const pdfDoc = new jsPDF();
     const reportDate = getTodayString(); // Get today's date
@@ -899,39 +840,7 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
     pdfDoc.text(`Generated on: ${reportDate}`, pdfDoc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
     currentY += 10; // Add more space before the first table
 
-    // --- Prescriptions Section ---
-    if (prescriptionsData.length > 0) {
-        pdfDoc.setFontSize(12); pdfDoc.setFont('helvetica', 'bold');
-        pdfDoc.text('Prescriptions', 10, currentY);
-        currentY += 7; // Space after title
-        const body = prescriptionsData.flatMap(pres =>
-            pres.medicines.map(med => [
-                pres.patientName || 'Unknown',
-                med.medicine || 'N/A',
-                med.dosage || 'N/A',
-                med.instructions || 'N/A',
-                pres.prescriber || 'N/A'
-            ])
-        );
-        if (body.length > 0) {
-			(pdfDoc as any).autoTable({ // Use pdfDoc.autoTable with type assertion
-                head: [['Patient Name', 'Medicine', 'Dosage', 'Instructions', 'Prescriber']],
-                body: body,
-                startY: currentY,
-                theme: 'striped', // Good visual structure
-                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' }, // Clear header
-				didDrawPage: (data: { pageCount: number; pageNumber: number; settings: UserOptions; }) => { // Handle page breaks if needed
-					// You can add headers/footers per page here if necessary
-				}
-            });
-            // Get the Y position after the table
-            currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
-        } else {
-             pdfDoc.setFontSize(10); pdfDoc.setFont('helvetica', 'italic');
-             pdfDoc.text('No prescription data available.', 10, currentY);
-             currentY += 10;
-        }
-    }
+	// Prescriptions removed from report (focus on appointments and patients)
 
     // --- Appointments Section ---
     if (appointmentsData.length > 0) {
@@ -994,9 +903,8 @@ async function fetchAllPrescriptions(): Promise<Prescription[]> {
 }
 
 function downloadExcelReport(
-  appointmentsData: Appointment[],
-  patientsData: Patient[],
-  prescriptionsData: Prescription[]
+	appointmentsData: Appointment[],
+	patientsData: Patient[]
 ): void {
   console.log('Generating Excel Report with Monthly Sectioning...');
   const workbook = XLSX.utils.book_new();
@@ -1075,39 +983,7 @@ function downloadExcelReport(
     XLSX.utils.book_append_sheet(workbook, ws, `Patients_${monthYear}`);
   });
 
-  // Group prescriptions by prescription date month
- const prescriptionsByMonth = prescriptionsData.reduce((acc, pres) => {
-    try {
-      const date = new Date(pres.dateVisited || pres.date); // Use dateVisited or fallback to date
-      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      if (!acc[monthYear]) acc[monthYear] = [];
-      acc[monthYear].push(pres);
-    } catch (e) {
-      console.warn(`Invalid date format for prescription: ${pres.dateVisited || pres.date}`);
-    }
-    return acc;
-  }, {} as Record<string, Prescription[]>);
-
-  // Create a sheet for each month's prescriptions
- Object.entries(prescriptionsByMonth).forEach(([monthYear, prescriptions]) => {
-    const sheetData = prescriptions.flatMap(pres =>
-      pres.medicines.map(med => ({
-        'Patient Name': pres.patientName || 'Unknown',
-        'Medicine Name': med.medicine || 'N/A',
-        'Dosage': med.dosage || 'N/A',
-        'Instructions': med.instructions || 'N/A',
-        'Prescriber': pres.prescriber || 'N/A',
-        'Prescription Date': pres.dateVisited
-          ? new Date(pres.dateVisited).toLocaleDateString('en-US')
-          : 'N/A',
-        'Appointment ID': pres.appointmentId || 'N/A',
-      }))
-    );
-
-    const ws = XLSX.utils.json_to_sheet(sheetData);
-    ws['!cols'] = calculateColumnWidths(sheetData); // Set column widths
-    XLSX.utils.book_append_sheet(workbook, ws, `Prescriptions_${monthYear}`);
-  });
+	// Prescriptions removed from Excel report - focusing on Appointments and Patients only
 
   // Save the Excel Workbook
    if (workbook.SheetNames.length > 0) {
@@ -1130,8 +1006,7 @@ function downloadExcelReport(
 				 // Fetch appointments now too, as many things depend on it
 				 fetchAllAppointments().then(data => allAppointments = data),
 			 ]);
-			 // Fetch prescriptions (depends on appointments)
-			 allPrescriptions = await fetchAllPrescriptions();
+			 // Prescriptions not fetched on mount — dashboard focuses on appointments & patients
 
 			// Fetch stats (now uses pre-fetched data)
 			 stats = await fetchDashboardStats();
@@ -1231,6 +1106,7 @@ function downloadExcelReport(
 						</div>
 						<button
 							on:click={generateReport}
+							aria-label="Generate report"
 							class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
 						>
 							<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1244,7 +1120,7 @@ function downloadExcelReport(
 
 			<!-- Stats Cards -->
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('monthlyAppointments')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('monthlyAppointments')}>
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium text-gray-600">This Month's Appointments</p>
@@ -1257,7 +1133,7 @@ function downloadExcelReport(
 						</div>
 					</div>
 				</div>
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('appointments')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('appointments')}>
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium text-gray-600">Total Appointments</p>
@@ -1270,20 +1146,20 @@ function downloadExcelReport(
 						</div>
 					</div>
 				</div>
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('prescriptions')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('appointments')}>
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">Total Prescriptions</p>
-							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.totalPrescriptions}</h3>
+							<p class="text-sm font-medium text-gray-600">Today's Appointments</p>
+							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.todaysAppointments}</h3>
 						</div>
 						<div class="p-3 bg-purple-50 rounded-lg">
 							<svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('patients')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('patients')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('patients')}>
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium text-gray-600">Total Members</p>
@@ -1316,19 +1192,7 @@ function downloadExcelReport(
 
 
 
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-sm font-medium text-gray-600">Top Age Group</p>
-							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.topAgeGroup}</h3>
-						</div>
-						<div class="p-3 bg-pink-50 rounded-lg">
-							<svg class="w-6 h-6 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-							</svg>
-						</div>
-					</div>
-				</div>
+
 
 				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
 					<div class="flex items-center justify-between">
@@ -1434,7 +1298,9 @@ function downloadExcelReport(
 							<tbody class="divide-y divide-gray-200">
 								{#each allAppointments.slice(0, 5) as appointment}
 									<tr class="hover:bg-gray-50">
-										<td class="px-4 py-3 text-sm text-gray-900">{appointment.patientName}</td>
+										<td class="px-4 py-3 text-sm text-gray-900">
+											<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
+										</td>
 										<td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
 										<td class="px-4 py-3">
 											<span class="px-2 py-1 text-xs font-medium rounded-full
@@ -1455,10 +1321,10 @@ function downloadExcelReport(
 
 				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
 					<div class="flex justify-between items-center mb-4">
-						<h3 class="text-lg font-semibold text-gray-800">Recent Prescriptions</h3>
+						<h3 class="text-lg font-semibold text-gray-800">Recent Members</h3>
 						<button
 							class="text-sm text-blue-600 hover:text-blue-800"
-							on:click={() => handleOpenTable('prescriptions')}
+							on:click={() => handleOpenTable('patients')}
 						>
 							View All
 						</button>
@@ -1468,20 +1334,20 @@ function downloadExcelReport(
 							<thead>
 								<tr>
 									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Medicines</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registered</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-gray-200">
-								{#each allPrescriptions.slice(0, 5) as prescription}
+								{#each allPatients.slice(0, 5) as patient}
 									<tr class="hover:bg-gray-50">
-										<td class="px-4 py-3 text-sm text-gray-900">{prescription.patientName}</td>
-										<td class="px-4 py-3 text-sm text-gray-500">{prescription.date}</td>
-										<td class="px-4 py-3 text-sm text-gray-500">
-											{#each prescription.medicines as medicine}
-												<div>{medicine.medicine}</div>
-											{/each}
+										<td class="px-4 py-3 text-sm text-gray-900">
+											<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>
+												{patient.name} {patient.lastName}
+											</button>
 										</td>
+										<td class="px-4 py-3 text-sm text-gray-500">{patient.registrationDate}</td>
+										<td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
 									</tr>
 								{/each}
 							</tbody>
@@ -1497,16 +1363,16 @@ function downloadExcelReport(
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 w-11/12 max-w-6xl max-h-[90vh] overflow-auto">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">
-                    {openTable === 'appointments' ? 'All Appointments' :
-                     openTable === 'patients' ? 'All Members' :
-                     openTable === 'prescriptions' ? 'All Prescriptions' :
-                     'Monthly Appointments'}
-                </h2>
-                <button
-                    class="text-gray-500 hover:text-gray-700"
-                    on:click={() => openTable = null}
-                >
+				<h2 class="text-xl font-bold text-gray-800">
+					{openTable === 'appointments' ? 'All Appointments' :
+					 openTable === 'patients' ? 'All Members' :
+					 'Monthly Appointments'}
+				</h2>
+				<button
+					aria-label="Close table dialog"
+					class="text-gray-500 hover:text-gray-700"
+					on:click={() => openTable = null}
+				>
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -1528,7 +1394,9 @@ function downloadExcelReport(
                         <tbody class="divide-y divide-gray-200">
                             {#each allAppointments as appointment}
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm text-gray-900">{appointment.patientName}</td>
+									<td class="px-4 py-3 text-sm text-gray-900">
+										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
+									</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.time}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.service}</td>
@@ -1561,8 +1429,10 @@ function downloadExcelReport(
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             {#each allPatients as patient}
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm text-gray-900">{patient.name} {patient.lastName}</td>
+								<tr class="hover:bg-gray-50">
+									<td class="px-4 py-3 text-sm text-gray-900">
+										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
+									</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.age}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.gender}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
@@ -1572,33 +1442,7 @@ function downloadExcelReport(
                         </tbody>
                     </table>
                 </div>
-            {:else if openTable === 'prescriptions'}
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead>
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Medicines</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescriber</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            {#each allPrescriptions as prescription}
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm text-gray-900">{prescription.patientName}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{prescription.date}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">
-                                        {#each prescription.medicines as medicine}
-                                            <div>{medicine.medicine} - {medicine.dosage}</div>
-                                        {/each}
-                                    </td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{prescription.prescriber}</td>
-                                </tr>
-                            {/each}
-                        </tbody>
-                    </table>
-                </div>
+            
             {:else if openTable === 'monthlyAppointments'}
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -1614,7 +1458,9 @@ function downloadExcelReport(
                         <tbody class="divide-y divide-gray-200">
                             {#each monthlyAppointmentsData as appointment}
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm text-gray-900">{appointment.patientName}</td>
+									<td class="px-4 py-3 text-sm text-gray-900">
+										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
+									</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.time}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.service}</td>
@@ -1636,6 +1482,44 @@ function downloadExcelReport(
             {/if}
         </div>
     </div>
+{/if}
+
+{#if selectedPatient}
+	<div class="fixed inset-0 flex items-center justify-center z-50" transition:fade={{ duration: 150 }}>
+		<div class="absolute inset-0 bg-black bg-opacity-40"></div>
+
+		<div class="relative bg-white rounded-2xl p-6 w-11/12 max-w-md shadow-2xl transform" in:scale={{ duration: 220, start: 0.9 }} out:scale={{ duration: 160, start: 0.9 }}>
+			<div class="flex items-start justify-between mb-4">
+				<div class="flex items-center gap-4">
+					<div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xl font-semibold">
+						{#if selectedPatient.name}{selectedPatient.name.charAt(0).toUpperCase()}{selectedPatient.lastName ? selectedPatient.lastName.charAt(0).toUpperCase() : ''}{:else}U{/if}
+					</div>
+					<div>
+						<h2 class="text-lg font-bold text-gray-800">{selectedPatient.name} {selectedPatient.lastName}</h2>
+						<p class="text-sm text-gray-500">Member ID: {selectedPatient.id}</p>
+					</div>
+				</div>
+				<button aria-label="Close member details" class="text-gray-500 hover:text-gray-700" on:click={() => selectedPatient = null}>
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+
+			<div class="grid grid-cols-1 gap-2 text-sm text-gray-700">
+				<div><span class="font-medium">Age:</span> {selectedPatient.age ?? 'N/A'}</div>
+				<div><span class="font-medium">Birthday:</span> {selectedPatient.birthday ?? 'N/A'}</div>
+				<div><span class="font-medium">Gender:</span> {selectedPatient.gender ?? 'N/A'}</div>
+				<div><span class="font-medium">Phone:</span> {selectedPatient.phone ?? 'N/A'}</div>
+				<div><span class="font-medium">Registered:</span> {selectedPatient.registrationDate ?? 'N/A'}</div>
+			</div>
+
+			<div class="mt-6 flex justify-end gap-3">
+				<button class="px-4 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50" on:click={() => { openTable = 'appointments'; selectedPatient = null; }}>View Appointments</button>
+				<button class="px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700" on:click={() => selectedPatient = null}>Close</button>
+			</div>
+		</div>
+	</div>
 {/if}
 
 <style>

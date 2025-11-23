@@ -347,7 +347,7 @@
     </div>
 {/if}
 
-<div class="min-h-screen bg-[#f4c542] flex items-center justify-center px-4 sm:px-8 md:px-16 lg:px-24">
+<div class="min-h-screen bg-[#ffbc22] flex items-center justify-center px-4 sm:px-8 md:px-16 lg:px-24">
     <div class="login-container {isPageLoaded ? 'loaded' : ''} bg-white p-8 rounded-lg shadow-lg w-full max-w-md"> 
         <div class="flex flex-col items-center mb-4">
             <img src="/images/digital member portal.png" alt="PHPDGM Icon" class="login-logo {isPageLoaded ? 'loaded' : ''} w-24 h-24 mb-2" />

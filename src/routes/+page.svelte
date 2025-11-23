@@ -7,7 +7,7 @@
         top: 0;
         right: 0;
         width: 100%;
-        background-color: #f4c542;
+        background-color: #ffbc22;
         z-index: 1000;
     }
 
@@ -41,7 +41,7 @@
 
     nav a:hover {
         background-color: #0b2d56; /* gold from logo */
-        color: #f4c542; /* dark blue text */
+        color: #ffbc22; /* dark blue text */
         transform: scale(1.05);
     }
 
@@ -110,7 +110,7 @@
         width: 45px;
         height: 45px;
         background-color: #0b2d56;
-        color: #f4c542;
+        color: #ffbc22;
         border-radius: 50%;
         text-decoration: none;
         transition: all 0.3s ease;
@@ -118,7 +118,7 @@
     }
 
     .social-links a:hover {
-        background-color: #f4c542;
+        background-color: #ffbc22;
         color: #0b2d56;
         transform: translateY(-3px);
         box-shadow: 0 6px 20px rgba(244, 197, 66, 0.3);
@@ -202,7 +202,7 @@
         transition: color 0.3s;
     }
     .about-content a:hover {
-        color: #f4c542;
+        color: #ffbc22;
     }
 
     .about-contact {
@@ -225,7 +225,7 @@
     .about-contact svg {
         width: 1.5em;
         height: 1.5em;
-        color: #f4c542;
+        color: #ffbc22;
         flex-shrink: 0;
         animation: iconPop 1.2s 1.2s both;
     }

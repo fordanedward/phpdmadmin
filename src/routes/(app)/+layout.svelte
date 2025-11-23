@@ -280,10 +280,11 @@
 		--sidebar-width-mobile: 250px;  
         --header-height-mobile: 56px; 
 	
-		--sidebar-bg-color: #334eac;  
+		--sidebar-bg-color: #1e3a66;  
 		--sidebar-text-color: white;
-		--sidebar-hover-bg-color: #4a69bd;  
-        --sidebar-active-bg-color: #2c3e50; 
+		/* hover/active variants for visible feedback */
+		--sidebar-hover-bg-color: #163153; /* slightly darker on hover */
+		--sidebar-active-bg-color: #12273f; /* active/selected state */
 		--content-bg-color: #f4f7f6;  
 		--sidebar-transition: 0.3s ease-in-out;
 	}

@@ -381,7 +381,7 @@
 }
 </style>
 
-<div class="h-screen bg-[#f4c542] flex items-center justify-center px-4 py-4 overflow-hidden">
+<div class="h-screen bg-[#ffbc22] flex items-center justify-center px-4 py-4 overflow-hidden">
     <div class="flex items-center w-full max-w-6xl">
         <!-- Logo on the left side -->
         <div class="flex-1 hidden lg:flex justify-center">
