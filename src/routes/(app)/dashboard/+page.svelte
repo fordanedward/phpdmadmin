@@ -144,8 +144,22 @@ interface Prescription {
 	let lineChartTotalPatientsData: number[] = [];
 	let weeklyAppointmentCounts: DailyAppointmentCount[] = []; 
 
-	let patientMap = new Map<string, Patient>();
-	let selectedPatient: Patient | null = null;
+let patientMap = new Map<string, Patient>();
+let selectedPatient: Patient | null = null;
+
+let patientSearchTerm = '';
+let patientStatusFilter: MemberStatus | 'all' = 'all';
+type PatientSortOption = 'name-asc' | 'name-desc' | 'age-asc' | 'age-desc';
+let patientSortOption: PatientSortOption = 'name-asc';
+let filteredPatients: Patient[] = [];
+
+type AppointmentStatusFilter = 'all' | 'pending' | 'completed' | 'accepted' | 'missed' | 'declined' | 'other';
+type AppointmentSortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc';
+let appointmentSearchTerm = '';
+let appointmentStatusFilter: AppointmentStatusFilter = 'all';
+let appointmentSortOption: AppointmentSortOption = 'date-desc';
+let filteredAppointments: Appointment[] = [];
+let filteredMonthlyAppointments: Appointment[] = [];
 
 	function viewPatientDetails(patientId: string) {
 		selectedPatient = patientMap.get(patientId) || allPatients.find(p => p.id === patientId) || null;
@@ -195,6 +209,115 @@ async function updateMemberStatus(patientId: string, newStatus: MemberStatus): P
 		const patient = patientMap.get(patientId);
 		return patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient';
 	}
+
+function normalizePatientName(patient: Patient): string {
+	return `${patient.name ?? ''} ${patient.lastName ?? ''}`.trim().toLowerCase();
+}
+
+function comparePatientsByName(a: Patient, b: Patient): number {
+	return normalizePatientName(a).localeCompare(normalizePatientName(b));
+}
+
+function comparePatientsByAge(a: Patient, b: Patient, direction: 'asc' | 'desc'): number {
+	const ageA = a.age ?? (direction === 'asc' ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER);
+	const ageB = b.age ?? (direction === 'asc' ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER);
+	return direction === 'asc' ? ageA - ageB : ageB - ageA;
+}
+
+function normalizeAppointmentName(appointment: Appointment): string {
+	return (appointment.patientName || '').toLowerCase();
+}
+
+function compareAppointmentsByName(a: Appointment, b: Appointment): number {
+	return normalizeAppointmentName(a).localeCompare(normalizeAppointmentName(b));
+}
+
+function compareAppointmentsByDate(a: Appointment, b: Appointment, direction: 'asc' | 'desc'): number {
+	const dateA = Number.isNaN(Date.parse(a.date)) ? (direction === 'asc' ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER) : Date.parse(a.date);
+	const dateB = Number.isNaN(Date.parse(b.date)) ? (direction === 'asc' ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER) : Date.parse(b.date);
+	return direction === 'asc' ? dateA - dateB : dateB - dateA;
+}
+
+function matchesAppointmentStatus(appointment: Appointment, filter: AppointmentStatusFilter): boolean {
+	if (filter === 'all') return true;
+	const status = (appointment.status || '').toLowerCase();
+	if (!status) return filter === 'other';
+	if (filter === 'declined') return status === 'declined' || status === 'decline';
+	if (filter === 'other') {
+		return !['pending', 'completed', 'accepted', 'missed', 'declined', 'decline'].includes(status);
+	}
+	return status === filter;
+}
+
+function getFilteredAppointmentList(source: Appointment[]): Appointment[] {
+	let list = [...source];
+
+	if (appointmentSearchTerm.trim()) {
+		const term = appointmentSearchTerm.trim().toLowerCase();
+		list = list.filter((appointment) => {
+			const patientName = appointment.patientName?.toLowerCase() ?? '';
+			const service = appointment.service?.toLowerCase() ?? '';
+			const subservice = (appointment.subServices?.join(', ') ?? '').toLowerCase();
+			return patientName.includes(term) || service.includes(term) || subservice.includes(term);
+		});
+	}
+
+	list = list.filter((appointment) => matchesAppointmentStatus(appointment, appointmentStatusFilter));
+
+	switch (appointmentSortOption) {
+		case 'date-asc':
+			list.sort((a, b) => compareAppointmentsByDate(a, b, 'asc'));
+			break;
+		case 'name-asc':
+			list.sort(compareAppointmentsByName);
+			break;
+		case 'name-desc':
+			list.sort((a, b) => compareAppointmentsByName(b, a));
+			break;
+		default:
+			list.sort((a, b) => compareAppointmentsByDate(a, b, 'desc'));
+			break;
+	}
+
+	return list;
+}
+
+$: filteredPatients = (() => {
+	let patients = [...allPatients];
+
+	if (patientSearchTerm.trim()) {
+		const search = patientSearchTerm.trim().toLowerCase();
+		patients = patients.filter((patient) => {
+			const fullName = normalizePatientName(patient);
+			const displayId = patient.displayId?.toLowerCase() ?? '';
+			return fullName.includes(search) || displayId.includes(search);
+		});
+	}
+
+	if (patientStatusFilter !== 'all') {
+		patients = patients.filter((patient) => (patient.status ?? 'active') === patientStatusFilter);
+	}
+
+	switch (patientSortOption) {
+		case 'name-desc':
+			patients.sort((a, b) => comparePatientsByName(b, a));
+			break;
+		case 'age-asc':
+			patients.sort((a, b) => comparePatientsByAge(a, b, 'asc'));
+			break;
+		case 'age-desc':
+			patients.sort((a, b) => comparePatientsByAge(a, b, 'desc'));
+			break;
+		default:
+			patients.sort(comparePatientsByName);
+			break;
+	}
+
+	return patients;
+})();
+
+$: filteredAppointments = getFilteredAppointmentList(allAppointments);
+$: filteredMonthlyAppointments = getFilteredAppointmentList(monthlyAppointmentsData);
 
 	// --- UI Event Handlers ---
 	function toggleSidebar(): void {
@@ -1324,6 +1447,45 @@ function downloadExcelReport(
 							View All
 						</button>
 					</div>
+					<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+						<div class="relative w-full md:w-1/2">
+							<input
+								type="text"
+								placeholder="Search by patient or service..."
+								class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								bind:value={appointmentSearchTerm}
+								aria-label="Search appointments"
+							/>
+							<svg class="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
+							</svg>
+						</div>
+						<div class="flex flex-wrap gap-2 w-full md:w-1/2">
+							<select
+								class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								bind:value={appointmentStatusFilter}
+								aria-label="Filter appointments by status"
+							>
+								<option value="all">All Statuses</option>
+								<option value="pending">Pending</option>
+								<option value="accepted">Accepted</option>
+								<option value="completed">Completed</option>
+								<option value="missed">Missed</option>
+								<option value="declined">Declined</option>
+								<option value="other">Other</option>
+							</select>
+							<select
+								class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								bind:value={appointmentSortOption}
+								aria-label="Sort appointments"
+							>
+								<option value="date-desc">Date (Newest)</option>
+								<option value="date-asc">Date (Oldest)</option>
+								<option value="name-asc">Patient (A → Z)</option>
+								<option value="name-desc">Patient (Z → A)</option>
+							</select>
+						</div>
+					</div>
 					<div class="overflow-x-auto">
 						<table class="min-w-full divide-y divide-gray-200">
 							<thead>
@@ -1334,24 +1496,31 @@ function downloadExcelReport(
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-gray-200">
-								{#each allAppointments.slice(0, 5) as appointment}
-									<tr class="hover:bg-gray-50">
-										<td class="px-4 py-3 text-sm text-gray-900">
-											<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
-										</td>
-										<td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
-										<td class="px-4 py-3">
-											<span class="px-2 py-1 text-xs font-medium rounded-full
-												{appointment.status && appointment.status.toLowerCase().includes('completed') ? 'bg-green-100 text-green-800' :
-												appointment.status && appointment.status.toLowerCase().includes('pending') ? 'bg-yellow-100 text-yellow-800' :
-												appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
-												appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
-												'bg-gray-300 text-gray-700'}">
-												{appointment.status}
-											</span>
-										</td>
+								{#if filteredAppointments.length}
+									{#each filteredAppointments.slice(0, 5) as appointment}
+										<tr class="hover:bg-gray-50">
+											<td class="px-4 py-3 text-sm text-gray-900">
+												<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
+											</td>
+											<td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
+											<td class="px-4 py-3">
+												<span class="px-2 py-1 text-xs font-medium rounded-full
+													{appointment.status && appointment.status.toLowerCase().includes('completed') ? 'bg-green-100 text-green-800' :
+													appointment.status && appointment.status.toLowerCase().includes('pending') ? 'bg-yellow-100 text-yellow-800' :
+													appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
+													appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
+													appointment.status && appointment.status.toLowerCase().includes('declined') ? 'bg-gray-200 text-gray-800' :
+													'bg-gray-300 text-gray-700'}">
+													{appointment.status}
+												</span>
+											</td>
+										</tr>
+									{/each}
+								{:else}
+									<tr>
+										<td colspan="3" class="px-4 py-6 text-center text-sm text-gray-500">No appointments match the current filters.</td>
 									</tr>
-								{/each}
+								{/if}
 							</tbody>
 						</table>
 					</div>
@@ -1367,6 +1536,41 @@ function downloadExcelReport(
 							View All
 						</button>
 					</div>
+					<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+						<div class="relative w-full md:w-1/2">
+							<input
+								type="text"
+								placeholder="Search by name or ID..."
+								class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								bind:value={patientSearchTerm}
+								aria-label="Search patients"
+							/>
+							<svg class="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
+							</svg>
+						</div>
+						<div class="flex flex-wrap gap-2 w-full md:w-1/2">
+							<select
+								class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								bind:value={patientStatusFilter}
+								aria-label="Filter by status"
+							>
+								<option value="all">All Statuses</option>
+								<option value="active">Active</option>
+								<option value="inactive">Inactive</option>
+							</select>
+							<select
+								class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								bind:value={patientSortOption}
+								aria-label="Sort patients"
+							>
+								<option value="name-asc">Name (A → Z)</option>
+								<option value="name-desc">Name (Z → A)</option>
+								<option value="age-asc">Age (Youngest)</option>
+								<option value="age-desc">Age (Oldest)</option>
+							</select>
+						</div>
+					</div>
 					<div class="overflow-x-auto">
 						<table class="min-w-full divide-y divide-gray-200">
 							<thead>
@@ -1378,31 +1582,37 @@ function downloadExcelReport(
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-gray-200">
-								{#each allPatients.slice(0, 5) as patient}
-									<tr class="hover:bg-gray-50">
-										<td class="px-4 py-3 text-sm text-gray-900">
-											<div class="member-cell">
-												<div class="initials-circle" aria-hidden="true">{getPatientInitials(patient)}</div>
-												<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>
-													{patient.name} {patient.lastName}
-												</button>
-											</div>
-										</td>
-										<td class="px-4 py-3 text-sm text-gray-500">{patient.registrationDate}</td>
-										<td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
-										<td class="px-4 py-3 text-sm text-gray-500">
-											<select
-												class="status-select"
-												aria-label="Set member status"
-												value={patient.status ?? 'active'}
-												on:change={(event) => updateMemberStatus(patient.id, event.currentTarget.value as MemberStatus)}
-											>
-												<option value="active">Active</option>
-												<option value="inactive">Inactive</option>
-											</select>
-										</td>
+								{#if filteredPatients.length}
+									{#each filteredPatients.slice(0, 5) as patient}
+										<tr class="hover:bg-gray-50">
+											<td class="px-4 py-3 text-sm text-gray-900">
+												<div class="member-cell">
+													<div class="initials-circle" aria-hidden="true">{getPatientInitials(patient)}</div>
+													<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>
+														{patient.name} {patient.lastName}
+													</button>
+												</div>
+											</td>
+											<td class="px-4 py-3 text-sm text-gray-500">{patient.registrationDate}</td>
+											<td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
+											<td class="px-4 py-3 text-sm text-gray-500">
+												<select
+													class="status-select"
+													aria-label="Set member status"
+													value={patient.status ?? 'active'}
+													on:change={(event) => updateMemberStatus(patient.id, event.currentTarget.value as MemberStatus)}
+												>
+													<option value="active">Active</option>
+													<option value="inactive">Inactive</option>
+												</select>
+											</td>
+										</tr>
+									{/each}
+								{:else}
+									<tr>
+										<td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500">No members match the current filters.</td>
 									</tr>
-								{/each}
+								{/if}
 							</tbody>
 						</table>
 					</div>
@@ -1433,6 +1643,46 @@ function downloadExcelReport(
             </div>
 
             {#if openTable === 'appointments'}
+                <div class="space-y-4">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="relative w-full lg:w-1/2">
+                            <input
+                                type="text"
+                                placeholder="Search by patient or service..."
+                                class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={appointmentSearchTerm}
+                                aria-label="Search appointments"
+                            />
+                            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
+                            </svg>
+                        </div>
+                        <div class="flex flex-wrap gap-2 w-full lg:w-1/2">
+                            <select
+                                class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={appointmentStatusFilter}
+                                aria-label="Filter appointments by status"
+                            >
+                                <option value="all">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="accepted">Accepted</option>
+                                <option value="completed">Completed</option>
+                                <option value="missed">Missed</option>
+                                <option value="declined">Declined</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <select
+                                class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={appointmentSortOption}
+                                aria-label="Sort appointments"
+                            >
+                                <option value="date-desc">Date (Newest)</option>
+                                <option value="date-asc">Date (Oldest)</option>
+                                <option value="name-asc">Patient (A → Z)</option>
+                                <option value="name-desc">Patient (Z → A)</option>
+                            </select>
+                        </div>
+                    </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
@@ -1445,7 +1695,8 @@ function downloadExcelReport(
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            {#each allAppointments as appointment}
+                            {#if filteredAppointments.length}
+                            {#each filteredAppointments as appointment}
                                 <tr class="hover:bg-gray-50">
 									<td class="px-4 py-3 text-sm text-gray-900">
 										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
@@ -1459,16 +1710,59 @@ function downloadExcelReport(
                                             appointment.status && appointment.status.toLowerCase().includes('pending') ? 'bg-yellow-100 text-yellow-800' :
                                             appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
                                             appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('declined') ? 'bg-gray-200 text-gray-800' :
                                             'bg-gray-300 text-gray-700'}">
                                             {appointment.status}
                                         </span>
                                     </td>
                                 </tr>
                             {/each}
+                            {:else}
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No appointments match the current filters.</td>
+                                </tr>
+                            {/if}
                         </tbody>
                     </table>
                 </div>
+                </div>
             {:else if openTable === 'patients'}
+                <div class="space-y-4">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="relative w-full lg:w-1/2">
+                            <input
+                                type="text"
+                                placeholder="Search by name or ID..."
+                                class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={patientSearchTerm}
+                                aria-label="Search patients"
+                            />
+                            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
+                            </svg>
+                        </div>
+                        <div class="flex flex-wrap gap-2 w-full lg:w-1/2">
+                            <select
+                                class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={patientStatusFilter}
+                                aria-label="Filter by status"
+                            >
+                                <option value="all">All Statuses</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <select
+                                class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={patientSortOption}
+                                aria-label="Sort patients"
+                            >
+                                <option value="name-asc">Name (A → Z)</option>
+                                <option value="name-desc">Name (Z → A)</option>
+                                <option value="age-asc">Age (Youngest)</option>
+                                <option value="age-desc">Age (Oldest)</option>
+                            </select>
+                        </div>
+                    </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
@@ -1482,7 +1776,8 @@ function downloadExcelReport(
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            {#each allPatients as patient}
+                            {#if filteredPatients.length}
+                            {#each filteredPatients as patient}
 								<tr class="hover:bg-gray-50">
 									<td class="px-4 py-3 text-sm text-gray-900">
 										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
@@ -1504,11 +1799,57 @@ function downloadExcelReport(
 									</td>
                                 </tr>
                             {/each}
+                            {:else}
+                                <tr>
+                                    <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No members match the current filters.</td>
+                                </tr>
+                            {/if}
                         </tbody>
                     </table>
                 </div>
+                </div>
             
             {:else if openTable === 'monthlyAppointments'}
+                <div class="space-y-4">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="relative w-full lg:w-1/2">
+                            <input
+                                type="text"
+                                placeholder="Search by patient or service..."
+                                class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={appointmentSearchTerm}
+                                aria-label="Search monthly appointments"
+                            />
+                            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
+                            </svg>
+                        </div>
+                        <div class="flex flex-wrap gap-2 w-full lg:w-1/2">
+                            <select
+                                class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={appointmentStatusFilter}
+                                aria-label="Filter monthly appointments by status"
+                            >
+                                <option value="all">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="accepted">Accepted</option>
+                                <option value="completed">Completed</option>
+                                <option value="missed">Missed</option>
+                                <option value="declined">Declined</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <select
+                                class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={appointmentSortOption}
+                                aria-label="Sort monthly appointments"
+                            >
+                                <option value="date-desc">Date (Newest)</option>
+                                <option value="date-asc">Date (Oldest)</option>
+                                <option value="name-asc">Patient (A → Z)</option>
+                                <option value="name-desc">Patient (Z → A)</option>
+                            </select>
+                        </div>
+                    </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
@@ -1521,7 +1862,8 @@ function downloadExcelReport(
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            {#each monthlyAppointmentsData as appointment}
+                            {#if filteredMonthlyAppointments.length}
+                            {#each filteredMonthlyAppointments as appointment}
                                 <tr class="hover:bg-gray-50">
 									<td class="px-4 py-3 text-sm text-gray-900">
 										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
@@ -1535,14 +1877,21 @@ function downloadExcelReport(
                                             appointment.status && appointment.status.toLowerCase().includes('pending') ? 'bg-yellow-100 text-yellow-800' :
                                             appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
                                             appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('declined') ? 'bg-gray-200 text-gray-800' :
                                             'bg-gray-300 text-gray-700'}">
                                             {appointment.status}
                                         </span>
                                     </td>
                                 </tr>
                             {/each}
+                            {:else}
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No appointments match the current filters.</td>
+                                </tr>
+                            {/if}
                         </tbody>
                     </table>
+                </div>
                 </div>
             {/if}
         </div>
