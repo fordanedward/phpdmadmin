@@ -1,4 +1,4 @@
-##  Deployment Instructions (Netlify)
+##  Permanente Health Plan Digital Member Admin Side
 
 1. Fork or clone the repository.
 2. Run `npm install` to install dependencies.
