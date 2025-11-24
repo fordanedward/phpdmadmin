@@ -238,31 +238,165 @@ function compareAppointmentsByDate(a: Appointment, b: Appointment, direction: 'a
 	return direction === 'asc' ? dateA - dateB : dateB - dateA;
 }
 
+// Normalize strings for searching: remove diacritics, non-alphanumerics, collapse spaces, lowercase
+function normalizeForSearch(s: string | undefined | null): string {
+	if (!s) return '';
+	try {
+		return s.toString()
+			.normalize('NFD')
+			.replace(/\p{Diacritic}/gu, '')
+			.replace(/[^\p{L}\p{N}\s]/gu, ' ')
+			.replace(/\s+/g, ' ')
+			.trim()
+			.toLowerCase();
+	} catch (e) {
+		// Fallback for environments without Unicode property escapes
+		return s.toString()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^a-z0-9\s]/gi, ' ')
+			.replace(/\s+/g, ' ')
+			.trim()
+			.toLowerCase();
+	}
+}
+
 function matchesAppointmentStatus(appointment: Appointment, filter: AppointmentStatusFilter): boolean {
 	if (filter === 'all') return true;
-	const status = (appointment.status || '').toLowerCase();
-	if (!status) return filter === 'other';
-	if (filter === 'declined') return status === 'declined' || status === 'decline';
-	if (filter === 'other') {
-		return !['pending', 'completed', 'accepted', 'missed', 'declined', 'decline'].includes(status);
+	const debug = typeof window !== 'undefined' && localStorage.getItem('apptFilterDebug') === '1';
+	const statusRaw = (appointment.status || '').toString();
+	const statusNormalized = normalizeForSearch(statusRaw);
+	const f = normalizeForSearch((filter || '').toString());
+
+	if (!statusNormalized) {
+		const result = f === 'other';
+		if (debug) console.log('apptFilterDebug: status empty', { id: appointment.id, statusRaw, filter, result });
+		return result;
 	}
-	return status === filter;
+
+	// canonical tokens
+	const tokensMap: Record<string, string[]> = {
+		pending: ['pending', 'request'],
+		completed: ['complete', 'done'],
+		accepted: ['accept', 'accepted'],
+		missed: ['miss', 'no-show', 'noshow'],
+		declined: ['declin', 'declined', 'decline'],
+		cancel: ['cancel', 'cancellation', 'cancelled'],
+		reschedule: ['reschedul', 'rescheduled', 'reschedule']
+	};
+
+	// find which canonical filter key the selected filter maps to
+	const lookupKey = Object.keys(tokensMap).find(k => k === f || tokensMap[k].some(tok => f.includes(tok)));
+	if (!lookupKey) {
+		// 'other' means none of the canonical tokens match
+		if (f === 'other') {
+			const canonical = Object.values(tokensMap).flat();
+			const isOther = !canonical.some(tok => statusNormalized.includes(tok));
+			if (debug) console.log('apptFilterDebug: status other check', { id: appointment.id, statusRaw, f, isOther });
+			return isOther;
+		}
+		if (debug) console.log('apptFilterDebug: unknown filter, fallback true', { id: appointment.id, statusRaw, f });
+		return true;
+	}
+
+	const match = tokensMap[lookupKey].some(tok => statusNormalized.includes(tok));
+	if (debug) console.log('apptFilterDebug: statusMatch', { id: appointment.id, statusRaw, f, lookupKey, match });
+	return match;
 }
 
 function getFilteredAppointmentList(source: Appointment[]): Appointment[] {
 	let list = [...source];
 
 	if (appointmentSearchTerm.trim()) {
-		const term = appointmentSearchTerm.trim().toLowerCase();
+		const normalizedTerm = normalizeForSearch(appointmentSearchTerm.trim());
+		const tokens = normalizedTerm.split(/\s+/).filter(Boolean);
+
 		list = list.filter((appointment) => {
-			const patientName = appointment.patientName?.toLowerCase() ?? '';
-			const service = appointment.service?.toLowerCase() ?? '';
-			const subservice = (appointment.subServices?.join(', ') ?? '').toLowerCase();
-			return patientName.includes(term) || service.includes(term) || subservice.includes(term);
+			const patientName = normalizeForSearch(appointment.patientName || '');
+			const service = normalizeForSearch(appointment.service || '');
+			const subservice = normalizeForSearch((appointment.subServices?.join(' ') ?? ''));
+			const id = normalizeForSearch((appointment.id || '').toString());
+
+			// build token lists and detect qualifiers
+			const rawTokens = tokens;
+			const nameTokens = [] as string[];
+			const serviceTokens = [] as string[];
+			const idTokens = [] as string[];
+			rawTokens.forEach(t => {
+				if (t.startsWith('service:') || t.startsWith('s:')) serviceTokens.push(t.replace(/^(service:|s:)/, ''));
+				else if (t.startsWith('id:') || /^#/.test(t)) idTokens.push(t.replace(/^id:|^#/, ''));
+				else nameTokens.push(t);
+			});
+
+			const nameOnlySearchable = patientName;
+			const serviceSearchable = service + ' ' + subservice;
+			const combinedSearchable = `${patientName} ${service} ${subservice} ${id}`.replace(/\s+/g, ' ').trim();
+
+			let tokensMatch = true;
+			const matchedFields: Record<string, string[]> = { name: [], service: [], id: [] };
+
+			if (nameTokens.length) {
+				// If multiple name tokens, prefer a phrase match on the normalized full query
+				if (nameTokens.length > 1) {
+					tokensMatch = nameOnlySearchable.includes(normalizedTerm);
+					if (tokensMatch) matchedFields.name.push(normalizedTerm);
+				} else {
+					tokensMatch = nameTokens.every(tok => {
+						const m = nameOnlySearchable.includes(tok);
+						if (m) matchedFields.name.push(tok);
+						return m;
+					});
+				}
+			} else if (serviceTokens.length) {
+				tokensMatch = serviceTokens.every(tok => {
+					const m = serviceSearchable.includes(tok);
+					if (m) matchedFields.service.push(tok);
+					return m;
+				});
+			} else if (idTokens.length) {
+				tokensMatch = idTokens.every(tok => {
+					const m = id.replace(/\s+/g, '').includes(tok.replace(/\s+/g, ''));
+					if (m) matchedFields.id.push(tok);
+					return m;
+				});
+			} else {
+				// default: match name only to avoid noisy results from services/ids
+				tokensMatch = rawTokens.every(tok => {
+					const m = nameOnlySearchable.includes(tok);
+					if (m) matchedFields.name.push(tok);
+					return m;
+				});
+			}
+
+			// debug logging when enabled via localStorage('apptFilterDebug' === '1')
+			const debug = typeof window !== 'undefined' && localStorage.getItem('apptFilterDebug') === '1';
+			if (debug) {
+				console.log('apptFilterDebug: dashboard', {
+					id: appointment.id,
+					patientName: appointment.patientName,
+					rawTokens,
+					nameTokens,
+					serviceTokens,
+					idTokens,
+					matchedFields,
+					tokensMatch,
+					appointment
+				});
+			}
+
+			return tokensMatch;
 		});
 	}
 
-	list = list.filter((appointment) => matchesAppointmentStatus(appointment, appointmentStatusFilter));
+	// apply status filter after search
+	const debug = typeof window !== 'undefined' && localStorage.getItem('apptFilterDebug') === '1';
+	list = list.filter((appointment) => {
+		const statusMatch = matchesAppointmentStatus(appointment, appointmentStatusFilter);
+		if (debug) {
+			console.log('apptFilterDebug: dashboard status', { id: appointment.id, status: appointment.status, statusMatch });
+		}
+		return statusMatch;
+	});
 
 	switch (appointmentSortOption) {
 		case 'date-asc':
@@ -680,7 +814,18 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 		const counts = Array(7).fill(0);
 		allAppointments.forEach(a => { try { const appDate = new Date(a.date); if (appDate >= firstDayOfWeek && appDate <= lastDayOfWeek) { counts[appDate.getDay()]++; } } catch (e) {} });
 
-		const displayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+		// Build labels that include the weekday short name and specific date (MM/DD)
+		const weekdayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+		const labelsWithDates: string[] = [];
+		for (let i = 0; i < 7; i++) {
+			const d = new Date(firstDayOfWeek);
+			d.setDate(firstDayOfWeek.getDate() + i);
+			const mm = String(d.getMonth() + 1).padStart(2, '0');
+			const dd = String(d.getDate()).padStart(2, '0');
+			labelsWithDates.push(`${weekdayShort[i]} ${mm}/${dd}`);
+		}
+		const displayLabels = labelsWithDates;
 		const displayData = [counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], counts[0]];
 
 		const barData = { labels: displayLabels, datasets: [{ label: 'Appointments This Week', data: displayData, backgroundColor: '#4caf50' }] };
@@ -1015,10 +1160,10 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
         pdfDoc.text('Appointments', 10, currentY);
         currentY += 7;
 		pdfDoc.autoTable({
-            head: [['Patient Name', 'Date', 'Time', 'Service', 'Subservice', 'Status']],
+			head: [['Patient Name', 'Appointment Date', 'Time', 'Service', 'Subservice', 'Status']],
             body: appointmentsData.map(appt => [
                 appt.patientName || 'Unknown',
-                appt.date || 'N/A',
+					appt.date || 'N/A',
                 appt.time || 'N/A',
                 appt.service || 'N/A',
                 appt.subServices?.join(', ') || 'N/A',
@@ -1042,18 +1187,19 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
         pdfDoc.text('Patients', 10, currentY);
         currentY += 7;
 		(pdfDoc as any).autoTable({
-            head: [['Name', 'Age', 'Birthday', 'Gender', 'Phone']],
-            body: patientsData.map(p => [
-                `${p.name} ${p.lastName}`.trim(),
-                p.age ?? 'N/A',
-                p.birthday || 'N/A',
-                p.gender || 'N/A',
-                p.phone || 'N/A'
-            ]),
-            startY: currentY,
-            theme: 'plain', // Simple theme
-            headStyles: { fillColor: [88, 86, 214], textColor: 255, fontStyle: 'bold' }
-        });
+			head: [['Name', 'Age', 'Birthday', 'Gender', 'Phone', 'Registration Date']],
+			body: patientsData.map(p => [
+				`${p.name} ${p.lastName}`.trim(),
+				p.age ?? 'N/A',
+				p.birthday || 'N/A',
+				p.gender || 'N/A',
+				p.phone || 'N/A',
+				p.registrationDate || 'N/A'
+			]),
+			startY: currentY,
+			theme: 'plain', // Simple theme
+			headStyles: { fillColor: [88, 86, 214], textColor: 255, fontStyle: 'bold' }
+		});
         // currentY = (pdfDoc as any).lastAutoTable.finalY + 10; // No need if it's the last table
     }
 
@@ -1096,15 +1242,15 @@ function downloadExcelReport(
   }, {} as Record<string, Appointment[]>);
 
   // Create a sheet for each month's appointments
- Object.entries(appointmentsByMonth).forEach(([monthYear, appointments]) => {
-    const sheetData = appointments.map(appt => ({
-      'Patient Name': appt.patientName || 'Unknown',
-      'Date': appt.date || 'N/A',
-      'Time': appt.time || 'N/A',
-      'Service': appt.service || 'N/A',
-      'Subservice': appt.subServices?.join(', ') || 'N/A',
-      'Status': appt.status || 'N/A',
-    }));
+	Object.entries(appointmentsByMonth).forEach(([monthYear, appointments]) => {
+		const sheetData = appointments.map(appt => ({
+			'Patient Name': appt.patientName || 'Unknown',
+			'Appointment Date': appt.date || 'N/A',
+			'Time': appt.time || 'N/A',
+			'Service': appt.service || 'N/A',
+			'Subservice': appt.subServices?.join(', ') || 'N/A',
+			'Status': appt.status || 'N/A',
+		}));
 
     const ws = XLSX.utils.json_to_sheet(sheetData);
     ws['!cols'] = calculateColumnWidths(sheetData); // Set column widths
@@ -1252,7 +1398,7 @@ function downloadExcelReport(
 				<div class="flex justify-between items-center">
 					<div>
 						<h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
-						<p class="text-gray-600 mt-2">Welcome to your dental clinic dashboard</p>
+						<p class="text-gray-600 mt-2">Welcome to the Permanente Health Plan's Dashboard for Admin Side.</p>
 					</div>
 					<div class="flex items-center gap-4">
 						<div class="flex items-center gap-2">
@@ -1281,53 +1427,53 @@ function downloadExcelReport(
 
 			<!-- Stats Cards -->
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('monthlyAppointments')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 cursor-pointer group" on:click={() => handleCardClick('monthlyAppointments')}>
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium text-gray-600">This Month's Appointments</p>
 							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.monthlyAppointments}</h3>
 						</div>
-						<div class="p-3 bg-blue-50 rounded-lg">
-							<svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-3 bg-blue-50 rounded-lg transition-colors duration-200 transform group-hover:scale-110 group-hover:bg-blue-100">
+								<svg class="w-6 h-6 text-blue-500 transition-colors duration-200 group-hover:text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('appointments')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 cursor-pointer group" on:click={() => handleCardClick('appointments')}>
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium text-gray-600">Total Appointments</p>
 							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.newAppointments}</h3>
 						</div>
-						<div class="p-3 bg-green-50 rounded-lg">
-							<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-3 bg-green-50 rounded-lg transition-colors duration-200 transform group-hover:scale-110 group-hover:bg-green-100">
+								<svg class="w-6 h-6 text-green-500 transition-colors duration-200 group-hover:text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('appointments')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 cursor-pointer group" on:click={() => handleCardClick('appointments')}>
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium text-gray-600">Today's Appointments</p>
 							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.todaysAppointments}</h3>
 						</div>
-						<div class="p-3 bg-purple-50 rounded-lg">
-							<svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-3 bg-purple-50 rounded-lg transition-colors duration-200 transform group-hover:scale-110 group-hover:bg-purple-100">
+								<svg class="w-6 h-6 text-purple-500 transition-colors duration-200 group-hover:text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('patients')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleCardClick('patients')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('patients')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 cursor-pointer group" on:click={() => handleCardClick('patients')}>
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium text-gray-600">Total Members</p>
 							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.totalPatients}</h3>
 						</div>
-						<div class="p-3 bg-orange-50 rounded-lg">
-							<svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-3 bg-orange-50 rounded-lg transition-colors duration-200 transform group-hover:scale-110 group-hover:bg-orange-100">
+								<svg class="w-6 h-6 text-orange-500 transition-colors duration-200 group-hover:text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
 							</svg>
 						</div>
@@ -1337,7 +1483,7 @@ function downloadExcelReport(
 
 			<!-- Enhanced Patient Analytics Cards -->
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-md hover:scale-105 group">
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium text-gray-600">New Members This Month</p>
@@ -1355,7 +1501,7 @@ function downloadExcelReport(
 
 
 
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-md hover:scale-105 group">
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium text-gray-600">Active Members</p>
@@ -1498,7 +1644,7 @@ function downloadExcelReport(
 							<tbody class="divide-y divide-gray-200">
 								{#if filteredAppointments.length}
 									{#each filteredAppointments.slice(0, 5) as appointment}
-										<tr class="hover:bg-gray-50">
+										<tr class="hover:bg-gray-50 transition-colors duration-150 group">
 											<td class="px-4 py-3 text-sm text-gray-900">
 												<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
 											</td>
@@ -1584,10 +1730,10 @@ function downloadExcelReport(
 							<tbody class="divide-y divide-gray-200">
 								{#if filteredPatients.length}
 									{#each filteredPatients.slice(0, 5) as patient}
-										<tr class="hover:bg-gray-50">
+										<tr class="hover:bg-gray-50 transition-colors duration-150 group">
 											<td class="px-4 py-3 text-sm text-gray-900">
-												<div class="member-cell">
-													<div class="initials-circle" aria-hidden="true">{getPatientInitials(patient)}</div>
+												<div class="member-cell flex items-center">
+													<div class="initials-circle bg-gray-200 text-gray-700 rounded-full w-8 h-8 flex items-center justify-center font-semibold mr-3 transition-transform transform group-hover:scale-110" aria-hidden="true">{getPatientInitials(patient)}</div>
 													<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>
 														{patient.name} {patient.lastName}
 													</button>
@@ -1697,7 +1843,7 @@ function downloadExcelReport(
                         <tbody class="divide-y divide-gray-200">
                             {#if filteredAppointments.length}
                             {#each filteredAppointments as appointment}
-                                <tr class="hover:bg-gray-50">
+										<tr class="hover:bg-gray-50 transition-colors duration-150 group">
 									<td class="px-4 py-3 text-sm text-gray-900">
 										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
 									</td>

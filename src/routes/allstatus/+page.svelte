@@ -12,8 +12,13 @@
 
     let isCollapsed = false;
     let searchQuery = '';
-    let selectedStatus = 'All';
+    let selectedStatus = 'all';
+    // Sidebar user props (optional for this page). If you have an auth/store, replace these with real values.
+    let userRole: 'userDentist' | 'userAdmin' | 'userSecretary' | 'userPatient' | 'userSuper' | undefined = undefined;
+    let userName: string | null | undefined = undefined;
+    let userPhotoURL: string | null | undefined = undefined;
     let filteredAppointments: Appointment[] = [];
+    let totalFiltered = 0;
     let currentPage = 1;
     const itemsPerPage = 10;
 
@@ -21,8 +26,8 @@
         isCollapsed = !isCollapsed;
     }
 
-    function logout() {
-        window.location.href = "/"; 
+    async function logout(): Promise<void> {
+        window.location.href = "/";
     }
 
     interface Appointment {
@@ -63,23 +68,33 @@
         const patientSnapshots = await Promise.all(patientBatches.map(batch => getDocs(batch)));
 
         // Map patient data for quick lookup
+        // Store by both doc.id and any explicit `id` field so lookups succeed regardless
         const patientsMap = new Map();
         patientSnapshots.forEach(snapshot => {
-            snapshot.forEach(doc => patientsMap.set(doc.id, doc.data()));
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                // Register by document id
+                patientsMap.set(doc.id, data);
+                // If the document contains an `id` field (some imports store it there), register by that too
+                if (data && data.id) patientsMap.set(data.id.toString(), data);
+            });
         });
 
         // Map appointments with patient data
         appointments = appointmentSnapshot.docs.map(docSnapshot => {
             const appointmentData = docSnapshot.data();
-            const patientData = patientsMap.get(appointmentData.patientId) || {};
+            // try lookup by exact key, or by stringified id
+            const rawPatient = patientsMap.get(appointmentData.patientId) || patientsMap.get((appointmentData.patientId || '').toString()) || {};
 
             return {
                 appointmentId: docSnapshot.id,
                 ...appointmentData,
                 patientData: {
-                    name: patientData.name || '',
-                    lastname: patientData.lastName || '',
-                    age: patientData.age || 0
+                    // accept both `name` and common variants
+                    name: rawPatient.name || rawPatient.firstName || '',
+                    // accept both `lastName` and `lastname` variants
+                    lastname: rawPatient.lastName || rawPatient.lastname || rawPatient.surname || '',
+                    age: rawPatient.age || 0
                 },
                 date: appointmentData.date || '',
                 time: appointmentData.time || '',
@@ -92,17 +107,151 @@
         filterAppointments();
     }
 
+    // Normalize strings for searching: remove diacritics, non-alphanumerics, collapse spaces, lowercase
+    function normalizeForSearch(s: string | undefined | null): string {
+        if (!s) return '';
+        try {
+            return s.toString()
+                .normalize('NFD')
+                .replace(/\p{Diacritic}/gu, '')
+                .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        } catch (e) {
+            return s.toString()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9\s]/gi, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        }
+    }
+
     function filterAppointments() {
+        const q = (searchQuery || '').trim();
+        const qNorm = normalizeForSearch(q);
+        const selected = (selectedStatus || '').toString().toLowerCase();
+
+        // build the full matching list first so we can compute totalFiltered for pagination
+        const debug = typeof window !== 'undefined' && localStorage.getItem('apptFilterDebug') === '1';
+        const matching = appointments.filter(app => {
+            // normalize status and selected for tolerant matching
+            const statusNormalized = normalizeForSearch((app.status || '').toString());
+            const selectedNormalized = normalizeForSearch((selected || '').toString());
+
+            let matchesStatus = false;
+            if (selected === 'all' || selected === '') matchesStatus = true;
+            else if (selectedNormalized === 'pending') matchesStatus = statusNormalized.includes('pending');
+            else if (selectedNormalized === 'completed') matchesStatus = statusNormalized.includes('complete');
+            else if (selectedNormalized === 'accepted') matchesStatus = statusNormalized.includes('accept');
+            else if (selectedNormalized === 'missed') matchesStatus = statusNormalized.includes('miss');
+            else if (selectedNormalized === 'declined') matchesStatus = statusNormalized.includes('declin') || statusNormalized.includes('decline');
+            else if (selectedNormalized === 'cancellationrequested') matchesStatus = statusNormalized.includes('cancellation') || statusNormalized.includes('cancel');
+            else matchesStatus = statusNormalized.includes(selectedNormalized) || selectedNormalized.includes(statusNormalized);
+
+            if (!q) {
+                if (debug) console.log('apptFilterDebug: allstatus - no search, statusOnly', { appointmentId: app.appointmentId, matchesStatus });
+                return matchesStatus;
+            }
+
+            // normalize name, id and service for robust matching
+            const rawName = `${app.patientData?.name || ''} ${app.patientData?.lastname || ''}`;
+            const fullName = normalizeForSearch(rawName);
+            const idNorm = normalizeForSearch((app.appointmentId || '').toString()).replace(/\s+/g, '');
+            const service = normalizeForSearch((app.service || '')?.toString());
+
+            // tokenized search: build token lists and detect qualifiers
+            const rawTokens = (qNorm || q).split(/\s+/).filter(Boolean);
+
+            const nameTokens: string[] = [];
+            const serviceTokens: string[] = [];
+            const idTokens: string[] = [];
+
+            rawTokens.forEach(t => {
+                if (t.startsWith('service:') || t.startsWith('s:')) serviceTokens.push(t.replace(/^(service:|s:)/, ''));
+                else if (t.startsWith('id:') || /^#/.test(t)) idTokens.push(t.replace(/^id:|^#/, ''));
+                else nameTokens.push(t);
+            });
+
+            const nameOnlySearchable = fullName;
+            const serviceSearchable = service;
+            const combinedSearchable = `${fullName} ${service} ${idNorm}`.replace(/\s+/g, ' ').trim();
+
+            // Matching rules:
+            // - If nameTokens exist => require all nameTokens in patient name
+            // - Else if serviceTokens exist => require all serviceTokens in service
+            // - Else if idTokens exist => require all idTokens in id
+            // - Else (no qualifiers and single-word query) => default to name-only matching (less noisy)
+            let matchesSearch = true;
+            const matchedFields: Record<string, string[]> = { name: [], service: [], id: [] };
+
+            if (nameTokens.length) {
+                // If the user provided multiple name tokens, require the full normalized query
+                // to appear as a phrase in the patient name to avoid accidental cross-field matches.
+                if (nameTokens.length > 1) {
+                    matchesSearch = nameOnlySearchable.includes(qNorm);
+                    if (matchesSearch) matchedFields.name.push(qNorm);
+                } else {
+                    matchesSearch = nameTokens.every(tok => {
+                        const m = nameOnlySearchable.includes(tok);
+                        if (m) matchedFields.name.push(tok);
+                        return m;
+                    });
+                }
+            } else if (serviceTokens.length) {
+                matchesSearch = serviceTokens.every(tok => {
+                    const m = serviceSearchable.includes(tok);
+                    if (m) matchedFields.service.push(tok);
+                    return m;
+                });
+            } else if (idTokens.length) {
+                matchesSearch = idTokens.every(tok => {
+                    const m = idNorm.includes(tok.replace(/\s+/g, ''));
+                    if (m) matchedFields.id.push(tok);
+                    return m;
+                });
+            } else {
+                // default: single-word, match name only to reduce false positives
+                matchesSearch = rawTokens.every(tok => {
+                    const m = nameOnlySearchable.includes(tok);
+                    if (m) matchedFields.name.push(tok);
+                    return m;
+                });
+            }
+
+            if (debug) {
+                console.log('apptFilterDebug: allstatus', {
+                    appointmentId: app.appointmentId,
+                    patientName: fullName,
+                    service: service,
+                    idNorm,
+                    rawTokens,
+                    nameTokens,
+                    serviceTokens,
+                    idTokens,
+                    matchedFields,
+                    matchesSearch,
+                    matchesStatus,
+                    appointment: app
+                });
+            }
+
+            return matchesStatus && matchesSearch;
+        });
+
+        totalFiltered = matching.length;
+
+        // ensure currentPage is within the valid range for the current filter
+        const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
 
-        filteredAppointments = appointments
-            .filter(app => {
-                const matchesStatus = selectedStatus === 'All' || app.status === selectedStatus;
-                const matchesSearch = app.patientData.name.toLowerCase().includes(searchQuery.toLowerCase());
-                return matchesStatus && matchesSearch;
-            })
-            .slice(startIndex, endIndex);
+        filteredAppointments = matching.slice(startIndex, endIndex);
     }
 
     function viewDetails(appointmentId: string) {
@@ -118,8 +267,9 @@
     }
     
     function goToPage(page: number) {
-        const totalPages = Math.ceil(appointments.length / itemsPerPage);
-        if (page < 1 || page > totalPages) return;
+        const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+        if (page < 1) return;
+        if (page > totalPages) page = totalPages;
         currentPage = page;
         filterAppointments();
     }
@@ -136,7 +286,7 @@
 
 <div class="dashboard">
     <!-- Sidebar -->
-    <Sidebar {isCollapsed} {toggleSidebar} {logout} />
+    <Sidebar {isCollapsed} {toggleSidebar} {logout} {userRole} {userName} {userPhotoURL} />
     <div class="content" style="margin-left: {isCollapsed ? '-1rem' : '-2.4em'};">
         <div class="container">
             <!-- Header -->
@@ -169,24 +319,24 @@
                     type="text" 
                     placeholder="Search by patient name..." 
                     bind:value={searchQuery} 
-                    on:input={filterAppointments}
+                    on:input={() => { currentPage = 1; filterAppointments(); }}
                     class="search-input p-2 border rounded-md" 
                 />
 
-                <select 
-                    bind:value={selectedStatus} 
-                    on:change={filterAppointments} 
-                    class="p-2 border rounded-md"
-                >
-                    <option value="All">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="Decline">Declined</option>
-                    <option value="Completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                    <option value="Accepted">Accepted</option>
-                    <option value="Missed">Missed</option>
-                    <option value="cancellationRequested">Cancellation Requested</option>
-                </select>
+                    <select 
+                        bind:value={selectedStatus} 
+                        on:change={() => { currentPage = 1; filterAppointments(); }} 
+                        class="p-2 border rounded-md"
+                    >
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="declined">Declined</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="accepted">Accepted</option>
+                        <option value="missed">Missed</option>
+                        <option value="cancellationrequested">Cancellation Requested</option>
+                    </select>
             </div>
 
             <!-- Table to display the appointments -->
@@ -234,7 +384,7 @@
             <div class="pagination">
                 <button on:click={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>&lt;</button>
                 <span>Page {currentPage}</span>
-                <button on:click={() => goToPage(currentPage + 1)} disabled={filteredAppointments.length < itemsPerPage}>&gt;</button>
+                <button on:click={() => goToPage(currentPage + 1)} disabled={currentPage >= Math.max(1, Math.ceil(totalFiltered / itemsPerPage))}>&gt;</button>
             </div>
             
 </div>
