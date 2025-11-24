@@ -111,6 +111,11 @@
 
   const today = new Date();
 
+  let search = '';
+  let selectedService = '';
+  let sortBy = 'dateDesc';
+  let uniqueServices: string[] = [];
+
   export const appointmentStore = writable<Appointment[]>([]);
 
   let formTriedSubmit = false;
@@ -171,6 +176,14 @@
   });
 
 
+  function updateUniqueServices() {
+      const serviceSet = new Set<string>();
+      appointments.forEach(a => {
+        if (a.service && typeof a.service === 'string') serviceSet.add(a.service);
+      });
+      uniqueServices = Array.from(serviceSet).sort();
+  }
+
   function processAppointmentsData() {
       const now = new Date();
       const currentMonth = now.getMonth();
@@ -192,6 +205,8 @@
           app.status === 'Reschedule Requested' ||
           app.cancellationStatus === 'requested'
       );
+
+      updateUniqueServices();
 
       console.log("Processed appointments data (summaries and pending list):", {
           totalThisMonth: totalAppointments,
@@ -779,7 +794,7 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    return appointments.filter(appt => {
+    let filtered = appointments.filter(appt => {
         const inactiveStatuses = ['Cancelled', 'Rejected', 'Missed', 'Decline'];
         if (inactiveStatuses.includes(appt.status) || appt.cancellationStatus === 'Approved' || appt.cancellationStatus === 'Declined') {
             return false;
@@ -791,10 +806,8 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
         }
 
         try {
-            const apptDate = new Date(appt.date); // Assuming appt.date is 'YYYY-MM-DD'
-            // To compare dates correctly, it's often better to compare parts or timestamps of normalized dates
+            const apptDate = new Date(appt.date);
             const apptDateNormalized = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate());
-
 
             if (view === 'today') {
                 return apptDateNormalized.toDateString() === todayDateStr;
@@ -808,21 +821,57 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
              console.warn("Error parsing appointment date during filtering:", appt.date, e);
              return false;  
         }
-    }).sort((a, b) => {  
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        if (dateA !== dateB) return dateA - dateB;
-
-        try {
-           
-            const timeA = new Date(`1970-01-01T${a.time}`).getTime();
-            const timeB = new Date(`1970-01-01T${b.time}`).getTime();
-            if (isNaN(timeA) || isNaN(timeB)) return 0; 
-            return timeA - timeB;
-        } catch {
-            return 0; 
-        }
     });
+
+    // Apply search filter
+    if (search.trim()) {
+        const s = search.trim().toLowerCase();
+        filtered = filtered.filter(appt =>
+          (appt.patientName && appt.patientName.toLowerCase().includes(s)) ||
+          (appt.patientEmail && appt.patientEmail.toLowerCase().includes(s)) ||
+          (appt.patientId && appt.patientId.toLowerCase().includes(s))
+        );
+    }
+
+    // Apply service filter
+    if (selectedService) {
+        filtered = filtered.filter(appt => appt.service === selectedService);
+    }
+
+    // Apply sorting
+    if (sortBy === 'dateAsc') {
+        filtered = filtered.slice().sort((a, b) => {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+            try {
+                const timeA = new Date(`1970-01-01T${a.time}`).getTime();
+                const timeB = new Date(`1970-01-01T${b.time}`).getTime();
+                if (isNaN(timeA) || isNaN(timeB)) return 0;
+                return timeA - timeB;
+            } catch {
+                return 0;
+            }
+        });
+    } else if (sortBy === 'dateDesc') {
+        filtered = filtered.slice().sort((a, b) => {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            if (dateA !== dateB) return dateB - dateA;
+            try {
+                const timeA = new Date(`1970-01-01T${a.time}`).getTime();
+                const timeB = new Date(`1970-01-01T${b.time}`).getTime();
+                if (isNaN(timeA) || isNaN(timeB)) return 0;
+                return timeB - timeA;
+            } catch {
+                return 0;
+            }
+        });
+    } else if (sortBy === 'name') {
+        filtered = filtered.slice().sort((a, b) => (a.patientName || '').localeCompare(b.patientName || ''));
+    }
+
+    return filtered;
   };
 
 </script>
@@ -838,6 +887,31 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
         <!-- Added mt-6 to match original, ensure consistent spacing -->
         <div class="bg-white p-4 rounded-lg shadow-md mt-6">
           <h2 class="text-xl font-semibold mb-4">Scheduled Appointments</h2>
+
+          <!-- Search, Filter, and Sort Controls -->
+          <div class="flex flex-wrap gap-3 sm:gap-4 mb-4 items-end">
+            <div class="relative flex-1 min-w-[180px] sm:min-w-[200px]">
+              <label for="search-input" class="block text-xs font-semibold text-gray-600 mb-1">Search</label>
+              <input id="search-input" type="text" bind:value={search} placeholder="Name, email, or ID" class="w-full border rounded px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm" />
+            </div>
+            <div class="min-w-[140px] sm:min-w-[150px]">
+              <label for="service-select" class="block text-xs font-semibold text-gray-600 mb-1">Service</label>
+              <select id="service-select" bind:value={selectedService} class="border rounded px-3 py-2 w-full text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <option value="">All Services</option>
+                {#each uniqueServices as s (s)}
+                  <option value={s}>{s}</option>
+                {/each}
+              </select>
+            </div>
+            <div class="min-w-[140px] sm:min-w-[150px]">
+              <label for="sort-select" class="block text-xs font-semibold text-gray-600 mb-1">Sort By</label>
+              <select id="sort-select" bind:value={sortBy} class="border rounded px-3 py-2 w-full text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <option value="dateDesc">Date (Newest)</option>
+                <option value="dateAsc">Date (Oldest)</option>
+                <option value="name">Patient Name</option>
+              </select>
+            </div>
+          </div>
 
           <div class="tabs mb-4 border-b border-gray-200">
              <button type="button" class="tab-item px-4 py-2 mr-1 rounded-t-md {currentView === 'today' ? 'bg-blue-500 text-white' : 'text-blue-500 hover:bg-blue-100'}" on:click={() => currentView = 'today'}>Today</button>
