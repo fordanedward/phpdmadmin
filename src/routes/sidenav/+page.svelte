@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { fade, slide } from 'svelte/transition';
 
     // Props from parent layout
     export let isCollapsed = false;
@@ -75,7 +76,7 @@
 <style>
     /* Your existing Sidenav styles are good. */
     /* Make sure the class names in HTML match your CSS, e.g., .sidebar, .content etc. */
-	.layout {
+:global(.layout) {
 		height: 100vh;
 		overflow: hidden; 
 	}
@@ -85,6 +86,7 @@
 		left: 0;
         /* centralize sidenav color for easy updates */
         --sidenav-bg: #1e3a66;
+        --sidenav-accent: #ffbc22;
         /* hover and active variants for visible feedback */
         --sidenav-hover: #163153; /* slightly darker for hover */
         --sidenav-active: #12273f; /* active/selected state */
@@ -165,13 +167,29 @@
 		padding: 12px 20px; 
 		white-space: nowrap; 
 		overflow: hidden; 
+        transition: background-color 0.3s ease, color 0.3s ease;
 	}
+    .sidebar-menu a .text {
+        transition: color 0.3s ease;
+    }
+    .sidebar-menu a:hover .text,
+    .sidebar-menu a:focus-visible .text {
+        color: var(--sidenav-accent);
+    }
 	.sidebar-menu a .icon {
 		width: 24px; 
 		height: 24px;
 		margin-right: 15px; 
         flex-shrink: 0; 
+        transition: transform 0.35s ease, filter 0.3s ease;
+        transform: translateX(0) scale(1);
 	}
+    .sidebar-menu a:hover .icon,
+    .sidebar-menu a:focus-visible .icon,
+    .sidebar-menu li:focus-within .icon {
+        transform: translateX(6px) scale(1.08);
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+    }
 	.sidebar-menu a .text {
 		font-size: 0.95rem; 
         overflow: hidden;
@@ -184,6 +202,14 @@
 		justify-content: center; 
 		padding: 12px 0;
 	}
+    .sidebar.collapsed .sidebar-menu a .icon {
+        transform: translateX(-4px) scale(0.95);
+    }
+    .sidebar.collapsed .sidebar-menu a:hover .icon,
+    .sidebar.collapsed .sidebar-menu a:focus-visible .icon,
+    .sidebar.collapsed .sidebar-menu li:focus-within .icon {
+        transform: translateX(2px) scale(1.05);
+    }
 	.sidebar.collapsed .text {
         opacity: 0; 
         width: 0;
@@ -249,11 +275,11 @@
 -->
 <div class="sidebar {isCollapsed ? 'collapsed' : ''}">
     <div class="sidebar-header">
-        <div class="circle-background">
+        <div class="circle-background" in:fade>
             <img src={userPhotoURL || '/images/logo(landing).png'} alt="User or Logo" />
         </div>
         {#if !isCollapsed && userName}
-            <div class="name-container">
+            <div class="name-container" in:fade out:fade>
                 <!-- Displaying first and last name if available -->
                 <span>{displayFirstName}</span>
                 {#if displayLastName}
@@ -271,7 +297,7 @@
     <!-- Sidebar Menu -->
     <ul class="sidebar-menu">
         {#each visibleMenuItems as item (item.href)}
-            <li>
+            <li in:slide|local={{ delay: 50 }} out:fade|local>
                 <a href={item.href}>
                     <img class="icon" src={item.icon} alt={item.alt} />
                     <span class="text">{item.text}</span>
@@ -281,7 +307,7 @@
     </ul>
 
     <!-- Logout Button -->
-    <button class="logout-btn" on:click={logout}>
+    <button class="logout-btn" on:click={logout} in:fade>
         {#if isCollapsed}
             <img src="/images/logout-icon.png" alt="Logout" class="logout-icon" />
         {:else}

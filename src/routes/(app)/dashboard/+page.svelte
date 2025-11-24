@@ -51,17 +51,20 @@
 
 	}
 
-	interface Patient {
-		id: string;
-		displayId?: string;
-		name: string;
-		lastName: string;
-		age?: number;
-		birthday?: string;
-		gender?: string;
-		phone?: string;
-		registrationDate?: string;
-	}
+type MemberStatus = 'active' | 'inactive';
+
+interface Patient {
+	id: string;
+	displayId?: string;
+	name: string;
+	lastName: string;
+	age?: number;
+	birthday?: string;
+	gender?: string;
+	phone?: string;
+	registrationDate?: string;
+	status?: MemberStatus;
+}
 
 	interface Appointment {
 		id: string;
@@ -148,6 +151,37 @@ interface Prescription {
 		selectedPatient = patientMap.get(patientId) || allPatients.find(p => p.id === patientId) || null;
 	}
 
+function getPatientInitials(patient?: Patient | null): string {
+	if (!patient) return 'U';
+	const first = patient.name?.charAt(0)?.toUpperCase() ?? '';
+	const last = patient.lastName?.charAt(0)?.toUpperCase() ?? '';
+	return (first + last || first || last || 'U').slice(0, 2);
+}
+
+async function updateMemberStatus(patientId: string, newStatus: MemberStatus): Promise<void> {
+	if (!db) return;
+	try {
+		const patientRef = doc(db, FIRESTORE_COLLECTIONS.PATIENTS, patientId);
+		await updateDoc(patientRef, { status: newStatus });
+		allPatients = allPatients.map(patient => patient.id === patientId ? { ...patient, status: newStatus } : patient);
+		const existingPatient = patientMap.get(patientId);
+		if (existingPatient) {
+			patientMap.set(patientId, { ...existingPatient, status: newStatus });
+		}
+		stats = {
+			...stats,
+			activePatients: allPatients.filter(p => (p.status ?? 'active') !== 'inactive').length,
+			archivedPatients: allPatients.filter(p => (p.status ?? 'active') === 'inactive').length
+		};
+		if (selectedPatient?.id === patientId) {
+			selectedPatient = { ...selectedPatient, status: newStatus };
+		}
+	} catch (error) {
+		console.error('Failed to update member status:', error);
+		alert('Unable to update member status. Please try again.');
+	}
+}
+
 	// --- Utility Functions ---
 	function getTodayString(): string {
 		const today = new Date();
@@ -198,7 +232,8 @@ async function fetchAllPatients(): Promise<Patient[]> {
 					phone: data.phone,
 					registrationDate: users[doc.id]?.registrationDate ? 
 						new Date(users[doc.id].registrationDate).toISOString().split('T')[0] : 
-						'N/A' // Use registration date from users
+						'N/A', // Use registration date from users
+					status: (data.status as MemberStatus) ?? 'active'
 				} as Patient;
         });
         patientMap.clear();
@@ -303,8 +338,8 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 
 			// Note: activePatients and archivedPatients would need to be calculated from patientProfiles collection
 			// For now, we'll set them to 0 and they can be updated when we fetch from patientProfiles
-			statsResult.activePatients = allPatients.length; // Assuming all patients in users collection are active
-			statsResult.archivedPatients = 0; // This would need to be calculated from patientProfiles
+			statsResult.activePatients = allPatients.filter(p => (p.status ?? 'active') !== 'inactive').length;
+			statsResult.archivedPatients = allPatients.filter(p => (p.status ?? 'active') === 'inactive').length;
 
 			console.log("Dashboard stats fetched:", statsResult);
 			return statsResult;
@@ -1339,18 +1374,33 @@ function downloadExcelReport(
 									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
 									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registered</th>
 									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-gray-200">
 								{#each allPatients.slice(0, 5) as patient}
 									<tr class="hover:bg-gray-50">
 										<td class="px-4 py-3 text-sm text-gray-900">
-											<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>
-												{patient.name} {patient.lastName}
-											</button>
+											<div class="member-cell">
+												<div class="initials-circle" aria-hidden="true">{getPatientInitials(patient)}</div>
+												<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>
+													{patient.name} {patient.lastName}
+												</button>
+											</div>
 										</td>
 										<td class="px-4 py-3 text-sm text-gray-500">{patient.registrationDate}</td>
 										<td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
+										<td class="px-4 py-3 text-sm text-gray-500">
+											<select
+												class="status-select"
+												aria-label="Set member status"
+												value={patient.status ?? 'active'}
+												on:change={(event) => updateMemberStatus(patient.id, event.currentTarget.value as MemberStatus)}
+											>
+												<option value="active">Active</option>
+												<option value="inactive">Inactive</option>
+											</select>
+										</td>
 									</tr>
 								{/each}
 							</tbody>
@@ -1428,6 +1478,7 @@ function downloadExcelReport(
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration Date</th>
+								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
@@ -1440,6 +1491,17 @@ function downloadExcelReport(
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.gender}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.registrationDate}</td>
+									<td class="px-4 py-3 text-sm text-gray-500">
+										<select
+											class="status-select"
+											aria-label="Set member status"
+											value={patient.status ?? 'active'}
+											on:change={(event) => updateMemberStatus(patient.id, event.currentTarget.value as MemberStatus)}
+										>
+											<option value="active">Active</option>
+											<option value="inactive">Inactive</option>
+										</select>
+									</td>
                                 </tr>
                             {/each}
                         </tbody>
@@ -1515,6 +1577,12 @@ function downloadExcelReport(
 				<div><span class="font-medium">Gender:</span> {selectedPatient.gender ?? 'N/A'}</div>
 				<div><span class="font-medium">Phone:</span> {selectedPatient.phone ?? 'N/A'}</div>
 				<div><span class="font-medium">Registered:</span> {selectedPatient.registrationDate ?? 'N/A'}</div>
+				<div class="flex items-center gap-2">
+					<span class="font-medium">Status:</span>
+					<span class={`status-pill ${selectedPatient.status === 'inactive' ? 'inactive' : 'active'}`}>
+						{selectedPatient.status === 'inactive' ? 'Inactive' : 'Active'}
+					</span>
+				</div>
 			</div>
 
 			<div class="mt-6 flex justify-end gap-3">
@@ -1526,7 +1594,59 @@ function downloadExcelReport(
 {/if}
 
 <style>
-	/* Add any additional styles here */
+	.member-cell {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.initials-circle {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 9999px;
+		background: linear-gradient(135deg, #2563eb, #7c3aed);
+		color: #fff;
+		font-weight: 600;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	.status-select {
+		width: 100%;
+		padding: 0.35rem 0.5rem;
+		border: 1px solid #d1d5db;
+		border-radius: 0.5rem;
+		background-color: #fff;
+		font-size: 0.85rem;
+		color: #1f2937;
+	}
+
+	.status-select:focus {
+		outline: none;
+		border-color: #2563eb;
+		box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+	}
+
+	.status-pill {
+		padding: 0.2rem 0.75rem;
+		border-radius: 9999px;
+		font-size: 0.8rem;
+		font-weight: 600;
+		text-transform: capitalize;
+	}
+
+	.status-pill.active {
+		background-color: #dcfce7;
+		color: #166534;
+	}
+
+	.status-pill.inactive {
+		background-color: #fee2e2;
+		color: #b91c1c;
+	}
 </style>
 
 
