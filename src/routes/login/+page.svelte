@@ -75,6 +75,18 @@
         if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
 
+            // Block login if account status is not active
+            if (userData.status && String(userData.status).toLowerCase() !== 'active') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Account Inactive',
+                    text: 'Your account is currently inactive. Please contact an administrator for assistance.',
+                    showConfirmButton: true
+                });
+                await auth.signOut();
+                return false;
+            }
+
             // Check if user has admin role (userAdmin, userDentist, userSecretary, userSuper)
             if (userData.role !== 'userAdmin' && userData.role !== 'userDentist' && userData.role !== 'userSecretary' && userData.role !== 'userSuper') {
                 Swal.fire({

@@ -5,8 +5,9 @@
 	import { browser } from '$app/environment';
 	import '../../app.css';
 
-    import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-    import { doc, getDoc } from 'firebase/firestore';
+	import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+	import { doc, getDoc } from 'firebase/firestore';
+	import Swal from 'sweetalert2';
     import { auth as firebaseAppAuth, db as firebaseAppDb } from '$lib/firebaseConfig.js';  
  
     interface UserProfileForLayout {
@@ -134,21 +135,44 @@
 
 	onMount(() => {
         const unsubscribeAuth = onAuthStateChanged(firebaseAppAuth, async (user) => {
-            if (user) {
-                const userDocRef = doc(firebaseAppDb, "users", user.uid);
-                const userDocSnap = await getDoc(userDocRef);
-                if (userDocSnap.exists()) {
-                    layoutCurrentUser = { uid: user.uid, ...userDocSnap.data() } as UserProfileForLayout;
-                } else {
-                    console.warn(`User ${user.uid} authenticated but profile not found in Firestore.`);
-                    layoutCurrentUser = {  
-                        uid: user.uid,
-                        email: user.email,
-                        displayName: user.displayName,
-                        photoURL: user.photoURL,
-                        role: undefined 
-                    };
-                }
+			if (user) {
+				const userDocRef = doc(firebaseAppDb, "users", user.uid);
+				const userDocSnap = await getDoc(userDocRef);
+				if (userDocSnap.exists()) {
+					const userData = userDocSnap.data();
+
+					// If the account is not active, sign out and redirect to login
+					if (userData.status && String(userData.status).toLowerCase() !== 'active') {
+						layoutCurrentUser = null;
+						try {
+							await firebaseSignOut(firebaseAppAuth);
+						} catch (e) {
+							console.error('Error signing out inactive user:', e);
+						}
+						if (browser) {
+							await Swal.fire({
+								icon: 'error',
+								title: 'Account Inactive',
+								text: 'Your account has been set to inactive. Please contact an administrator.',
+								showConfirmButton: true
+							});
+							goto('/login');
+						}
+						layoutAuthLoading = false;
+						return;
+					}
+
+					layoutCurrentUser = { uid: user.uid, ...userData } as UserProfileForLayout;
+				} else {
+					console.warn(`User ${user.uid} authenticated but profile not found in Firestore.`);
+					layoutCurrentUser = {  
+						uid: user.uid,
+						email: user.email,
+						displayName: user.displayName,
+						photoURL: user.photoURL,
+						role: undefined 
+					};
+				}
                 
                 const currentPath = $page.url.pathname;
                 if (currentPath === '/' || currentPath.startsWith('/login') || currentPath.startsWith('/register') || currentPath.startsWith('/auth')) {
