@@ -274,33 +274,44 @@ function matchesAppointmentStatus(appointment: Appointment, filter: AppointmentS
 		return result;
 	}
 
-	// canonical tokens
+	// Map filter values to possible status variations
 	const tokensMap: Record<string, string[]> = {
 		pending: ['pending', 'request'],
-		completed: ['complete', 'done'],
+		completed: ['complete', 'completed', 'done'],
 		accepted: ['accept', 'accepted'],
-		missed: ['miss', 'no-show', 'noshow'],
+		missed: ['miss', 'missed', 'no-show', 'noshow'],
 		declined: ['declin', 'declined', 'decline'],
 		cancel: ['cancel', 'cancellation', 'cancelled'],
 		reschedule: ['reschedul', 'rescheduled', 'reschedule']
 	};
 
-	// find which canonical filter key the selected filter maps to
-	const lookupKey = Object.keys(tokensMap).find(k => k === f || tokensMap[k].some(tok => f.includes(tok)));
-	if (!lookupKey) {
-		// 'other' means none of the canonical tokens match
-		if (f === 'other') {
-			const canonical = Object.values(tokensMap).flat();
-			const isOther = !canonical.some(tok => statusNormalized.includes(tok));
-			if (debug) console.log('apptFilterDebug: status other check', { id: appointment.id, statusRaw, f, isOther });
-			return isOther;
-		}
-		if (debug) console.log('apptFilterDebug: unknown filter, fallback true', { id: appointment.id, statusRaw, f });
-		return true;
+	// Get the tokens for the selected filter
+	const filterTokens = tokensMap[f] || [];
+	
+	// Check if the appointment status matches any of the tokens for this filter
+	// Status should contain the token (e.g., "declined" contains "decline", "declin")
+	const match = filterTokens.length > 0 && filterTokens.some(tok => {
+		return statusNormalized.includes(tok);
+	});
+	
+	if (debug) console.log('apptFilterDebug: statusMatch', { 
+		id: appointment.id, 
+		statusRaw, 
+		statusNormalized,
+		filter, 
+		f,
+		filterTokens,
+		match 
+	});
+	
+	// If no match found and filter is 'other', check if status doesn't match any known status
+	if (!match && f === 'other') {
+		const allKnownTokens = Object.values(tokensMap).flat();
+		const isOther = !allKnownTokens.some(tok => statusNormalized.includes(tok));
+		if (debug) console.log('apptFilterDebug: status other check', { id: appointment.id, statusRaw, isOther });
+		return isOther;
 	}
-
-	const match = tokensMap[lookupKey].some(tok => statusNormalized.includes(tok));
-	if (debug) console.log('apptFilterDebug: statusMatch', { id: appointment.id, statusRaw, f, lookupKey, match });
+	
 	return match;
 }
 
@@ -336,17 +347,13 @@ function getFilteredAppointmentList(source: Appointment[]): Appointment[] {
 			const matchedFields: Record<string, string[]> = { name: [], service: [], id: [] };
 
 			if (nameTokens.length) {
-				// If multiple name tokens, prefer a phrase match on the normalized full query
-				if (nameTokens.length > 1) {
-					tokensMatch = nameOnlySearchable.includes(normalizedTerm);
-					if (tokensMatch) matchedFields.name.push(normalizedTerm);
-				} else {
-					tokensMatch = nameTokens.every(tok => {
-						const m = nameOnlySearchable.includes(tok);
-						if (m) matchedFields.name.push(tok);
-						return m;
-					});
-				}
+				// For multiple name tokens, require ALL tokens to be present in the patient name
+				// This ensures "juan dela" only matches patients with both "juan" and "dela" in their name
+				tokensMatch = nameTokens.every(tok => {
+					const m = nameOnlySearchable.includes(tok);
+					if (m) matchedFields.name.push(tok);
+					return m;
+				});
 			} else if (serviceTokens.length) {
 				tokensMatch = serviceTokens.every(tok => {
 					const m = serviceSearchable.includes(tok);
@@ -2099,7 +2106,7 @@ function downloadExcelReport(
 		width: 2.5rem;
 		height: 2.5rem;
 		border-radius: 9999px;
-		background: linear-gradient(135deg, #2563eb, #7c3aed);
+		background: #1e3a66;
 		color: #fff;
 		font-weight: 600;
 		display: inline-flex;
