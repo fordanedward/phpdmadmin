@@ -102,8 +102,8 @@
         { href: "/prescription", icon: "/images/prescription1.png", alt: "Prescriptions", text: "Prescriptions", roles: ['userDentist'] },
         { href: "/medicine-list", icon: "/images/medicinelist.png", alt: "Medicines List", text: "Medicines List", roles: ['userDentist'] },
         { href: "/appointment/manage", icon: "/images/calendar.png", alt: "Manage Appointments", text: "Appointments", roles: ['userSecretary'] }, // Icon needed
-        { href: "/secretary/manage-availability", icon: "/images/24-hours.png", alt: "Manage Availability", text: "Availability", roles: ['userSecretary',] }, // Icon needed
-       // { href: "/secretary/payment", icon: "/images/wallet (1).png", alt: "Payments", text: "Payments", roles: ['userSecretary'] }, // Icon needed
+        { href: "/management/manage-availability", icon: "/images/24-hours.png", alt: "Manage Availability", text: "Availability", roles: ['userSecretary'] }, // Icon needed
+       // { href: "/management/payment", icon: "/images/wallet (1).png", alt: "Payments", text: "Payments", roles: ['userSecretary'] }, // Icon needed
     ];
 
     $: visibleMenuItems = layoutCurrentUser?.role

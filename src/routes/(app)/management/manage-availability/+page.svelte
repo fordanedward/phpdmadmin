@@ -85,6 +85,26 @@
       });
   }
 
+  function toggleSlot(slot: string) {
+      if (isSavingSchedule) return;
+      currentSlots = currentSlots.includes(slot)
+          ? currentSlots.filter((existing) => existing !== slot)
+          : sortTimeSlots([...currentSlots, slot]);
+  }
+
+  function removeSlot(slot: string) {
+      if (isSavingSchedule) return;
+      currentSlots = currentSlots.filter((existing) => existing !== slot);
+  }
+
+  function toggleAllSlots() {
+      if (isSavingSchedule) return;
+      currentSlots = allSlotsSelected ? [] : sortTimeSlots(ALL_POSSIBLE_SLOTS);
+  }
+
+  $: allSlotsSelected = currentSlots.length === ALL_POSSIBLE_SLOTS.length &&
+      ALL_POSSIBLE_SLOTS.every((slot) => currentSlots.includes(slot));
+
   // --- Firestore Logic ---
   async function loadDefaultSettings() {
       if (!db || !settingsRef) {
@@ -371,31 +391,55 @@
                     <!-- Time Slot Selection -->
                     {#if isWorkingDay}
                         <div class="space-y-4">
-                            <p class="text-sm text-gray-600">Select available time slots for this specific date:</p>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <p class="text-sm text-gray-600">Select available time slots for this specific date:</p>
+                                <button
+                                    type="button"
+                                    class="select-all-btn"
+                                    on:click={toggleAllSlots}
+                                    disabled={isSavingSchedule}
+                                    aria-pressed={allSlotsSelected}
+                                >
+                                    {allSlotsSelected ? 'Unselect All Slots' : 'Select All Slots'}
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                 {#each ALL_POSSIBLE_SLOTS as slotOption (slotOption)}
-                                    <label class="flex items-center space-x-2 p-2 border rounded hover:bg-gray-50 cursor-pointer transition-colors duration-150">
-                                        <input
-                                            type="checkbox"
-                                            value={slotOption}
-                                            bind:group={currentSlots}
-                                            class="form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
-                                            disabled={isSavingSchedule}
-                                        />
-                                        <span class="text-sm font-mono">{slotOption}</span>
-                                    </label>
+                                    <button
+                                        type="button"
+                                        class="slot-chip"
+                                        class:selected={currentSlots.includes(slotOption)}
+                                        on:click={() => toggleSlot(slotOption)}
+                                        disabled={isSavingSchedule}
+                                        aria-pressed={currentSlots.includes(slotOption)}
+                                    >
+                                        {slotOption}
+                                    </button>
                                 {/each}
                             </div>
 
                             <!-- Selected Slots Display -->
                             <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                                <h3 class="font-medium mb-2 text-gray-700">Selected Slots:</h3>
+                                <h3 class="font-medium mb-2 text-gray-700">
+                                    Selected Slots {selectedDate ? `for ${new Date(selectedDate).toLocaleDateString()}` : ''}
+                                </h3>
                                 {#if currentSlots.length > 0}
-                                    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
+                                    <div class="flex flex-wrap gap-2">
                                         {#each sortTimeSlots(currentSlots) as selectedSlot (selectedSlot)}
-                                            <li class="font-mono">{selectedSlot}</li>
+                                            <span class="slot-label">
+                                                {selectedSlot}
+                                                <button
+                                                    type="button"
+                                                    class="slot-label__remove"
+                                                    on:click={() => removeSlot(selectedSlot)}
+                                                    aria-label={`Remove ${selectedSlot}`}
+                                                    disabled={isSavingSchedule}
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
                                         {/each}
-                                    </ul>
+                                    </div>
                                 {:else}
                                     <p class="text-sm text-gray-500 italic">No time slots selected for this day.</p>
                                 {/if}
@@ -432,46 +476,73 @@
 </div>
 
 <style>
-    .form-checkbox:checked {
+    .slot-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 9999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1f2937;
+        background-color: #fff;
+        transition: all 0.15s ease-in-out;
+        cursor: pointer;
+    }
+    .slot-chip:hover:not(:disabled) {
+        border-color: #2563eb;
+        color: #1d4ed8;
+    }
+    .slot-chip.selected {
         background-color: #2563eb;
         border-color: #2563eb;
+        color: #fff;
+        box-shadow: 0 5px 15px rgba(37, 99, 235, 0.2);
     }
-    .form-checkbox:focus {
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
-    }
-    .form-checkbox {
-        appearance: none;
-        background-color: #fff;
-        border: 1px solid #ccc;
-        display: inline-block;
-        position: relative;
-        cursor: pointer;
-        vertical-align: middle;
-        color-adjust: exact;
-        print-color-adjust: exact;
-    }
-    .form-checkbox.h-4 { height: 1rem; width: 1rem; }
-    .form-checkbox.h-5 { height: 1.25rem; width: 1.25rem; }
-    .form-checkbox.rounded { border-radius: 0.25rem; }
-
-    .form-checkbox:checked::before {
-        content: '✓';
-        display: block;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: white;
-        font-size: 0.75rem;
-        line-height: 1;
-        font-weight: bold;
-    }
-    .form-checkbox:disabled {
-        background-color: #e5e7eb;
-        border-color: #d1d5db;
+    .slot-chip:disabled {
         cursor: not-allowed;
+        opacity: 0.6;
     }
-    .form-checkbox:disabled:checked::before {
-        color: #9ca3af;
+
+    .slot-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.75rem;
+        background-color: #e0f2fe;
+        color: #075985;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    .slot-label__remove {
+        border: none;
+        background: transparent;
+        color: inherit;
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .slot-label__remove:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .select-all-btn {
+        padding: 0.4rem 0.85rem;
+        border-radius: 0.375rem;
+        background-color: #2563eb;
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: background-color 0.15s ease-in-out;
+    }
+    .select-all-btn:hover:not(:disabled) {
+        background-color: #1d4ed8;
+    }
+    .select-all-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
 </style>
