@@ -44,11 +44,14 @@
     }
   
     function updateUniqueServices() {
-      const serviceSet = new Set<string>();
-      appointments.forEach(a => {
-        if (a.service && typeof a.service === 'string') serviceSet.add(a.service);
-      });
-      uniqueServices = Array.from(serviceSet).sort();
+      // Predefined list of all available services
+      const allServices = [
+        'Laboratory',
+        'Imaging',
+        'Doctor\'s Consultation'
+      ];
+      
+      uniqueServices = allServices.sort();
     }
   
     function filterAndSort(list: any[]) {
@@ -248,6 +251,35 @@
         loading = false;
       }
     }
+
+    async function handleMarkComplete(appointment: any) {
+      const { value: remarks } = await Swal.fire({
+        title: 'Mark as Completed?',
+        html: `
+          <p class="mb-3">Confirm that ${appointment.patientName || 'this patient'} has completed their appointment on ${appointment.date} at ${appointment.time}?</p>
+          <textarea id="completion-remarks" class="swal2-input" placeholder="Enter remarks (optional)..." style="height: 50px; resize: vertical;"></textarea>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Mark Complete',
+        confirmButtonColor: '#10B981',
+        cancelButtonColor: '#6B7280',
+        focusConfirm: false,
+        preConfirm: () => {
+          const textarea = document.getElementById('completion-remarks') as HTMLTextAreaElement;
+          return textarea.value.trim();
+        }
+      });
+      
+      if (remarks !== undefined) { // User clicked confirm (remarks can be empty string)
+        const now = new Date().toISOString();
+        await updateStatus(appointment.id, { 
+          status: 'Completed',
+          completionTime: now,
+          completionRemarks: remarks || ''
+        });
+      }
+    }
   </script>
   
   <!-- HTML Part remains the same -->
@@ -307,6 +339,11 @@
             class="py-2 px-2 text-sm sm:text-base sm:px-3 md:px-6 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 flex-grow md:flex-grow-0 text-center whitespace-nowrap {currentTab === 2 ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
             on:click={() => currentTab = 2}>
             {isMobile ? 'Cancellation' : 'Pending Cancellation'}
+          </button>
+          <button 
+            class="py-2 px-2 text-sm sm:text-base sm:px-3 md:px-6 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 flex-grow md:flex-grow-0 text-center whitespace-nowrap {currentTab === 3 ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
+            on:click={() => currentTab = 3}>
+            {isMobile ? 'History' : 'Appointment History'}
           </button>
         </div>
   
@@ -454,6 +491,110 @@
             </div>
             {:else}
               <div class="text-gray-500 col-span-full text-center py-5">No pending cancellation requests.</div>
+            {/if}
+          </section>
+  
+        {:else if currentTab === 3}
+          {@const completedAppointments = filterAndSort(appointments.filter(a => 
+            a.status === 'Accepted' || 
+            a.status === 'Decline' || 
+            a.status === 'Cancelled' || 
+            a.status === 'Completed' || 
+            a.status === 'Rescheduled'
+          ))}
+          <section>
+            <h2 class="text-lg sm:text-xl font-bold mb-4 text-green-700 flex items-center gap-2">
+              <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-green-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>
+              Appointment History ({completedAppointments.length})
+            </h2>
+            {#if completedAppointments.length > 0}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {#each completedAppointments as appointment (appointment.id)}
+                {@const statusColor = 
+                  appointment.status === 'Accepted' ? 'green' : 
+                  appointment.status === 'Completed' ? 'blue' :
+                  appointment.status === 'Rescheduled' ? 'yellow' :
+                  appointment.status === 'Decline' ? 'red' : 
+                  appointment.status === 'Cancelled' ? 'gray' : 'gray'}
+                {@const borderClass = `border-${statusColor}-400`}
+                {@const badgeClass = `bg-${statusColor}-100 text-${statusColor}-700`}
+                <div class="bg-white border-l-4 {borderClass} border-opacity-60 rounded-lg shadow-lg hover:shadow-xl transition-all p-4 sm:p-5 flex flex-col gap-2 sm:gap-3">
+                  {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
+                    <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
+                      <span>{appointment.patientName}</span>
+                      {#if appointment.patientAge && appointment.patientAge > 0}
+                        <span class="text-xs font-normal text-gray-500">({appointment.patientAge} yrs)</span>
+                      {/if}
+                    </div>
+                    {#if appointment.patientEmail}
+                      <div class="text-xs text-gray-500 break-all">{appointment.patientEmail}</div>
+                    {/if}
+                  {:else}
+                    <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
+                  {/if}
+                  <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-1 sm:mt-2">
+                    <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700 font-medium">{appointment.date} at {appointment.time}</span>
+                    <span class="inline-block px-2 py-1 rounded {badgeClass} font-semibold">
+                      {appointment.status}
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-600 mt-1">
+                    <span class="font-medium">Service:</span> {appointment.service}
+                    {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
+                      <div class="mt-1"><span class="font-medium">Selected:</span> {appointment.subServices.join(', ')}</div>
+                    {/if}
+                  </div>
+                  {#if appointment.reason}
+                    <div class="text-xs text-red-600 bg-red-50 p-2 rounded mt-2">
+                      <span class="font-medium">Decline Reason:</span> {appointment.reason}
+                    </div>
+                  {/if}
+                  {#if appointment.cancellationReason}
+                    <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded mt-2">
+                      <span class="font-medium">Cancellation Reason:</span> {appointment.cancellationReason}
+                    </div>
+                  {/if}
+                  {#if appointment.completionTime}
+                    <div class="text-xs text-green-600 bg-green-50 p-2 rounded mt-2 flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span class="font-medium">Completed on:</span> {new Date(appointment.completionTime).toLocaleString()}
+                    </div>
+                  {/if}
+                  {#if appointment.completionRemarks}
+                    <div class="text-xs text-blue-600 bg-blue-50 p-2 rounded mt-2">
+                      <span class="font-medium">Completion Remarks:</span> {appointment.completionRemarks}
+                    </div>
+                  {/if}
+                  {#if appointment.status === 'Accepted' && !appointment.completionTime}
+                    <div class="flex gap-2 mt-3 justify-end">
+                      <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition flex items-center gap-1" title="Mark as Completed" on:click={() => handleMarkComplete(appointment)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Mark Complete
+                      </button>
+                    </div>
+                  {/if}
+                  {#if appointment.createdAt}
+                    <div class="text-xs text-gray-400 mt-2 border-t pt-2">
+                      Created: {(() => {
+                        try {
+                          // Handle Firestore Timestamp objects
+                          if (appointment.createdAt?.toDate) {
+                            return appointment.createdAt.toDate().toLocaleString();
+                          }
+                          // Handle ISO string or regular date
+                          const date = new Date(appointment.createdAt);
+                          return isNaN(date.getTime()) ? 'N/A' : date.toLocaleString();
+                        } catch (e) {
+                          return 'N/A';
+                        }
+                      })()}
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+            {:else}
+              <div class="text-gray-500 col-span-full text-center py-5">No appointment history found.</div>
             {/if}
           </section>
         {/if}

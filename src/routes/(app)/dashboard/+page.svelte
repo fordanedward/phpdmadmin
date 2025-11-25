@@ -36,7 +36,9 @@
 		'January', 'February', 'March', 'April', 'May', 'June',
 		'July', 'August', 'September', 'October', 'November', 'December'
 	];
-	const WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; // For indexing
+const WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; // For indexing
+const REPORT_DATE_LABEL = 'Report Generated Date';
+const REPORT_DATE_DESCRIPTION = 'Indicates when this export was created.';
 
 	// --- Firebase Initialization ---
 	let app: FirebaseApp;
@@ -1150,8 +1152,12 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
     currentY += 8; // Move down
 
     pdfDoc.setFontSize(10); pdfDoc.setFont('helvetica', 'normal');
-    pdfDoc.text(`Generated on: ${reportDate}`, pdfDoc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
+    pdfDoc.text(`${REPORT_DATE_LABEL}: ${reportDate}`, pdfDoc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
+    currentY += 5;
+    pdfDoc.setFontSize(8);
+    pdfDoc.text(`(${REPORT_DATE_DESCRIPTION})`, pdfDoc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
     currentY += 10; // Add more space before the first table
+    pdfDoc.setFontSize(10);
 
 	// Prescriptions removed from report (focus on appointments and patients)
 
@@ -1223,6 +1229,17 @@ function downloadExcelReport(
   console.log('Generating Excel Report with Monthly Sectioning...');
   const workbook = XLSX.utils.book_new();
   const reportDate = getTodayString(); // Get today's date
+  const metadataSheetData = [
+    ['Metric', 'Value'],
+    [REPORT_DATE_LABEL, reportDate],
+    ['Date Description', REPORT_DATE_DESCRIPTION],
+  ];
+  const metadataSheet = XLSX.utils.aoa_to_sheet(metadataSheetData);
+  metadataSheet['!cols'] = [
+    { wch: 20 },
+    { wch: Math.max(25, REPORT_DATE_DESCRIPTION.length) },
+  ];
+  XLSX.utils.book_append_sheet(workbook, metadataSheet, 'Report Info');
 
     // Helper function to calculate column widths
   const calculateColumnWidths = (data: any[]) => {
@@ -1398,22 +1415,22 @@ function downloadExcelReport(
 
 
 	<!-- Main Content Area -->
-	<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-		<div class="container mx-auto px-4 py-8">
+	<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white">
+		<div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
 			<!-- Header Section -->
-			<div class="mb-8">
-				<div class="flex justify-between items-center">
+			<div class="mb-4 sm:mb-8">
+				<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
 					<div>
-						<h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
-						<p class="text-gray-600 mt-2">Welcome to the Permanente Health Plan's Dashboard for Admin Side.</p>
+						<h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-900 to-indigo-800 bg-clip-text text-transparent">Dashboard</h1>
+						<p class="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm">Welcome to the Permanente Health Plan's Dashboard for Admin Side.</p>
 					</div>
-					<div class="flex items-center gap-4">
+					<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
 						<div class="flex items-center gap-2">
-							<label for="exportTypeSelect" class="text-sm font-medium text-gray-600">Export Format:</label>
+							<label for="exportTypeSelect" class="text-xs sm:text-sm font-medium text-gray-600 whitespace-nowrap">Export:</label>
 							<select
 								id="exportTypeSelect"
 								bind:value={exportType}
-								class="border border-gray-300 rounded px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="border border-gray-300 rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500 flex-1"
 							>
 								<option value="excel">Excel</option>
 							</select>
@@ -1421,66 +1438,66 @@ function downloadExcelReport(
 						<button
 							on:click={generateReport}
 							aria-label="Generate report"
-							class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+							class="bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
 							</svg>
-							
+							<span class="hidden sm:inline">Generate</span>
 						</button>
 					</div>
 				</div>
 			</div>
 
 			<!-- Stats Cards -->
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 cursor-pointer group" on:click={() => handleCardClick('monthlyAppointments')}>
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-indigo-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-indigo-200" on:click={() => handleCardClick('monthlyAppointments')}>
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">This Month's Appointments</p>
-							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.monthlyAppointments}</h3>
+							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">This Month's Appointments</p>
+							<h3 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-900 to-indigo-700 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.monthlyAppointments}</h3>
 						</div>
-							<div class="p-3 bg-blue-50 rounded-lg transition-colors duration-200 transform group-hover:scale-110 group-hover:bg-blue-100">
-								<svg class="w-6 h-6 text-blue-500 transition-colors duration-200 group-hover:text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-3 sm:p-4 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md">
+								<svg class="w-6 h-6 sm:w-7 sm:h-7 text-blue-900 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 cursor-pointer group" on:click={() => handleCardClick('appointments')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-emerald-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-emerald-200" on:click={() => handleCardClick('appointments')}>
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">Total Appointments</p>
-							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.newAppointments}</h3>
+							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Appointments</p>
+							<h3 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.newAppointments}</h3>
 						</div>
-							<div class="p-3 bg-green-50 rounded-lg transition-colors duration-200 transform group-hover:scale-110 group-hover:bg-green-100">
-								<svg class="w-6 h-6 text-green-500 transition-colors duration-200 group-hover:text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-3 sm:p-4 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md">
+								<svg class="w-6 h-6 sm:w-7 sm:h-7 text-emerald-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 cursor-pointer group" on:click={() => handleCardClick('appointments')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-purple-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-purple-200" on:click={() => handleCardClick('appointments')}>
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">Today's Appointments</p>
-							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.todaysAppointments}</h3>
+							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Today's Appointments</p>
+							<h3 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.todaysAppointments}</h3>
 						</div>
-							<div class="p-3 bg-purple-50 rounded-lg transition-colors duration-200 transform group-hover:scale-110 group-hover:bg-purple-100">
-								<svg class="w-6 h-6 text-purple-500 transition-colors duration-200 group-hover:text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-3 sm:p-4 bg-gradient-to-br from-purple-100 to-violet-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md">
+								<svg class="w-6 h-6 sm:w-7 sm:h-7 text-purple-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('patients')} class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 cursor-pointer group" on:click={() => handleCardClick('patients')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('patients')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-amber-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-amber-200" on:click={() => handleCardClick('patients')}>
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">Total Members</p>
-							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.totalPatients}</h3>
+							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Members</p>
+							<h3 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.totalPatients}</h3>
 						</div>
-							<div class="p-3 bg-orange-50 rounded-lg transition-colors duration-200 transform group-hover:scale-110 group-hover:bg-orange-100">
-								<svg class="w-6 h-6 text-orange-500 transition-colors duration-200 group-hover:text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-3 sm:p-4 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md">
+								<svg class="w-6 h-6 sm:w-7 sm:h-7 text-amber-600 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
 							</svg>
 						</div>
@@ -1489,15 +1506,15 @@ function downloadExcelReport(
 			</div>
 
 			<!-- Enhanced Patient Analytics Cards -->
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-md hover:scale-105 group">
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
+				<div class="bg-gradient-to-br from-white to-emerald-50 rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-emerald-100 transition-all transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 group">
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">New Members This Month</p>
-							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.newPatientsThisMonth}</h3>
+							<p class="text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">New Members This Month</p>
+							<h3 class="text-2xl sm:text-3xl font-bold text-emerald-700 mt-1 sm:mt-2">{stats.newPatientsThisMonth}</h3>
 						</div>
-						<div class="p-3 bg-emerald-50 rounded-lg">
-							<svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<div class="p-2 sm:p-3 bg-emerald-100 rounded-lg sm:rounded-xl shadow-sm group-hover:shadow-md transition-all">
+							<svg class="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 							</svg>
 						</div>
@@ -1508,14 +1525,14 @@ function downloadExcelReport(
 
 
 
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 transition-transform transform hover:shadow-md hover:scale-105 group">
+				<div class="bg-gradient-to-br from-white to-teal-50 rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-teal-100 transition-all transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 group">
 					<div class="flex items-center justify-between">
 						<div>
-							<p class="text-sm font-medium text-gray-600">Active Members</p>
-							<h3 class="text-2xl font-bold text-gray-800 mt-2">{stats.activePatients}</h3>
+							<p class="text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Active Members</p>
+							<h3 class="text-2xl sm:text-3xl font-bold text-teal-700 mt-1 sm:mt-2">{stats.activePatients}</h3>
 						</div>
-						<div class="p-3 bg-teal-50 rounded-lg">
-							<svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<div class="p-2 sm:p-3 bg-teal-100 rounded-lg sm:rounded-xl shadow-sm group-hover:shadow-md transition-all">
+							<svg class="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 							</svg>
 						</div>
@@ -1524,64 +1541,64 @@ function downloadExcelReport(
 			</div>
 
 			<!-- Charts Section -->
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-					<h3 class="text-lg font-semibold text-gray-800 mb-4">Appointment Trends</h3>
-					<div class="h-80">
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Appointment Trends</h3>
+					<div class="h-64 sm:h-72 lg:h-80">
 						<canvas id="lineChart"></canvas>
 					</div>
 				</div>
 
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-					<h3 class="text-lg font-semibold text-gray-800 mb-4">Weekly Appointments</h3>
-					<div class="h-80">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Weekly Appointments</h3>
+					<div class="h-64 sm:h-72 lg:h-80">
 						<canvas id="weeklyAppointmentsBarChart"></canvas>
 					</div>
 				</div>
 
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-					<h3 class="text-lg font-semibold text-gray-800 mb-4">Appointment Status</h3>
-					<div class="h-80">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Appointment Status</h3>
+					<div class="h-64 sm:h-72 lg:h-80">
 						<canvas id="appointmentStatusPieChart"></canvas>
 					</div>
 				</div>
 
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-					<h3 class="text-lg font-semibold text-gray-800 mb-4">Gender Distribution</h3>
-					<div class="h-80">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Gender Distribution</h3>
+					<div class="h-64 sm:h-72 lg:h-80">
 						<canvas id="genderDistributionDoughnutChart"></canvas>
 					</div>
 				</div>
 
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:col-span-2">
-					<h3 class="text-lg font-semibold text-gray-800 mb-4">Completed vs Missed Appointments</h3>
-					<div class="h-80">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 lg:col-span-2 hover:shadow-xl transition-shadow">
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Completed vs Missed Appointments</h3>
+					<div class="h-64 sm:h-72 lg:h-80">
 						<canvas id="completedMissedLineChart"></canvas>
 					</div>
 				</div>
 			</div>
 
 			<!-- Patient Analytics Section -->
-			<div class="mb-8">
-				<h2 class="text-2xl font-bold text-gray-800 mb-6">Patient Analytics</h2>
-				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-						<h3 class="text-lg font-semibold text-gray-800 mb-4">Patient Growth Over Time</h3>
-						<div class="h-80">
+			<div class="mb-4 sm:mb-6 lg:mb-8">
+				<h2 class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-indigo-800 bg-clip-text text-transparent mb-3 sm:mb-4 lg:mb-6">Patient Analytics</h2>
+				<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+					<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
+						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Patient Growth Over Time</h3>
+						<div class="h-64 sm:h-72 lg:h-80">
 							<canvas id="patientGrowthChart"></canvas>
 						</div>
 					</div>
 
-					<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-						<h3 class="text-lg font-semibold text-gray-800 mb-4">Patient Age Distribution</h3>
-						<div class="h-80">
+					<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
+						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Patient Age Distribution</h3>
+						<div class="h-64 sm:h-72 lg:h-80">
 							<canvas id="patientAgeDistributionChart"></canvas>
 						</div>
 					</div>
 
-					<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:col-span-2">
-						<h3 class="text-lg font-semibold text-gray-800 mb-4">New Patient Registrations (Last 12 Months)</h3>
-						<div class="h-80">
+					<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 lg:col-span-2 hover:shadow-xl transition-shadow">
+						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">New Patient Registrations (Last 12 Months)</h3>
+						<div class="h-64 sm:h-72 lg:h-80">
 							<canvas id="patientRegistrationChart"></canvas>
 						</div>
 					</div>
@@ -1589,33 +1606,33 @@ function downloadExcelReport(
 			</div>
 
 			<!-- Data Tables Section -->
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-					<div class="flex justify-between items-center mb-4">
-						<h3 class="text-lg font-semibold text-gray-800">Recent Appointments</h3>
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
+					<div class="flex justify-between items-center mb-3 sm:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">
+						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800">Recent Appointments</h3>
 						<button
-							class="text-sm text-blue-600 hover:text-blue-800"
+							class="text-xs sm:text-sm font-semibold text-blue-900 hover:text-indigo-700 transition-colors whitespace-nowrap"
 							on:click={() => handleOpenTable('appointments')}
 						>
-							View All
+							View All →
 						</button>
 					</div>
-					<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
-						<div class="relative w-full md:w-1/2">
+					<div class="flex flex-col gap-2 sm:gap-3 mb-3 sm:mb-4">
+						<div class="relative w-full">
 							<input
 								type="text"
 								placeholder="Search by patient or service..."
-								class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={appointmentSearchTerm}
 								aria-label="Search appointments"
 							/>
-							<svg class="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 absolute right-2 sm:right-3 top-2 sm:top-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
 							</svg>
 						</div>
-						<div class="flex flex-wrap gap-2 w-full md:w-1/2">
+						<div class="flex flex-col sm:flex-row gap-2">
 							<select
-								class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={appointmentStatusFilter}
 								aria-label="Filter appointments by status"
 							>
@@ -1628,7 +1645,7 @@ function downloadExcelReport(
 								<option value="other">Other</option>
 							</select>
 							<select
-								class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={appointmentSortOption}
 								aria-label="Sort appointments"
 							>
@@ -1639,25 +1656,25 @@ function downloadExcelReport(
 							</select>
 						</div>
 					</div>
-					<div class="overflow-x-auto">
+					<div class="overflow-x-auto -mx-3 sm:mx-0">
 						<table class="min-w-full divide-y divide-gray-200">
 							<thead>
 								<tr>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+									<th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+									<th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+									<th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-gray-200">
 								{#if filteredAppointments.length}
 									{#each filteredAppointments.slice(0, 5) as appointment}
 										<tr class="hover:bg-gray-50 transition-colors duration-150 group">
-											<td class="px-4 py-3 text-sm text-gray-900">
-												<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
+											<td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900">
+												<button class="text-left text-blue-600 hover:underline truncate max-w-[120px] sm:max-w-none" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
 											</td>
-											<td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
-											<td class="px-4 py-3">
-												<span class="px-2 py-1 text-xs font-medium rounded-full
+											<td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 whitespace-nowrap">{appointment.date}</td>
+											<td class="px-2 sm:px-4 py-2 sm:py-3">
+												<span class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full whitespace-nowrap
 													{appointment.status && appointment.status.toLowerCase().includes('completed') ? 'bg-green-100 text-green-800' :
 													appointment.status && appointment.status.toLowerCase().includes('pending') ? 'bg-yellow-100 text-yellow-800' :
 													appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
@@ -1669,42 +1686,40 @@ function downloadExcelReport(
 											</td>
 										</tr>
 									{/each}
-								{:else}
-									<tr>
-										<td colspan="3" class="px-4 py-6 text-center text-sm text-gray-500">No appointments match the current filters.</td>
-									</tr>
-								{/if}
-							</tbody>
-						</table>
-					</div>
-				</div>
-
-				<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-					<div class="flex justify-between items-center mb-4">
-						<h3 class="text-lg font-semibold text-gray-800">Recent Members</h3>
+									{:else}
+										<tr>
+											<td colspan="3" class="px-2 sm:px-4 py-4 sm:py-6 text-center text-xs sm:text-sm text-gray-500">No appointments match the current filters.</td>
+										</tr>
+									{/if}
+								</tbody>
+							</table>
+						</div>
+					</div>				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
+					<div class="flex justify-between items-center mb-3 sm:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">
+						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800">Recent Members</h3>
 						<button
-							class="text-sm text-blue-600 hover:text-blue-800"
+							class="text-xs sm:text-sm font-semibold text-blue-900 hover:text-indigo-700 transition-colors whitespace-nowrap"
 							on:click={() => handleOpenTable('patients')}
 						>
-							View All
+							View All →
 						</button>
 					</div>
-					<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
-						<div class="relative w-full md:w-1/2">
+					<div class="flex flex-col gap-2 sm:gap-3 mb-3 sm:mb-4">
+						<div class="relative w-full">
 							<input
 								type="text"
 								placeholder="Search by name or ID..."
-								class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={patientSearchTerm}
 								aria-label="Search patients"
 							/>
-							<svg class="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 absolute right-2 sm:right-3 top-2 sm:top-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
 							</svg>
 						</div>
-						<div class="flex flex-wrap gap-2 w-full md:w-1/2">
+						<div class="flex flex-col sm:flex-row gap-2">
 							<select
-								class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={patientStatusFilter}
 								aria-label="Filter by status"
 							>
@@ -1713,7 +1728,7 @@ function downloadExcelReport(
 								<option value="inactive">Inactive</option>
 							</select>
 							<select
-								class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={patientSortOption}
 								aria-label="Sort patients"
 							>
@@ -1724,33 +1739,33 @@ function downloadExcelReport(
 							</select>
 						</div>
 					</div>
-					<div class="overflow-x-auto">
+					<div class="overflow-x-auto -mx-3 sm:mx-0">
 						<table class="min-w-full divide-y divide-gray-200">
 							<thead>
 								<tr>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registered</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+									<th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+									<th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Registered</th>
+									<th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Phone</th>
+									<th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-gray-200">
 								{#if filteredPatients.length}
 									{#each filteredPatients.slice(0, 5) as patient}
 										<tr class="hover:bg-gray-50 transition-colors duration-150 group">
-											<td class="px-4 py-3 text-sm text-gray-900">
+											<td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900">
 												<div class="member-cell flex items-center">
-													<div class="initials-circle bg-gray-200 text-gray-700 rounded-full w-8 h-8 flex items-center justify-center font-semibold mr-3 transition-transform transform group-hover:scale-110" aria-hidden="true">{getPatientInitials(patient)}</div>
-													<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>
+													<div class="initials-circle bg-gray-200 text-gray-700 rounded-full w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center font-semibold mr-2 sm:mr-3 transition-transform transform group-hover:scale-110 text-[10px] sm:text-sm" aria-hidden="true">{getPatientInitials(patient)}</div>
+													<button class="text-left text-blue-600 hover:underline truncate max-w-[100px] sm:max-w-none" on:click={() => viewPatientDetails(patient.id)}>
 														{patient.name} {patient.lastName}
 													</button>
 												</div>
 											</td>
-											<td class="px-4 py-3 text-sm text-gray-500">{patient.registrationDate}</td>
-											<td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
-											<td class="px-4 py-3 text-sm text-gray-500">
+											<td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 hidden sm:table-cell whitespace-nowrap">{patient.registrationDate}</td>
+											<td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 hidden md:table-cell">{patient.phone}</td>
+											<td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-500">
 												<select
-													class="status-select"
+													class="status-select text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded"
 													aria-label="Set member status"
 													value={patient.status ?? 'active'}
 													on:change={(event) => updateMemberStatus(patient.id, event.currentTarget.value as MemberStatus)}
@@ -1776,17 +1791,17 @@ function downloadExcelReport(
 
 <!-- Full Table Views -->
 {#if openTable}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 w-11/12 max-w-6xl max-h-[90vh] overflow-auto">
-            <div class="flex justify-between items-center mb-4">
-				<h2 class="text-xl font-bold text-gray-800">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+        <div class="bg-white rounded-lg p-3 sm:p-4 lg:p-6 w-full max-w-6xl max-h-[90vh] overflow-auto">
+            <div class="flex justify-between items-center mb-3 sm:mb-4">
+				<h2 class="text-base sm:text-lg lg:text-xl font-bold text-gray-800">
 					{openTable === 'appointments' ? 'All Appointments' :
 					 openTable === 'patients' ? 'All Members' :
 					 'Monthly Appointments'}
 				</h2>
 				<button
 					aria-label="Close table dialog"
-					class="text-gray-500 hover:text-gray-700"
+					class="text-gray-500 hover:text-gray-700 p-1"
 					on:click={() => openTable = null}
 				>
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2106,14 +2121,15 @@ function downloadExcelReport(
 		width: 2.5rem;
 		height: 2.5rem;
 		border-radius: 9999px;
-		background: #1e3a66;
+		background: linear-gradient(135deg, #1e3a66 0%, #2c5282 100%);
 		color: #fff;
-		font-weight: 600;
+		font-weight: 700;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
+		box-shadow: 0 2px 4px rgba(30, 58, 102, 0.2);
 	}
 
 	.status-select {

@@ -274,103 +274,104 @@
 </script>
 
 <div class="bg-gradient-to-br from-blue-50 via-white to-gray-100 min-h-screen">
-    <div class="max-w-6xl mx-auto p-4 sm:p-6">
-        <h1 class="text-2xl sm:text-3xl font-extrabold mb-6 sm:mb-8 text-blue-800 tracking-tight flex items-center gap-2 sm:gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div class="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
+        <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-4 sm:mb-6 lg:mb-8 text-blue-800 tracking-tight flex items-center gap-2 sm:gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             Manage Availability
         </h1>
 
         <!-- Section for Default Working Days -->
-        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-4 sm:p-5 mb-6">
-            <h2 class="text-lg sm:text-xl font-bold mb-4 text-blue-700 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 lg:p-5 mb-4 sm:mb-6">
+            <h2 class="text-base sm:text-lg lg:text-xl font-bold mb-3 sm:mb-4 text-blue-700 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 Default Working Days
             </h2>
 
             {#if isLoadingDefaults}
-                <div class="text-center py-4">
-                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-                    <p class="mt-2 text-gray-600">Loading default settings...</p>
+                <div class="text-center py-3 sm:py-4">
+                    <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4 border-blue-500 border-t-transparent"></div>
+                    <p class="mt-2 text-gray-600 text-xs sm:text-sm">Loading default settings...</p>
                 </div>
             {:else}
-                <p class="text-sm text-gray-600 mb-4">Select the days of the week that are typically available for booking. This applies to dates without specific settings.</p>
-                <div class="flex flex-wrap gap-x-6 gap-y-2 mb-4">
+                <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">Select the days of the week that are typically available for booking. This applies to dates without specific settings.</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 mb-3 sm:mb-4">
                     {#each DAYS_OF_WEEK as day (day.value)}
-                        <label class="flex items-center space-x-2 cursor-pointer">
+                        <label class="day-toggle" class:day-toggle--active={defaultWorkingDays.includes(day.value)}>
                             <input
                                 type="checkbox"
                                 value={day.value}
                                 bind:group={defaultWorkingDays}
                                 on:change={handleDefaultDaysChange}
-                                class="form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+                                class="sr-only"
                                 disabled={isSavingDefaults}
                             />
-                            <span class="text-sm">{day.label}</span>
+                            <span class="day-toggle__dot" aria-hidden="true"></span>
+                            <span class="day-toggle__label">{day.label}</span>
                         </label>
                     {/each}
                 </div>
-                <div class="mt-4 text-right">
+                <div class="mt-3 sm:mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
                     {#if isSavingDefaults}
-                        <p class="text-sm text-blue-600 italic mr-4 inline-block">Saving...</p>
+                        <p class="text-xs sm:text-sm text-blue-600 italic text-center sm:text-right">Saving...</p>
                     {/if}
                     <button
                         on:click={() => saveDefaultSettings(false)}
                         disabled={isSavingDefaults || !hasDefaultChanges}
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                     >
                         Save Default Settings
                     </button>
                     {#if !hasDefaultChanges && !isSavingDefaults}
-                        <p class="text-xs text-gray-500 mt-2 text-right">No changes to save.</p>
+                        <p class="text-[10px] sm:text-xs text-gray-500 text-center sm:text-right">No changes to save.</p>
                     {:else if hasDefaultChanges && !isSavingDefaults}
-                        <p class="text-xs text-orange-600 mt-2 text-right">You have unsaved changes.</p>
+                        <p class="text-[10px] sm:text-xs text-orange-600 text-center sm:text-right">You have unsaved changes.</p>
                     {/if}
                 </div>
             {/if}
         </div>
 
         <!-- Section for Specific Date Availability -->
-        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-4 sm:p-5">
-            <h2 class="text-lg sm:text-xl font-bold mb-4 text-blue-700 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 lg:p-5">
+            <h2 class="text-base sm:text-lg lg:text-xl font-bold mb-3 sm:mb-4 text-blue-700 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 Specific Date Availability
             </h2>
 
-            <div class="mb-6 max-w-xs">
-                <label for="scheduleDate" class="block text-sm font-medium text-gray-700 mb-1">Select Date:</label>
+            <div class="mb-4 sm:mb-6">
+                <label for="scheduleDate" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Date:</label>
                 <input
                     type="date"
                     id="scheduleDate"
                     bind:value={selectedDate}
                     min={new Date().toISOString().split('T')[0]}
-                    class="w-full border border-gray-300 rounded p-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full sm:max-w-xs border border-gray-300 rounded p-2 text-sm sm:text-base focus:ring-blue-500 focus:border-blue-500"
                     disabled={isLoadingSchedule || isLoadingDefaults || isSavingSchedule || isSavingDefaults}
                 />
             </div>
 
             {#if isLoadingSchedule || isLoadingDefaults}
-                <div class="text-center py-4">
-                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-                    <p class="mt-2 text-gray-600">Loading schedule for {selectedDate}...</p>
+                <div class="text-center py-3 sm:py-4">
+                    <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4 border-blue-500 border-t-transparent"></div>
+                    <p class="mt-2 text-gray-600 text-xs sm:text-sm">Loading schedule for {selectedDate}...</p>
                 </div>
             {:else if selectedDate && db}
-                <div class="space-y-4">
+                <div class="space-y-3 sm:space-y-4">
                     <!-- Working Day Toggle -->
-                    <div class="p-3 border rounded bg-blue-50 border-blue-200">
+                    <div class="p-2 sm:p-3 border rounded bg-blue-50 border-blue-200">
                         <label class="flex items-center space-x-2">
                             <input
                                 type="checkbox"
                                 bind:checked={isWorkingDay}
-                                class="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
+                                class="form-checkbox h-4 w-4 sm:h-5 sm:w-5 text-blue-600 rounded focus:ring-blue-500"
                                 disabled={isSavingSchedule}
                             />
-                            <span class="text-gray-800 font-medium">Is this a working day?</span>
+                            <span class="text-gray-800 font-medium text-xs sm:text-sm">Is this a working day?</span>
                         </label>
                         {#if selectedDate}
                             {@const dayOfWeekForSelected = new Date(selectedDate + 'T00:00:00Z').getUTCDay()}
@@ -390,12 +391,12 @@
 
                     <!-- Time Slot Selection -->
                     {#if isWorkingDay}
-                        <div class="space-y-4">
-                            <div class="flex flex-wrap items-center gap-3">
-                                <p class="text-sm text-gray-600">Select available time slots for this specific date:</p>
+                        <div class="space-y-3 sm:space-y-4">
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                                <p class="text-xs sm:text-sm text-gray-600">Select available time slots for this specific date:</p>
                                 <button
                                     type="button"
-                                    class="select-all-btn"
+                                    class="select-all-btn text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2"
                                     on:click={toggleAllSlots}
                                     disabled={isSavingSchedule}
                                     aria-pressed={allSlotsSelected}
@@ -403,7 +404,7 @@
                                     {allSlotsSelected ? 'Unselect All Slots' : 'Select All Slots'}
                                 </button>
                             </div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
                                 {#each ALL_POSSIBLE_SLOTS as slotOption (slotOption)}
                                     <button
                                         type="button"
@@ -476,6 +477,58 @@
 </div>
 
 <style>
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+    }
+
+    .day-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+    }
+    .day-toggle__dot {
+        width: 0.85rem;
+        height: 0.85rem;
+        border-radius: 9999px;
+        background: #d1d5db;
+        transition: background 0.15s ease-in-out, transform 0.15s ease-in-out;
+    }
+    .day-toggle__label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1f2937;
+        letter-spacing: 0.01em;
+    }
+    .day-toggle:hover {
+        border-color: #cbd5f5;
+        box-shadow: 0 8px 18px rgba(59, 130, 246, 0.15);
+    }
+    .day-toggle--active {
+        border-color: #2563eb;
+        background: linear-gradient(135deg, rgba(37,99,235,0.12), rgba(59,130,246,0.08));
+    }
+    .day-toggle--active .day-toggle__dot {
+        background: #2563eb;
+        transform: scale(1.15);
+    }
+    .day-toggle--active .day-toggle__label {
+        color: #1d4ed8;
+    }
+
     .slot-chip {
         display: inline-flex;
         align-items: center;
