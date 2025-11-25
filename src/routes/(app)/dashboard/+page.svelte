@@ -1950,8 +1950,8 @@ function downloadExcelReport(
 									<td class="px-4 py-3 text-sm text-gray-900">
 										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
 									</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.age}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.gender}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.registrationDate}</td>
 									<td class="px-4 py-3 text-sm text-gray-500">

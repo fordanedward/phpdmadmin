@@ -29,15 +29,14 @@
   
     let isMobile = false;
   
-    interface PatientProfile {
-      id: string;
-      name: string;
-      lastName: string;
-      age: number;
-      email: string;
-    }
-  
-    function checkMobile() {
+  interface PatientProfile {
+    id: string;
+    name: string;
+    lastName: string;
+    age: number;
+    email: string;
+    gender?: string;
+  }    function checkMobile() {
       if (typeof window !== 'undefined') {
         isMobile = window.innerWidth < 768;
       }
@@ -77,39 +76,37 @@
       return filtered;
     }
   
-    async function fetchPatientProfiles() {
-      const profilesRef = collection(db, 'patientProfiles');
-      const querySnapshot = await getDocs(profilesRef);
-      patientProfiles = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name || '',
-          lastName: data.lastName || '',
-          age: data.age || 0,
-          email: data.email || ''
-        } as PatientProfile;
-      });
-    }
-  
-    async function fetchAppointments() {
-      const appointmentsRef = collection(db, 'appointments');
-      const snapshot = await getDocs(appointmentsRef);
-      appointments = snapshot.docs.map(doc => {
-        const data = doc.data();
-        const patient = patientProfiles.find(p => p.id === data.patientId);
-        return {
-          id: doc.id,
-          ...data,
-          patientName: patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient',
-          patientAge: patient?.age || '',
-          patientEmail: patient?.email || ''
-        };
-      });
-      updateUniqueServices();
-    }
-  
-    // MODIFIED onMount structure
+  async function fetchPatientProfiles() {
+    const profilesRef = collection(db, 'patientProfiles');
+    const querySnapshot = await getDocs(profilesRef);
+    patientProfiles = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name || '',
+        lastName: data.lastName || '',
+        age: data.age || 0,
+        email: data.email || '',
+        gender: data.gender || ''
+      } as PatientProfile;
+    });
+  }  async function fetchAppointments() {
+    const appointmentsRef = collection(db, 'appointments');
+    const snapshot = await getDocs(appointmentsRef);
+    appointments = snapshot.docs.map(doc => {
+      const data = doc.data();
+      const patient = patientProfiles.find(p => p.id === data.patientId);
+      return {
+        id: doc.id,
+        ...data,
+        patientName: patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient',
+        patientAge: patient?.age && patient.age > 0 ? patient.age : 'N/A',
+        patientGender: patient?.gender && patient.gender.trim() ? patient.gender : 'N/A',
+        patientEmail: patient?.email || ''
+      };
+    });
+    updateUniqueServices();
+  }    // MODIFIED onMount structure
     onMount(() => {
       const initializePage = async () => {
         loading = true;
@@ -361,9 +358,7 @@
                   {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
                     <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
                       <span>{appointment.patientName}</span>
-                      {#if appointment.patientAge && appointment.patientAge > 0}
-                        <span class="text-xs font-normal text-gray-500">({appointment.patientAge} yrs)</span>
-                      {/if}
+                      <span class="text-xs font-normal text-gray-500">({appointment.patientAge !== 'N/A' ? `${appointment.patientAge} yrs` : 'Age: N/A'}, {appointment.patientGender})</span>
                     </div>
                     {#if appointment.patientEmail}
                       <div class="text-xs text-gray-500 break-all">{appointment.patientEmail}</div>
@@ -408,9 +403,7 @@
                   {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
                     <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
                       <span>{appointment.patientName}</span>
-                      {#if appointment.patientAge && appointment.patientAge > 0}
-                        <span class="text-xs font-normal text-gray-500">({appointment.patientAge} yrs)</span>
-                      {/if}
+                      <span class="text-xs font-normal text-gray-500">({appointment.patientAge !== 'N/A' ? `${appointment.patientAge} yrs` : 'Age: N/A'}, {appointment.patientGender})</span>
                     </div>
                     {#if appointment.patientEmail}
                       <div class="text-xs text-gray-500 break-all">{appointment.patientEmail}</div>
@@ -458,9 +451,7 @@
                   {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
                     <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
                       <span>{appointment.patientName}</span>
-                      {#if appointment.patientAge && appointment.patientAge > 0}
-                        <span class="text-xs font-normal text-gray-500">({appointment.patientAge} yrs)</span>
-                      {/if}
+                      <span class="text-xs font-normal text-gray-500">({appointment.patientAge !== 'N/A' ? `${appointment.patientAge} yrs` : 'Age: N/A'}, {appointment.patientGender})</span>
                     </div>
                     {#if appointment.patientEmail}
                       <div class="text-xs text-gray-500 break-all">{appointment.patientEmail}</div>
@@ -522,9 +513,7 @@
                   {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
                     <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
                       <span>{appointment.patientName}</span>
-                      {#if appointment.patientAge && appointment.patientAge > 0}
-                        <span class="text-xs font-normal text-gray-500">({appointment.patientAge} yrs)</span>
-                      {/if}
+                      <span class="text-xs font-normal text-gray-500">({appointment.patientAge !== 'N/A' ? `${appointment.patientAge} yrs` : 'Age: N/A'}, {appointment.patientGender})</span>
                     </div>
                     {#if appointment.patientEmail}
                       <div class="text-xs text-gray-500 break-all">{appointment.patientEmail}</div>
@@ -560,9 +549,9 @@
                       <span class="font-medium">Completed on:</span> {new Date(appointment.completionTime).toLocaleString()}
                     </div>
                   {/if}
-                  {#if appointment.completionRemarks}
+                  {#if appointment.completionRemarks && appointment.completionRemarks.trim()}
                     <div class="text-xs text-blue-600 bg-blue-50 p-2 rounded mt-2">
-                      <span class="font-medium">Completion Remarks:</span> {appointment.completionRemarks}
+                      <span class="font-medium">Remarks:</span> {appointment.completionRemarks}
                     </div>
                   {/if}
                   {#if appointment.status === 'Accepted' && !appointment.completionTime}

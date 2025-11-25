@@ -503,6 +503,9 @@
     .day-toggle__dot {
         width: 0.85rem;
         height: 0.85rem;
+        min-width: 0.85rem;
+        min-height: 0.85rem;
+        flex-shrink: 0;
         border-radius: 9999px;
         background: #d1d5db;
         transition: background 0.15s ease-in-out, transform 0.15s ease-in-out;

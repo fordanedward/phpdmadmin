@@ -975,8 +975,18 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
                              />
                           </div>
                        {:else}
-                          {#if appointment.remarks}
+                          {#if appointment.completionRemarks && appointment.completionRemarks.trim()}
+                              <div class="text-sm bg-blue-50 border border-blue-200 rounded p-2 mt-2">
+                                <span class="font-medium text-blue-800">Remarks:</span> <span class="text-gray-700 italic">{appointment.completionRemarks}</span>
+                              </div>
+                          {:else if appointment.remarks && appointment.remarks.trim()}
                               <p class="text-sm text-gray-600 mt-2">Remarks: <span class="italic">{appointment.remarks}</span></p>
+                          {/if}
+                          {#if appointment.completionTime}
+                            <div class="text-xs text-green-600 bg-green-50 p-2 rounded mt-2 flex items-center gap-1">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              <span class="font-medium">Completed on:</span> {new Date(appointment.completionTime).toLocaleString()}
+                            </div>
                           {/if}
                        {/if}
                    </section>
