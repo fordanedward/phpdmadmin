@@ -3,7 +3,7 @@
   </script>
   
   <svelte:head>
-    <title>PHP Digital Member Admin</title>
+    <title>PHPDGMP Admin</title>
   </svelte:head>
   
   <main>

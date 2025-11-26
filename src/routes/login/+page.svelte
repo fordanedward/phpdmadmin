@@ -17,7 +17,7 @@
     } from 'firebase/auth';
     import { firebaseConfig } from "$lib/firebaseConfig";
     import { initializeApp, getApps, getApp } from "firebase/app";
-    import { getFirestore, doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
+    import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, Timestamp } from "firebase/firestore";
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
 
@@ -25,7 +25,7 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    let email = '';
+    let emailOrAdminId = '';
     let password = '';
     let showPassword = false;
     let rememberMe = false;
@@ -57,7 +57,7 @@
 
     onMount(() => {
         if (typeof localStorage !== 'undefined' && localStorage.getItem('rememberMe') === 'true') {
-            email = localStorage.getItem('email') || '';
+            emailOrAdminId = localStorage.getItem('emailOrAdminId') || '';
             password = localStorage.getItem('password') || '';
             rememberMe = true;
         }
@@ -107,21 +107,25 @@
                 })
             }, { merge: true });
 
+            // Create welcome message with ID number if available
+            const welcomeName = userData.displayName || user.email;
+            const idNumber = userData.customUserId ? ` (ID: ${userData.customUserId})` : '';
+            
             Swal.fire({
                 icon: 'success',
                 title: 'Login Successful',
-                text: `Welcome, ${userData.displayName || user.email}`,
+                text: `Welcome, ${welcomeName}${idNumber}`,
                 showConfirmButton: false,
                 timer: 2000,
                 customClass: { popup: 'swal-custom' }
             });
 
             if (rememberMe && providerId === 'password') {
-                localStorage.setItem('email', email);
+                localStorage.setItem('emailOrAdminId', emailOrAdminId);
                 localStorage.setItem('password', password);
                 localStorage.setItem('rememberMe', 'true');
             } else if (providerId === 'password') {
-                localStorage.removeItem('email');
+                localStorage.removeItem('emailOrAdminId');
                 localStorage.removeItem('password');
                 localStorage.removeItem('rememberMe');
             }
@@ -144,24 +148,77 @@
     }
 
     async function handleLogin() { 
-        if (!email.trim() || !password.trim()) {
-            Swal.fire({ icon: 'warning', title: 'Input Required', text: 'Please enter both email and password.', showConfirmButton: true });
+        if (!emailOrAdminId.trim() || !password.trim()) {
+            Swal.fire({ icon: 'warning', title: 'Input Required', text: 'Please enter both Admin ID/Email and password.', showConfirmButton: true });
             return;
         }
         isLoggingIn = true;
 
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+            let emailToUse = emailOrAdminId.trim();
+            let isAdminIdLogin = false;
+            
+            // Check if input is a 5-digit Admin ID
+            if (/^\d{5}$/.test(emailToUse)) {
+                isAdminIdLogin = true;
+                console.log('Attempting login with Admin ID:', emailToUse);
+                
+                // Query Firestore to find user with this customUserId
+                const usersRef = collection(db, "users");
+                const q = query(usersRef, where("customUserId", "==", emailToUse));
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    console.log('Admin ID not found in database');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Admin ID Not Found',
+                        text: 'No account found with this Admin ID. Please check and try again.',
+                        showConfirmButton: true
+                    });
+                    isLoggingIn = false;
+                    return;
+                }
+                
+                // Get the email from the found user document
+                const userDoc = querySnapshot.docs[0];
+                const userData = userDoc.data();
+                emailToUse = userData.email;
+                
+                console.log('Admin ID found, associated email:', emailToUse);
+                
+                if (!emailToUse) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Account found but email is missing. Please contact support.',
+                        showConfirmButton: true
+                    });
+                    isLoggingIn = false;
+                    return;
+                }
+            }
+
+            console.log('Attempting Firebase authentication with email:', emailToUse);
+            const userCredential = await signInWithEmailAndPassword(auth, emailToUse, password);
+            console.log('Firebase authentication successful');
             await processSuccessfulLogin(userCredential.user, 'password');
         } catch (error) {
             console.error('Error during login:', error);
+            console.error('Error code:', error.code);
+            console.error('Error message:', error.message);
+            
             let errorMessage = 'An error occurred. Please try again.';
+            let isAdminIdLogin = /^\d{5}$/.test(emailOrAdminId.trim());
+            
             if (error.code) {
                 switch (error.code) {
                     case 'auth/invalid-credential':
                     case 'auth/user-not-found':
                     case 'auth/wrong-password':
-                        errorMessage = 'Invalid email or password. Please try again.';
+                        errorMessage = isAdminIdLogin 
+                            ? 'Admin ID found but password is incorrect. Please check your password and try again.'
+                            : 'Invalid email or password. Please try again.';
                         break;
                     case 'auth/invalid-email':
                         errorMessage = 'The email address is not valid.';
@@ -172,8 +229,12 @@
                     case 'auth/too-many-requests':
                         errorMessage = "Access temporarily disabled due to many failed login attempts.";
                         break;
+                    case 'permission-denied':
+                    case 'firestore/permission-denied':
+                        errorMessage = 'Database permission error. Please verify Firestore rules allow querying by customUserId.';
+                        break;
                     default: 
-                        errorMessage = 'An error occurred. Please try again.';
+                        errorMessage = `An error occurred: ${error.message}. Please try again.`;
                 }
             }
             Swal.fire({
@@ -369,13 +430,13 @@
 
         <div class="login-form {isPageLoaded ? 'loaded' : ''}">
             <div class="form-field {isPageLoaded ? 'loaded' : ''} mb-6">
-                <Label for="email" class="block mb-2">Email</Label>
+                <Label for="emailOrAdminId" class="block mb-2">Email</Label>
                 <Input
-                    type="email"
-                    id="email"
-                    placeholder="Enter your email"
+                    type="text"
+                    id="emailOrAdminId"
+                    placeholder="Enter your 5-digit Admin ID or email"
                     class="border p-2 w-full"
-                    bind:value={email}
+                    bind:value={emailOrAdminId}
                     required
                 />
             </div>

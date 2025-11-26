@@ -102,10 +102,6 @@ interface Prescription {
 		todaysPatients: number;
 		todaysAppointments: number;
 		monthlyAppointments: number;
-		// New patient analytics
-		newPatientsThisMonth: number;
-		activePatients: number;
-		archivedPatients: number;
 	}
 
 	interface DailyAppointmentCount {
@@ -113,11 +109,22 @@ interface Prescription {
 		count: number;
 	}
 
+	interface AppointmentReportData {
+		dateRange: { start: string; end: string };
+		totalAppointments: number;
+		statusBreakdown: Record<string, number>;
+		serviceBreakdown: Record<string, number>;
+		dailyBreakdown: Record<string, number>;
+		avgPerDay: string;
+		mostCommonService: string;
+		busiestDay: string;
+		appointments: Appointment[];
+	}
+
 	let isCollapsed = false;
 	let stats: Stats = {
 		newAppointments: 0, totalPatients: 0, todaysPatients: 0, todaysAppointments: 0,
-		monthlyAppointments: 0,
-		newPatientsThisMonth: 0, activePatients: 0, archivedPatients: 0
+		monthlyAppointments: 0
 	};
 
 	let allAppointments: Appointment[] = [];
@@ -129,16 +136,18 @@ interface Prescription {
 	let selectedYear = CURRENT_YEAR;
 	let selectedMonth = new Date().getMonth() + 1;
 
+	// Reports modal state
+	let showReportsModal = false;
+	let reportStartDate = '';
+	let reportEndDate = '';
+	let reportData: AppointmentReportData | null = null;
+
 	// Chart instances
 	let lineChartInstance: Chart | null = null;
 	let appointmentStatusChartInstance: Chart | null = null;
 	let genderDistributionChartInstance: Chart | null = null;
 	let weeklyAppointmentsChartInstance: Chart | null = null;
 	let completedMissedChartInstance: Chart | null = null;
-	// New patient analytics charts
-	let patientGrowthChartInstance: Chart | null = null;
-	let patientAgeDistributionChartInstance: Chart | null = null;
-	let patientRegistrationChartInstance: Chart | null = null;
 
 	// Chart Data (populated by functions)
 	let lineChartLabels: string[] = [];
@@ -186,9 +195,7 @@ async function updateMemberStatus(patientId: string, newStatus: MemberStatus): P
 		}
 		stats = {
 			...stats,
-			activePatients: allPatients.filter(p => (p.status ?? 'active') !== 'inactive').length,
-			archivedPatients: allPatients.filter(p => (p.status ?? 'active') === 'inactive').length
-		};
+								};
 		if (selectedPatient?.id === patientId) {
 			selectedPatient = { ...selectedPatient, status: newStatus };
 		}
@@ -484,6 +491,146 @@ $: filteredMonthlyAppointments = (() => {
 		openTable = openTable === table ? null : table;
 	}
 
+	// --- Appointment Reports Functions ---
+	function openReportsModal(): void {
+		// Set default date range to current month
+		const now = new Date();
+		const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+		const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+		
+		reportStartDate = firstDay.toISOString().split('T')[0];
+		reportEndDate = lastDay.toISOString().split('T')[0];
+		showReportsModal = true;
+		
+		// Generate initial report
+		generateAppointmentReport();
+	}
+
+	function generateAppointmentReport(): void {
+		if (!reportStartDate || !reportEndDate) {
+			alert('Please select both start and end dates');
+			return;
+		}
+
+		const start = new Date(reportStartDate);
+		const end = new Date(reportEndDate);
+		
+		if (start > end) {
+			alert('Start date must be before end date');
+			return;
+		}
+
+		// Filter appointments by date range
+		const filteredAppointments = allAppointments.filter(apt => {
+			const aptDate = new Date(apt.date);
+			return aptDate >= start && aptDate <= end;
+		});
+
+		// Calculate statistics
+		const totalAppointments = filteredAppointments.length;
+		
+		// Status breakdown
+		const statusCounts: Record<string, number> = {};
+		filteredAppointments.forEach(apt => {
+			const status = (apt.status || 'unknown').toLowerCase();
+			statusCounts[status] = (statusCounts[status] || 0) + 1;
+		});
+
+		// Service breakdown
+		const serviceCounts: Record<string, number> = {};
+		filteredAppointments.forEach(apt => {
+			const service = apt.service || 'Unknown Service';
+			serviceCounts[service] = (serviceCounts[service] || 0) + 1;
+		});
+
+		// Daily breakdown
+		const dailyCounts: Record<string, number> = {};
+		filteredAppointments.forEach(apt => {
+			dailyCounts[apt.date] = (dailyCounts[apt.date] || 0) + 1;
+		});
+
+		// Calculate averages and trends
+		const dateRange = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+		const avgPerDay = totalAppointments / dateRange;
+
+		// Most common service
+		const mostCommonService = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+		
+		// Busiest day
+		const busiestDay = Object.entries(dailyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+
+		reportData = {
+			dateRange: { start: reportStartDate, end: reportEndDate },
+			totalAppointments,
+			statusBreakdown: statusCounts,
+			serviceBreakdown: serviceCounts,
+			dailyBreakdown: dailyCounts,
+			avgPerDay: avgPerDay.toFixed(2),
+			mostCommonService,
+			busiestDay,
+			appointments: filteredAppointments
+		};
+	}
+
+	function exportAppointmentReport(): void {
+		if (!reportData) {
+			alert('Please generate a report first');
+			return;
+		}
+
+		const workbook = XLSX.utils.book_new();
+		const reportDate = getTodayString();
+
+		// Summary Sheet
+		const summaryData = [
+			['Appointment Report'],
+			['Generated Date', reportDate],
+			['Date Range', `${reportData.dateRange.start} to ${reportData.dateRange.end}`],
+			[''],
+			['SUMMARY STATISTICS'],
+			['Total Appointments', reportData.totalAppointments],
+			['Average Per Day', reportData.avgPerDay],
+			['Most Common Service', reportData.mostCommonService],
+			['Busiest Day', reportData.busiestDay],
+			[''],
+			['STATUS BREAKDOWN'],
+			...Object.entries(reportData.statusBreakdown).map(([status, count]) => [
+				status.charAt(0).toUpperCase() + status.slice(1),
+				count
+			]),
+			[''],
+			['SERVICE BREAKDOWN'],
+			...Object.entries(reportData.serviceBreakdown).map(([service, count]) => [service, count])
+		];
+
+		const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+		XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+
+		// Detailed Appointments Sheet
+		const appointmentData = reportData.appointments.map((apt: Appointment) => ({
+			'Date': apt.date,
+			'Time': apt.time || 'N/A',
+			'Patient': apt.patientName || 'Unknown',
+			'Service': apt.service || 'N/A',
+			'Status': apt.status
+		}));
+
+		const detailSheet = XLSX.utils.json_to_sheet(appointmentData);
+		XLSX.utils.book_append_sheet(workbook, detailSheet, 'Appointments');
+
+		// Daily Breakdown Sheet
+		const dailyData = Object.entries(reportData.dailyBreakdown)
+			.sort((a, b) => a[0].localeCompare(b[0]))
+			.map(([date, count]) => ({ 'Date': date, 'Appointments': count }));
+
+		const dailySheet = XLSX.utils.json_to_sheet(dailyData);
+		XLSX.utils.book_append_sheet(workbook, dailySheet, 'Daily Breakdown');
+
+		// Save file
+		const filename = `Appointment_Report_${reportData.dateRange.start}_to_${reportData.dateRange.end}.xlsx`;
+		XLSX.writeFile(workbook, filename);
+	}
+
 	// --- Data Fetching Functions ---
 async function fetchAllPatients(): Promise<Patient[]> {
     console.log("Fetching all patients...");
@@ -575,10 +722,7 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 			totalPatients: 0,
 			todaysPatients: 0,
 			todaysAppointments: 0,
-			monthlyAppointments: 0,
-			newPatientsThisMonth: 0,
-			activePatients: 0,
-			archivedPatients: 0
+			monthlyAppointments: 0
 		};
  		try {
  			 // Ensure data is available, fetch if not
@@ -597,24 +741,6 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 					return appDate.getFullYear() === currentYear && appDate.getMonth() + 1 === currentMonth;
 				} catch (e) { return false; }
 			}).length;
-
-			// Calculate new patient analytics
-			statsResult.newPatientsThisMonth = allPatients.filter(p => {
-				try {
-					if (p.registrationDate && p.registrationDate !== 'N/A') {
-						const regDate = new Date(p.registrationDate);
-						return regDate.getFullYear() === currentYear && regDate.getMonth() + 1 === currentMonth;
-					}
-					return false;
-				} catch (e) { return false; }
-			}).length;
-
-			// Age-group analytics removed — dashboard focuses on appointments and patients
-
-			// Note: activePatients and archivedPatients would need to be calculated from patientProfiles collection
-			// For now, we'll set them to 0 and they can be updated when we fetch from patientProfiles
-			statsResult.activePatients = allPatients.filter(p => (p.status ?? 'active') !== 'inactive').length;
-			statsResult.archivedPatients = allPatients.filter(p => (p.status ?? 'active') === 'inactive').length;
 
 			console.log("Dashboard stats fetched:", statsResult);
 			return statsResult;
@@ -881,251 +1007,6 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 		console.log('Completed/Missed line chart updated.');
 	}
 
-	// --- Patient Analytics Functions ---
-	async function updateAndRenderPatientGrowthChart(): Promise<void> {
-		console.log('Updating patient growth chart...');
-		const canvas = document.getElementById('patientGrowthChart') as HTMLCanvasElement | null;
-		if (!canvas) {
-			console.error('Patient growth chart canvas not found.');
-			return;
-		}
-
-		if (!allPatients.length) allPatients = await fetchAllPatients();
-
-		// Group patients by registration month
-		const patientsByMonth: Record<string, number> = {};
-		const cumulativePatients: Record<string, number> = {};
-		let cumulative = 0;
-
-		allPatients.forEach(patient => {
-			if (patient.registrationDate && patient.registrationDate !== 'N/A') {
-				try {
-					const date = new Date(patient.registrationDate);
-					const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-					patientsByMonth[monthKey] = (patientsByMonth[monthKey] || 0) + 1;
-				} catch (e) {
-					console.warn(`Invalid registration date: ${patient.registrationDate}`);
-				}
-			}
-		});
-
-		// Calculate cumulative patients
-		const sortedMonths = Object.keys(patientsByMonth).sort();
-		sortedMonths.forEach(month => {
-			cumulative += patientsByMonth[month];
-			cumulativePatients[month] = cumulative;
-		});
-
-		const chartData = {
-			labels: sortedMonths,
-			datasets: [
-				{
-					label: 'New Patients',
-					data: sortedMonths.map(month => patientsByMonth[month]),
-					borderColor: '#10b981',
-					backgroundColor: 'rgba(16, 185, 129, 0.2)',
-					tension: 0.3,
-					fill: true
-				},
-				{
-					label: 'Total Patients',
-					data: sortedMonths.map(month => cumulativePatients[month]),
-					borderColor: '#3b82f6',
-					backgroundColor: 'rgba(59, 130, 246, 0.2)',
-					tension: 0.3,
-					fill: true
-				}
-			]
-		};
-
-		if (patientGrowthChartInstance) patientGrowthChartInstance.destroy();
-		patientGrowthChartInstance = new Chart(canvas, {
-			type: 'line',
-			data: chartData,
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					legend: { position: 'top' },
-					title: {
-						display: true,
-						text: 'Patient Growth Over Time'
-					}
-				},
-				scales: {
-					x: {
-						title: { display: true, text: 'Month' }
-					},
-					y: {
-						title: { display: true, text: 'Number of Patients' },
-						beginAtZero: true
-					}
-				}
-			}
-		});
-		console.log('Patient growth chart updated.');
-	}
-
-	async function updateAndRenderPatientAgeDistributionChart(): Promise<void> {
-		console.log('Updating patient age distribution chart...');
-		const canvas = document.getElementById('patientAgeDistributionChart') as HTMLCanvasElement | null;
-		if (!canvas) {
-			console.error('Patient age distribution chart canvas not found.');
-			return;
-		}
-
-		if (!allPatients.length) allPatients = await fetchAllPatients();
-
-		// Define age groups
-		const ageGroups = {
-			'0-17': 0,
-			'18-25': 0,
-			'26-35': 0,
-			'36-45': 0,
-			'46-55': 0,
-			'56-65': 0,
-			'65+': 0
-		};
-
-		// Count patients by age group
-		allPatients.forEach(patient => {
-			if (patient.age && patient.age > 0) {
-				if (patient.age <= 17) ageGroups['0-17']++;
-				else if (patient.age <= 25) ageGroups['18-25']++;
-				else if (patient.age <= 35) ageGroups['26-35']++;
-				else if (patient.age <= 45) ageGroups['36-45']++;
-				else if (patient.age <= 55) ageGroups['46-55']++;
-				else if (patient.age <= 65) ageGroups['56-65']++;
-				else ageGroups['65+']++;
-			}
-		});
-
-		const chartData = {
-			labels: Object.keys(ageGroups),
-			datasets: [{
-				label: 'Number of Patients',
-				data: Object.values(ageGroups),
-				backgroundColor: [
-					'#ef4444', '#f97316', '#eab308', '#22c55e',
-					'#3b82f6', '#8b5cf6', '#ec4899'
-				],
-				borderColor: [
-					'#dc2626', '#ea580c', '#ca8a04', '#16a34a',
-					'#2563eb', '#7c3aed', '#db2777'
-				],
-				borderWidth: 2
-			}]
-		};
-
-		if (patientAgeDistributionChartInstance) patientAgeDistributionChartInstance.destroy();
-		patientAgeDistributionChartInstance = new Chart(canvas, {
-			type: 'bar',
-			data: chartData,
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					legend: { display: false },
-					title: {
-						display: true,
-						text: 'Patient Age Distribution'
-					}
-				},
-				scales: {
-					x: {
-						title: { display: true, text: 'Age Groups' }
-					},
-					y: {
-						title: { display: true, text: 'Number of Patients' },
-						beginAtZero: true
-					}
-				}
-			}
-		});
-		console.log('Patient age distribution chart updated.');
-	}
-
-	async function updateAndRenderPatientRegistrationChart(): Promise<void> {
-		console.log('Updating patient registration chart...');
-		const canvas = document.getElementById('patientRegistrationChart') as HTMLCanvasElement | null;
-		if (!canvas) {
-			console.error('Patient registration chart canvas not found.');
-			return;
-		}
-
-		if (!allPatients.length) allPatients = await fetchAllPatients();
-
-		// Get last 12 months
-		const months = [];
-		const currentDate = new Date();
-		for (let i = 11; i >= 0; i--) {
-			const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-			months.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
-		}
-
-		// Count new patients per month
-		const newPatientsByMonth = months.map(month => {
-			const count = allPatients.filter(patient => {
-				if (patient.registrationDate && patient.registrationDate !== 'N/A') {
-					try {
-						const date = new Date(patient.registrationDate);
-						const patientMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-						return patientMonth === month;
-					} catch (e) {
-						return false;
-					}
-				}
-				return false;
-			}).length;
-			return count;
-		});
-
-		const chartData = {
-			labels: months.map(month => {
-				const [year, monthNum] = month.split('-');
-				return `${MONTH_NAMES[parseInt(monthNum) - 1]} ${year}`;
-			}),
-			datasets: [{
-				label: 'New Patient Registrations',
-				data: newPatientsByMonth,
-				borderColor: '#8b5cf6',
-				backgroundColor: 'rgba(139, 92, 246, 0.2)',
-				tension: 0.3,
-				fill: true,
-				pointBackgroundColor: '#8b5cf6',
-				pointBorderColor: '#ffffff',
-				pointBorderWidth: 2
-			}]
-		};
-
-		if (patientRegistrationChartInstance) patientRegistrationChartInstance.destroy();
-		patientRegistrationChartInstance = new Chart(canvas, {
-			type: 'line',
-			data: chartData,
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					legend: { position: 'top' },
-					title: {
-						display: true,
-						text: 'New Patient Registrations (Last 12 Months)'
-					}
-				},
-				scales: {
-					x: {
-						title: { display: true, text: 'Month' }
-					},
-					y: {
-						title: { display: true, text: 'New Patients' },
-						beginAtZero: true
-					}
-				}
-			}
-		});
-		console.log('Patient registration chart updated.');
-	}
-
 	// --- Report Generation ---
 	async function generateReport(): Promise<void> {
 		console.log('Generating report...');
@@ -1354,19 +1235,13 @@ function downloadExcelReport(
 			// Initial render of charts (use current month/year)
 			const currentMonth = new Date().getMonth() + 1;
 			const currentYear = new Date().getFullYear();
-			await Promise.all([
-				updateAndRenderAppointmentStatusPieChart(),
-				updateAndRenderGenderDistributionChart(),
-				updateAndRenderWeeklyAppointmentsChart(),
-				updateAndRenderCompletedMissedChart(),
-				updateAndRenderLineChart(currentYear, currentMonth),
-				// New patient analytics charts
-				updateAndRenderPatientGrowthChart(),
-				updateAndRenderPatientAgeDistributionChart(),
-				updateAndRenderPatientRegistrationChart()
-			]);
-
-			// Fetch data for the default view of the monthly table
+		await Promise.all([
+			updateAndRenderAppointmentStatusPieChart(),
+			updateAndRenderGenderDistributionChart(),
+			updateAndRenderWeeklyAppointmentsChart(),
+			updateAndRenderCompletedMissedChart(),
+			updateAndRenderLineChart(currentYear, currentMonth)
+		]);			// Fetch data for the default view of the monthly table
 			monthlyAppointmentsData = await fetchMonthlyAppointmentsTableData(selectedYear, selectedMonth);
 			console.log('Initial data load and chart rendering complete.');
 		} catch (error) {
@@ -1381,10 +1256,6 @@ function downloadExcelReport(
 		genderDistributionChartInstance?.destroy();
 		weeklyAppointmentsChartInstance?.destroy();
 		completedMissedChartInstance?.destroy();
-		// Clean up new patient analytics charts
-		patientGrowthChartInstance?.destroy();
-		patientAgeDistributionChartInstance?.destroy();
-		patientRegistrationChartInstance?.destroy();
 	});
 
     async function handleMonthYearChange() {
@@ -1434,6 +1305,16 @@ function downloadExcelReport(
 						<p class="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm">Welcome to the Permanente Health Plan's Dashboard for Admin Side.</p>
 					</div>
 					<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+						<button
+							on:click={openReportsModal}
+							aria-label="View appointment reports"
+							class="bg-gradient-to-r from-yellow-500 to-yellow-500 hover:from-yellow-600 hover:to-yellow-600 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+							</svg>
+							<span class="hidden sm:inline">Reports</span>
+						</button>
 						<div class="flex items-center gap-2">
 							<label for="exportTypeSelect" class="text-xs sm:text-sm font-medium text-gray-600 whitespace-nowrap">Export:</label>
 							<select
@@ -1514,41 +1395,6 @@ function downloadExcelReport(
 				</div>
 			</div>
 
-			<!-- Enhanced Patient Analytics Cards -->
-			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
-				<div class="bg-gradient-to-br from-white to-emerald-50 rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-emerald-100 transition-all transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 group">
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">New Members This Month</p>
-							<h3 class="text-2xl sm:text-3xl font-bold text-emerald-700 mt-1 sm:mt-2">{stats.newPatientsThisMonth}</h3>
-						</div>
-						<div class="p-2 sm:p-3 bg-emerald-100 rounded-lg sm:rounded-xl shadow-sm group-hover:shadow-md transition-all">
-							<svg class="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-							</svg>
-						</div>
-					</div>
-				</div>
-
-
-
-
-
-				<div class="bg-gradient-to-br from-white to-teal-50 rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-teal-100 transition-all transform hover:shadow-lg hover:scale-105 hover:-translate-y-1 group">
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Active Members</p>
-							<h3 class="text-2xl sm:text-3xl font-bold text-teal-700 mt-1 sm:mt-2">{stats.activePatients}</h3>
-						</div>
-						<div class="p-2 sm:p-3 bg-teal-100 rounded-lg sm:rounded-xl shadow-sm group-hover:shadow-md transition-all">
-							<svg class="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-						</div>
-					</div>
-				</div>
-			</div>
-
 			<!-- Charts Section -->
 			<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
 				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
@@ -1583,33 +1429,6 @@ function downloadExcelReport(
 					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Completed vs Missed Appointments</h3>
 					<div class="h-64 sm:h-72 lg:h-80">
 						<canvas id="completedMissedLineChart"></canvas>
-					</div>
-				</div>
-			</div>
-
-			<!-- Patient Analytics Section -->
-			<div class="mb-4 sm:mb-6 lg:mb-8">
-				<h2 class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-indigo-800 bg-clip-text text-transparent mb-3 sm:mb-4 lg:mb-6">Patient Analytics</h2>
-				<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-					<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Patient Growth Over Time</h3>
-						<div class="h-64 sm:h-72 lg:h-80">
-							<canvas id="patientGrowthChart"></canvas>
-						</div>
-					</div>
-
-					<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Patient Age Distribution</h3>
-						<div class="h-64 sm:h-72 lg:h-80">
-							<canvas id="patientAgeDistributionChart"></canvas>
-						</div>
-					</div>
-
-					<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 lg:col-span-2 hover:shadow-xl transition-shadow">
-						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">New Patient Registrations (Last 12 Months)</h3>
-						<div class="h-64 sm:h-72 lg:h-80">
-							<canvas id="patientRegistrationChart"></canvas>
-						</div>
 					</div>
 				</div>
 			</div>
@@ -2114,6 +1933,212 @@ function downloadExcelReport(
 			<div class="mt-6 flex justify-end gap-3">
 				<button class="px-4 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50" on:click={() => { openTable = 'appointments'; selectedPatient = null; }}>View Appointments</button>
 				<button class="px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700" on:click={() => selectedPatient = null}>Close</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Reports Modal -->
+{#if showReportsModal}
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" transition:fade={{ duration: 200 }}>
+		<div class="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl" transition:scale={{ duration: 200, start: 0.95 }}>
+			<!-- Modal Header -->
+			<div class="sticky top-0 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-4 rounded-t-2xl flex justify-between items-center z-10">
+				<div class="flex items-center gap-3">
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+					</svg>
+					<h2 class="text-xl font-bold">Appointment Reports</h2>
+				</div>
+				<button
+					on:click={() => showReportsModal = false}
+					class="text-white hover:text-gray-200 transition-colors"
+					aria-label="Close reports modal"
+				>
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+
+			<!-- Modal Content -->
+			<div class="p-6">
+				<!-- Date Range Selector -->
+				<div class="bg-gradient-to-r from-yellow-50 to-yellow-50 rounded-xl p-4 mb-6 border border-yellow-100">
+					<h3 class="text-sm font-semibold text-gray-700 mb-3">Select Date Range</h3>
+					<div class="flex flex-col sm:flex-row gap-4 items-end">
+						<div class="flex-1">
+							<label for="reportStartDate" class="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+							<input
+								id="reportStartDate"
+								type="date"
+								bind:value={reportStartDate}
+								class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500"
+							/>
+						</div>
+						<div class="flex-1">
+							<label for="reportEndDate" class="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+							<input
+								id="reportEndDate"
+								type="date"
+								bind:value={reportEndDate}
+								class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500"
+							/>
+						</div>
+						<button
+							on:click={generateAppointmentReport}
+							class="bg-gradient-to-r from-yellow-600 to-yellow-600 hover:from-yellow-700 hover:to-yellow-700 text-white px-6 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg whitespace-nowrap"
+						>
+							Generate Report
+						</button>
+					</div>
+				</div>
+
+				{#if reportData}
+					<!-- Summary Statistics -->
+					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+						<div class="bg-white rounded-xl shadow-md p-4 border border-indigo-100">
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="text-xs font-semibold text-gray-600 uppercase">Total Appointments</p>
+									<h3 class="text-2xl font-bold text-indigo-700 mt-1">{reportData.totalAppointments}</h3>
+								</div>
+								<div class="p-3 bg-indigo-100 rounded-lg">
+									<svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+									</svg>
+								</div>
+							</div>
+						</div>
+
+						<div class="bg-white rounded-xl shadow-md p-4 border border-emerald-100">
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="text-xs font-semibold text-gray-600 uppercase">Avg Per Day</p>
+									<h3 class="text-2xl font-bold text-emerald-700 mt-1">{reportData.avgPerDay}</h3>
+								</div>
+								<div class="p-3 bg-emerald-100 rounded-lg">
+									<svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+									</svg>
+								</div>
+							</div>
+						</div>
+
+						<div class="bg-white rounded-xl shadow-md p-4 border border-purple-100">
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="text-xs font-semibold text-gray-600 uppercase">Most Common</p>
+									<h3 class="text-sm font-bold text-purple-700 mt-1 truncate" title={reportData.mostCommonService}>{reportData.mostCommonService}</h3>
+								</div>
+								<div class="p-3 bg-purple-100 rounded-lg">
+									<svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+									</svg>
+								</div>
+							</div>
+						</div>
+
+						<div class="bg-white rounded-xl shadow-md p-4 border border-amber-100">
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="text-xs font-semibold text-gray-600 uppercase">Busiest Day</p>
+									<h3 class="text-sm font-bold text-amber-700 mt-1">{reportData.busiestDay}</h3>
+								</div>
+								<div class="p-3 bg-amber-100 rounded-lg">
+									<svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Status Breakdown -->
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+						<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+							<h3 class="text-lg font-bold text-gray-800 mb-4 pb-2 border-b-2 border-indigo-100 flex items-center gap-2">
+								<svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								Status Breakdown
+							</h3>
+							<div class="space-y-3">
+								{#each Object.entries(reportData.statusBreakdown).sort((a, b) => b[1] - a[1]) as [status, count]}
+									<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+										<div class="flex items-center gap-2">
+											<span class="px-3 py-1 text-xs font-medium rounded-full
+												{status.includes('completed') ? 'bg-green-100 text-green-800' :
+												status.includes('pending') ? 'bg-yellow-100 text-yellow-800' :
+												status.includes('accepted') ? 'bg-blue-100 text-blue-800' :
+												status.includes('missed') ? 'bg-red-100 text-red-800' :
+												status.includes('declined') ? 'bg-gray-200 text-gray-800' :
+												'bg-gray-300 text-gray-700'}">
+												{status.charAt(0).toUpperCase() + status.slice(1)}
+											</span>
+										</div>
+										<div class="flex items-center gap-3">
+											<div class="w-32 bg-gray-200 rounded-full h-2">
+												<div class="bg-gradient-to-r from-purple-600 to-violet-600 h-2 rounded-full transition-all" style="width: {(count / reportData.totalAppointments * 100).toFixed(1)}%"></div>
+											</div>
+											<span class="text-sm font-bold text-gray-700 w-12 text-right">{count}</span>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+
+						<!-- Service Breakdown -->
+						<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+							<h3 class="text-lg font-bold text-gray-800 mb-4 pb-2 border-b-2 border-indigo-100 flex items-center gap-2">
+								<svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+								</svg>
+								Service Breakdown
+							</h3>
+							<div class="space-y-3 max-h-80 overflow-y-auto">
+								{#each Object.entries(reportData.serviceBreakdown).sort((a, b) => b[1] - a[1]) as [service, count]}
+									<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+										<span class="text-sm font-medium text-gray-700 flex-1 truncate" title={service}>{service}</span>
+										<div class="flex items-center gap-3 ml-3">
+											<div class="w-24 bg-gray-200 rounded-full h-2">
+												<div class="bg-gradient-to-r from-indigo-600 to-purple-600 h-2 rounded-full transition-all" style="width: {(count / reportData.totalAppointments * 100).toFixed(1)}%"></div>
+											</div>
+											<span class="text-sm font-bold text-gray-700 w-10 text-right">{count}</span>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					</div>
+
+					<!-- Export Button -->
+					<div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+						<button
+							on:click={() => showReportsModal = false}
+							class="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+						>
+							Close
+						</button>
+						<button
+							on:click={exportAppointmentReport}
+							class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-6 py-2 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+						>
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+							</svg>
+							Export to Excel
+						</button>
+					</div>
+				{:else}
+					<div class="text-center py-12 text-gray-500">
+						<svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+						</svg>
+						<p class="text-lg font-medium">No report generated yet</p>
+						<p class="text-sm mt-1">Select a date range and click "Generate Report"</p>
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
