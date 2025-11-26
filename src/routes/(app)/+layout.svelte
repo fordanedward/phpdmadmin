@@ -9,6 +9,10 @@
 	import { doc, getDoc } from 'firebase/firestore';
 	import Swal from 'sweetalert2';
     import { auth as firebaseAppAuth, db as firebaseAppDb } from '$lib/firebaseConfig.js';  
+    import NotificationCenter from '$lib/components/NotificationCenter.svelte';
+    import ChatDrawer from '$lib/components/ChatDrawer.svelte';
+    import Notification from '$lib/Notification.svelte';
+    import { notification as notificationStore } from '$lib/notificationStore.js';
  
     interface UserProfileForLayout {
         uid: string;
@@ -103,6 +107,7 @@
         { href: "/medicine-list", icon: "/images/medicinelist.png", alt: "Medicines List", text: "Medicines List", roles: ['userDentist'] },
         { href: "/appointment/manage", icon: "/images/calendar.png", alt: "Manage Appointments", text: "Appointments", roles: ['userSecretary'] }, // Icon needed
         { href: "/management/manage-availability", icon: "/images/24-hours.png", alt: "Manage Availability", text: "Availability", roles: ['userSecretary'] }, // Icon needed
+        { href: "/chat", icon: "/images/icon-person.png", alt: "Chat", text: "Chat", roles: ['userSecretary'] }, // Chat for messaging all users - using person icon as placeholder
        // { href: "/management/payment", icon: "/images/wallet (1).png", alt: "Payments", text: "Payments", roles: ['userSecretary'] }, // Icon needed
     ];
 
@@ -294,6 +299,11 @@
         <main class="content {isMobile ? 'mobile' : (layoutCurrentUser && isCollapsed ? 'collapsed' : 'desktop')} {layoutCurrentUser ? '' : 'no-sidebar'}">
             <slot />
         </main>
+        {#if layoutCurrentUser}
+            <NotificationCenter db={firebaseAppDb} currentUser={layoutCurrentUser} />
+        {/if}
+        <ChatDrawer db={firebaseAppDb} currentUser={layoutCurrentUser} />
+        <Notification message={$notificationStore.message} type={$notificationStore.type} show={$notificationStore.show} />
     </div>
 {/if}
 
