@@ -459,8 +459,17 @@ $: filteredPatients = (() => {
 	return patients;
 })();
 
-$: filteredAppointments = getFilteredAppointmentList(allAppointments);
-$: filteredMonthlyAppointments = getFilteredAppointmentList(monthlyAppointmentsData);
+$: filteredAppointments = (() => {
+	// This reactive block explicitly depends on all filtering variables
+	const _ = [appointmentSearchTerm, appointmentStatusFilter, appointmentSortOption, allAppointments];
+	return getFilteredAppointmentList(allAppointments);
+})();
+
+$: filteredMonthlyAppointments = (() => {
+	// This reactive block explicitly depends on all filtering variables
+	const _ = [appointmentSearchTerm, appointmentStatusFilter, appointmentSortOption, monthlyAppointmentsData];
+	return getFilteredAppointmentList(monthlyAppointmentsData);
+})();
 
 	// --- UI Event Handlers ---
 	function toggleSidebar(): void {
