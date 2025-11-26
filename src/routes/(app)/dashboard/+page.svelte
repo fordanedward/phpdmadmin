@@ -59,13 +59,28 @@ interface Patient {
 	id: string;
 	displayId?: string;
 	name: string;
+	middleName?: string;
 	lastName: string;
+	suffix?: string;
 	age?: number;
 	birthday?: string;
 	gender?: string;
 	phone?: string;
+	email?: string;
 	registrationDate?: string;
 	status?: MemberStatus;
+	profileImage?: string;
+	// Medical Information
+	bloodType?: string;
+	allergies?: string;
+	currentMedications?: string;
+	medicalConditions?: any;
+	surgicalHistory?: any;
+	familyHistory?: any;
+	otherMedicalConditions?: string;
+	otherFamilyHistory?: string;
+	bloodTransfusionHistory?: string;
+	bloodTransfusionDate?: string;
 }
 
 	interface Appointment {
@@ -157,6 +172,7 @@ interface Prescription {
 
 let patientMap = new Map<string, Patient>();
 let selectedPatient: Patient | null = null;
+let showPatientDetailsModal = false;
 
 let patientSearchTerm = '';
 let patientStatusFilter: MemberStatus | 'all' = 'all';
@@ -174,6 +190,68 @@ let filteredMonthlyAppointments: Appointment[] = [];
 
 	function viewPatientDetails(patientId: string) {
 		selectedPatient = patientMap.get(patientId) || allPatients.find(p => p.id === patientId) || null;
+		if (selectedPatient) {
+			showPatientDetailsModal = true;
+			// Disable body scroll when modal opens
+			if (typeof document !== 'undefined') {
+				document.body.style.overflow = 'hidden';
+			}
+		}
+	}
+
+	function closePatientDetailsModal() {
+		showPatientDetailsModal = false;
+		selectedPatient = null;
+		// Re-enable body scroll when modal closes
+		if (typeof document !== 'undefined') {
+			document.body.style.overflow = '';
+		}
+	}
+
+	function formatDateDisplay(dateString: string | undefined): string {
+		if (!dateString || dateString === 'N/A') return 'N/A';
+		try {
+			const date = new Date(dateString);
+			return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+		} catch {
+			return dateString;
+		}
+	}
+
+	function getCheckedConditionsDisplay(conditions: any): string[] {
+		if (!conditions || typeof conditions !== 'object') return [];
+		return Object.entries(conditions)
+			.filter(([_, value]) => value === true)
+			.map(([key]) => key.replace(/([A-Z])/g, ' $1').trim())
+			.map(str => str.charAt(0).toUpperCase() + str.slice(1));
+	}
+
+	function getFamilyHistoryDisplay(familyHistory: any): Array<{relative: string, conditions: string[]}> {
+		if (!familyHistory || typeof familyHistory !== 'object') return [];
+		
+		const relativeLabels: {[key: string]: string} = {
+			mother: 'Mother',
+			father: 'Father',
+			sister: 'Sister',
+			brother: 'Brother',
+			daughter: 'Daughter',
+			son: 'Son',
+			otherRelative: 'Other Relative'
+		};
+		
+		return Object.entries(familyHistory)
+			.map(([relative, conditions]: [string, any]) => {
+				const checkedConditions = Object.entries(conditions || {})
+					.filter(([_, value]) => value === true)
+					.map(([key]) => key.replace(/([A-Z])/g, ' $1').trim())
+					.map(str => str.charAt(0).toUpperCase() + str.slice(1));
+				
+				return {
+					relative: relativeLabels[relative] || relative,
+					conditions: checkedConditions
+				};
+			})
+			.filter(item => item.conditions.length > 0);
 	}
 
 function getPatientInitials(patient?: Patient | null): string {
@@ -647,15 +725,30 @@ async function fetchAllPatients(): Promise<Patient[]> {
 					// Prefer the member-side custom ID for display when available
 					displayId: users[doc.id]?.customUserId || doc.id,
 					name: data.name,
+					middleName: data.middleName || '',
 					lastName: data.lastName,
+					suffix: data.suffix || '',
 					age: data.age,
 					birthday: data.birthday,
 					gender: data.gender,
 					phone: data.phone,
+					email: data.email || '',
 					registrationDate: users[doc.id]?.registrationDate ? 
 						new Date(users[doc.id].registrationDate).toISOString().split('T')[0] : 
 						'N/A', // Use registration date from users
-					status: (data.status as MemberStatus) ?? 'active'
+					status: users[doc.id]?.isArchived || users[doc.id]?.archived ? 'inactive' : ((data.status as MemberStatus) ?? 'active'),
+					profileImage: data.profileImage || '',
+					// Medical Information
+					bloodType: data.bloodType || '',
+					allergies: data.allergies || '',
+					currentMedications: data.currentMedications || '',
+					medicalConditions: data.medicalConditions || {},
+					surgicalHistory: data.surgicalHistory || {},
+					familyHistory: data.familyHistory || {},
+					otherMedicalConditions: data.otherMedicalConditions || '',
+					otherFamilyHistory: data.otherFamilyHistory || '',
+					bloodTransfusionHistory: data.bloodTransfusionHistory || '',
+					bloodTransfusionDate: data.bloodTransfusionDate || ''
 				} as Patient;
         });
         patientMap.clear();
@@ -1498,7 +1591,7 @@ function downloadExcelReport(
 									{#each filteredAppointments.slice(0, 5) as appointment}
 										<tr class="hover:bg-gray-50 transition-colors duration-150 group">
 											<td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900">
-												<button class="text-left text-blue-600 hover:underline truncate max-w-[120px] sm:max-w-none" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
+												<button class="text-left text-blue-600 hover:underline truncate max-w-[120px] sm:max-w-none member-name-clickable" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
 											</td>
 											<td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 whitespace-nowrap">{appointment.date}</td>
 											<td class="px-2 sm:px-4 py-2 sm:py-3">
@@ -1584,7 +1677,7 @@ function downloadExcelReport(
 											<td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900">
 												<div class="member-cell flex items-center">
 													<div class="initials-circle bg-gray-200 text-gray-700 rounded-full w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center font-semibold mr-2 sm:mr-3 transition-transform transform group-hover:scale-110 text-[10px] sm:text-sm" aria-hidden="true">{getPatientInitials(patient)}</div>
-													<button class="text-left text-blue-600 hover:underline truncate max-w-[100px] sm:max-w-none" on:click={() => viewPatientDetails(patient.id)}>
+													<button class="text-left text-blue-600 hover:underline truncate max-w-[100px] sm:max-w-none member-name-clickable" on:click={() => viewPatientDetails(patient.id)}>
 														{patient.name} {patient.lastName}
 													</button>
 												</div>
@@ -1695,7 +1788,7 @@ function downloadExcelReport(
                             {#each filteredAppointments as appointment}
 										<tr class="hover:bg-gray-50 transition-colors duration-150 group">
 									<td class="px-4 py-3 text-sm text-gray-900">
-										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
+										<button class="text-left text-blue-600 hover:underline member-name-clickable" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
 									</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.time}</td>
@@ -1776,7 +1869,7 @@ function downloadExcelReport(
                             {#each filteredPatients as patient}
 								<tr class="hover:bg-gray-50">
 									<td class="px-4 py-3 text-sm text-gray-900">
-										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
+										<button class="text-left text-blue-600 hover:underline member-name-clickable" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
 									</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
@@ -1862,7 +1955,7 @@ function downloadExcelReport(
                             {#each filteredMonthlyAppointments as appointment}
                                 <tr class="hover:bg-gray-50">
 									<td class="px-4 py-3 text-sm text-gray-900">
-										<button class="text-left text-blue-600 hover:underline" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
+										<button class="text-left text-blue-600 hover:underline member-name-clickable" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
 									</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.date}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{appointment.time}</td>
@@ -1894,45 +1987,200 @@ function downloadExcelReport(
     </div>
 {/if}
 
-{#if selectedPatient}
-	<div class="fixed inset-0 flex items-center justify-center z-50" transition:fade={{ duration: 150 }}>
-		<div class="absolute inset-0 bg-black bg-opacity-40"></div>
-
-		<div class="relative bg-white rounded-2xl p-6 w-11/12 max-w-md shadow-2xl transform" in:scale={{ duration: 220, start: 0.9 }} out:scale={{ duration: 160, start: 0.9 }}>
-			<div class="flex items-start justify-between mb-4">
-				<div class="flex items-center gap-4">
-					<div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xl font-semibold">
-						{#if selectedPatient.name}{selectedPatient.name.charAt(0).toUpperCase()}{selectedPatient.lastName ? selectedPatient.lastName.charAt(0).toUpperCase() : ''}{:else}U{/if}
-					</div>
-					<div>
-						<h2 class="text-lg font-bold text-gray-800">{selectedPatient.name} {selectedPatient.lastName}</h2>
-						<p class="text-sm text-gray-500">Member ID: {selectedPatient.displayId ?? selectedPatient.id}</p>
-					</div>
-				</div>
-				<button aria-label="Close member details" class="text-gray-500 hover:text-gray-700" on:click={() => selectedPatient = null}>
+{#if showPatientDetailsModal && selectedPatient}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black bg-opacity-50" on:click={closePatientDetailsModal} transition:fade={{ duration: 300 }}>
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="relative bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl" on:click|stopPropagation transition:scale={{ duration: 300, start: 0.9, opacity: 0 }}>
+			<!-- Header -->
+			<div class="sticky top-0 text-white px-6 py-4 rounded-t-2xl flex justify-between items-center z-10" style="background-color: #1e3a66;">
+				<h2 class="text-xl font-bold">Member Information</h2>
+				<button
+					on:click={closePatientDetailsModal}
+					class="text-white hover:text-gray-200 transition-colors"
+					aria-label="Close member details"
+				>
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 					</svg>
 				</button>
 			</div>
 
-			<div class="grid grid-cols-1 gap-2 text-sm text-gray-700">
-				<div><span class="font-medium">Age:</span> {selectedPatient.age ?? 'N/A'}</div>
-				<div><span class="font-medium">Birthday:</span> {selectedPatient.birthday ?? 'N/A'}</div>
-				<div><span class="font-medium">Gender:</span> {selectedPatient.gender ?? 'N/A'}</div>
-				<div><span class="font-medium">Phone:</span> {selectedPatient.phone ?? 'N/A'}</div>
-				<div><span class="font-medium">Registered:</span> {selectedPatient.registrationDate ?? 'N/A'}</div>
-				<div class="flex items-center gap-2">
-					<span class="font-medium">Status:</span>
-					<span class={`status-pill ${selectedPatient.status === 'inactive' ? 'inactive' : 'active'}`}>
-						{selectedPatient.status === 'inactive' ? 'Inactive' : 'Active'}
-					</span>
+			<div class="p-6">
+				<!-- Profile Section -->
+				<div class="flex items-center gap-6 mb-6 pb-6 border-b-2 border-gray-100">
+					<div class="flex-shrink-0">
+						{#if selectedPatient.profileImage}
+							<img src={selectedPatient.profileImage} alt="Profile" class="w-24 h-24 rounded-full object-cover border-4 border-blue-200 shadow-lg profile-image-animated" />
+						{:else}
+							<div class="w-24 h-24 rounded-full text-white flex items-center justify-center text-2xl font-bold border-4 border-blue-200 shadow-lg profile-image-animated" style="background-color: #1e3a66;">
+								{selectedPatient.name?.charAt(0).toUpperCase()}{selectedPatient.lastName?.charAt(0).toUpperCase()}
+							</div>
+						{/if}
+					</div>
+					<div class="flex-grow">
+						<h3 class="text-2xl font-bold text-gray-800">
+							{[selectedPatient.name, selectedPatient.middleName, selectedPatient.lastName, selectedPatient.suffix].filter(Boolean).join(' ')}
+						</h3>
+						<p class="text-gray-600 mt-1">Member ID: {selectedPatient.displayId || selectedPatient.id}</p>
+						<div class="mt-2">
+							<span class="status-pill {selectedPatient.status === 'inactive' ? 'inactive' : 'active'}">
+								{selectedPatient.status === 'inactive' ? 'Inactive' : 'Active'}
+							</span>
+						</div>
+					</div>
 				</div>
-			</div>
 
-			<div class="mt-6 flex justify-end gap-3">
-				<button class="px-4 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50" on:click={() => { openTable = 'appointments'; selectedPatient = null; }}>View Appointments</button>
-				<button class="px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700" on:click={() => selectedPatient = null}>Close</button>
+				<!-- Personal Information -->
+				<div class="mb-6">
+					<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100 section-title-animated">Personal Information</h4>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div class="info-item-dash">
+							<span class="info-label-dash">Age:</span>
+							<span class="info-value-dash">{selectedPatient.age || 'N/A'}</span>
+						</div>
+						<div class="info-item-dash">
+							<span class="info-label-dash">Birthday:</span>
+							<span class="info-value-dash">{formatDateDisplay(selectedPatient.birthday)}</span>
+						</div>
+						<div class="info-item-dash">
+							<span class="info-label-dash">Gender:</span>
+							<span class="info-value-dash">{selectedPatient.gender || 'N/A'}</span>
+						</div>
+						<div class="info-item-dash">
+							<span class="info-label-dash">Phone:</span>
+							<span class="info-value-dash">{selectedPatient.phone || 'N/A'}</span>
+						</div>
+						<div class="info-item-dash col-span-full">
+							<span class="info-label-dash">Email:</span>
+							<span class="info-value-dash">{selectedPatient.email || 'N/A'}</span>
+						</div>
+						<div class="info-item-dash">
+							<span class="info-label-dash">Registered:</span>
+							<span class="info-value-dash">{formatDateDisplay(selectedPatient.registrationDate)}</span>
+						</div>
+						<div class="info-item-dash">
+							<span class="info-label-dash">Status:</span>
+							<span class="info-value-dash">{selectedPatient.status === 'inactive' ? 'Inactive' : 'Active'}</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Medical Information -->
+				<div class="mb-6">
+					<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100 section-title-animated">Medical Information</h4>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div class="info-item-dash">
+							<span class="info-label-dash">Blood Type:</span>
+							<span class="info-value-dash">{selectedPatient.bloodType || 'Not specified'}</span>
+						</div>
+						<div class="info-item-dash col-span-full">
+							<span class="info-label-dash">Allergies:</span>
+							<span class="info-value-dash">{selectedPatient.allergies || 'None reported'}</span>
+						</div>
+						<div class="info-item-dash col-span-full">
+							<span class="info-label-dash">Current Medications:</span>
+							<span class="info-value-dash">{selectedPatient.currentMedications || 'None reported'}</span>
+						</div>
+					</div>
+				</div>
+
+			<!-- Medical Conditions -->
+			{#if selectedPatient.medicalConditions && Object.keys(selectedPatient.medicalConditions).length > 0}
+				{@const conditions = getCheckedConditionsDisplay(selectedPatient.medicalConditions)}
+				{#if conditions.length > 0}
+					<div class="mb-6">
+						<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100 section-title-animated">Medical Conditions</h4>
+						<div class="flex flex-wrap gap-2">
+							{#each conditions as condition}
+								<span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium badge-animated">{condition}</span>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			{/if}
+
+			<!-- Surgical History -->
+			{#if selectedPatient.surgicalHistory && Object.keys(selectedPatient.surgicalHistory).length > 0}
+				{@const surgeries = getCheckedConditionsDisplay(selectedPatient.surgicalHistory)}
+				{#if surgeries.length > 0}
+					<div class="mb-6">
+						<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100 section-title-animated">Surgical History</h4>
+						<div class="flex flex-wrap gap-2">
+							{#each surgeries as surgery}
+								<span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium badge-animated">{surgery}</span>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			{/if}				<!-- Family History -->
+				{#if selectedPatient.familyHistory && Object.keys(selectedPatient.familyHistory).length > 0}
+					{@const familyItems = getFamilyHistoryDisplay(selectedPatient.familyHistory)}
+					{#if familyItems.length > 0}
+						<div class="mb-6">
+							<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100">Family History</h4>
+							<div class="space-y-2">
+								{#each familyItems as item}
+									<div class="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+										<strong class="text-gray-800">{item.relative}:</strong>
+										<span class="text-gray-700 ml-2">{item.conditions.join(', ')}</span>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				{/if}
+
+				<!-- Additional Medical Information -->
+				{#if selectedPatient.otherMedicalConditions || selectedPatient.otherFamilyHistory || selectedPatient.bloodTransfusionHistory}
+					<div class="mb-6">
+						<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100">Additional Medical Information</h4>
+						<div class="space-y-3">
+							{#if selectedPatient.otherMedicalConditions}
+								<div class="info-item-dash">
+									<span class="info-label-dash">Other Medical Conditions:</span>
+									<span class="info-value-dash">{selectedPatient.otherMedicalConditions}</span>
+								</div>
+							{/if}
+							{#if selectedPatient.otherFamilyHistory}
+								<div class="info-item-dash">
+									<span class="info-label-dash">Other Family History:</span>
+									<span class="info-value-dash">{selectedPatient.otherFamilyHistory}</span>
+								</div>
+							{/if}
+							{#if selectedPatient.bloodTransfusionHistory}
+								<div class="info-item-dash">
+									<span class="info-label-dash">Blood Transfusion History:</span>
+									<span class="info-value-dash">{selectedPatient.bloodTransfusionHistory}</span>
+								</div>
+							{/if}
+							{#if selectedPatient.bloodTransfusionDate}
+								<div class="info-item-dash">
+									<span class="info-label-dash">Blood Transfusion Date:</span>
+									<span class="info-value-dash">{formatDateDisplay(selectedPatient.bloodTransfusionDate)}</span>
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Action Buttons -->
+				<div class="flex justify-end gap-3 pt-4 border-t-2 border-gray-100">
+					<button 
+						class="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+						on:click={() => { openTable = 'appointments'; closePatientDetailsModal(); }}
+					>
+						View Appointments
+					</button>
+					<button 
+						class="px-5 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
+						on:click={closePatientDetailsModal}
+					>
+						Close
+					</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -2198,6 +2446,98 @@ function downloadExcelReport(
 	.status-pill.inactive {
 		background-color: #fee2e2;
 		color: #b91c1c;
+	}
+
+	.info-item-dash {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		animation: slideInUp 0.5s ease-out forwards;
+		opacity: 0;
+	}
+
+	.info-item-dash:nth-child(1) { animation-delay: 0.05s; }
+	.info-item-dash:nth-child(2) { animation-delay: 0.1s; }
+	.info-item-dash:nth-child(3) { animation-delay: 0.15s; }
+	.info-item-dash:nth-child(4) { animation-delay: 0.2s; }
+	.info-item-dash:nth-child(5) { animation-delay: 0.25s; }
+	.info-item-dash:nth-child(6) { animation-delay: 0.3s; }
+	.info-item-dash:nth-child(7) { animation-delay: 0.35s; }
+	.info-item-dash:nth-child(8) { animation-delay: 0.4s; }
+
+	.info-label-dash {
+		font-weight: 600;
+		font-size: 0.875rem;
+		color: #6b7280;
+	}
+
+	.info-value-dash {
+		font-size: 0.95rem;
+		color: #1f2937;
+		word-break: break-word;
+	}
+
+	/* Animation Keyframes */
+	@keyframes slideInUp {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@keyframes fadeInScale {
+		from {
+			opacity: 0;
+			transform: scale(0.8);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	/* Clickable Member Name Animations */
+	:global(.member-name-clickable) {
+		cursor: pointer;
+		transition: all 0.3s ease;
+		position: relative;
+		display: inline-block;
+	}
+
+	:global(.member-name-clickable:hover) {
+		color: #2563eb;
+		transform: translateX(3px);
+	}
+
+	:global(.member-name-clickable:active) {
+		transform: scale(0.98);
+	}
+
+	/* Profile Image Animation */
+	:global(.profile-image-animated) {
+		animation: fadeInScale 0.5s ease-out;
+	}
+
+	/* Badge Animations */
+	:global(.badge-animated) {
+		animation: slideInUp 0.4s ease-out forwards;
+		opacity: 0;
+	}
+
+	:global(.badge-animated:nth-child(1)) { animation-delay: 0.1s; }
+	:global(.badge-animated:nth-child(2)) { animation-delay: 0.15s; }
+	:global(.badge-animated:nth-child(3)) { animation-delay: 0.2s; }
+	:global(.badge-animated:nth-child(4)) { animation-delay: 0.25s; }
+	:global(.badge-animated:nth-child(5)) { animation-delay: 0.3s; }
+	:global(.badge-animated:nth-child(6)) { animation-delay: 0.35s; }
+
+	/* Section Title Animation */
+	:global(.section-title-animated) {
+		animation: slideInUp 0.4s ease-out;
 	}
 </style>
 

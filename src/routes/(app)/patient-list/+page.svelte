@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { firebaseConfig } from '$lib/firebaseConfig';
 	import { initializeApp } from 'firebase/app';
-	import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+	import { getFirestore, collection, getDocs, deleteDoc, doc, getDoc } from 'firebase/firestore';
 	import { EditSolid, EyeOutline, TrashBinSolid,  } from 'flowbite-svelte-icons'; // Added SearchOutline
 	import { Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, Select, Input } from 'flowbite-svelte'; // Added Input
 
@@ -16,9 +16,29 @@
 		id: string;
 		name: string;
 		lastName: string;
+		middleName?: string;
+		suffix?: string;
 		address: string;
 		phone: string;
 		age: number;
+		birthday?: string;
+		gender?: string;
+		email?: string;
+		customUserId?: string;
+		isArchived?: boolean;
+		profileImage?: string;
+		// Medical Information
+		bloodType?: string;
+		allergies?: string;
+		currentMedications?: string;
+		medicalConditions?: any;
+		surgicalHistory?: any;
+		familyHistory?: any;
+		otherMedicalConditions?: string;
+		otherFamilyHistory?: string;
+		bloodTransfusionHistory?: string;
+		bloodTransfusionDate?: string;
+		registeredDate?: string;
 	};
 
 	let patients: Patient[] = [];
@@ -26,6 +46,8 @@
 	let isLoading = true;
 	let error: string | null = null;
 	let selectedSortOption: string = 'name_asc'; // State for the sorting dropdown
+	let selectedPatient: Patient | null = null;
+	let showDetailsModal = false;
 
 	const sortOptions = [
 		{ value: 'name_asc', name: 'Sort by Name: A-Z' },
@@ -39,14 +61,59 @@
 		error = null;
 		try {
 			const querySnapshot = await getDocs(collection(db, "patientProfiles"));
-			patients = querySnapshot.docs.map(doc => ({
-				id: doc.id,
-				name: doc.data().name || 'N/A',
-				lastName: doc.data().lastName || '',
-				address: doc.data().address || 'N/A',
-				phone: doc.data().phone || 'N/A',
-				age: doc.data().age || 0
-			}));
+			const patientsData = await Promise.all(
+				querySnapshot.docs.map(async (patientDoc) => {
+					const data = patientDoc.data();
+					
+					// Fetch user data for customUserId and isArchived
+					let customUserId = 'N/A';
+					let isArchived = false;
+					let registeredDate = 'N/A';
+					
+					try {
+						const userRef = doc(db, "users", patientDoc.id);
+						const userDoc = await getDoc(userRef);
+						if (userDoc.exists()) {
+							const userData = userDoc.data();
+							customUserId = userData.customUserId || 'N/A';
+							isArchived = Boolean(userData.isArchived ?? userData.archived ?? false);
+							registeredDate = userData.createdAt || userData.registeredAt || 'N/A';
+						}
+					} catch (err) {
+						console.error(`Error fetching user data for ${patientDoc.id}:`, err);
+					}
+					
+					return {
+						id: patientDoc.id,
+						name: data.name || 'N/A',
+						middleName: data.middleName || '',
+						lastName: data.lastName || '',
+						suffix: data.suffix || '',
+						address: data.address || 'N/A',
+						phone: data.phone || 'N/A',
+						age: data.age || 0,
+						birthday: data.birthday || 'N/A',
+						gender: data.gender || 'N/A',
+						email: data.email || 'N/A',
+						customUserId,
+						isArchived,
+						registeredDate,
+						profileImage: data.profileImage || '',
+						// Medical Information
+						bloodType: data.bloodType || '',
+						allergies: data.allergies || '',
+						currentMedications: data.currentMedications || '',
+						medicalConditions: data.medicalConditions || {},
+						surgicalHistory: data.surgicalHistory || {},
+						familyHistory: data.familyHistory || {},
+						otherMedicalConditions: data.otherMedicalConditions || '',
+						otherFamilyHistory: data.otherFamilyHistory || '',
+						bloodTransfusionHistory: data.bloodTransfusionHistory || '',
+						bloodTransfusionDate: data.bloodTransfusionDate || ''
+					};
+				})
+			);
+			patients = patientsData;
 		} catch (err) {
 			console.error("Error fetching patients:", err);
 			error = `Failed to load patient data: ${(err as Error).message}`;
@@ -146,10 +213,68 @@
 		}
 	}
 
-	function viewPatient(id: string) {
+	async function viewPatient(id: string) {
 		console.log(`Viewing patient with ID: ${id}`);
-        // Implement navigation or modal logic here
-        // Example: await goto(`/admin/patients/view/${id}`);
+		const patient = patients.find(p => p.id === id);
+		if (patient) {
+			selectedPatient = patient;
+			showDetailsModal = true;
+			// Disable body scroll when modal opens
+			document.body.style.overflow = 'hidden';
+		}
+	}
+
+	function closeDetailsModal() {
+		showDetailsModal = false;
+		selectedPatient = null;
+		// Re-enable body scroll when modal closes
+		document.body.style.overflow = '';
+	}
+
+	function formatDate(dateString: string): string {
+		if (!dateString || dateString === 'N/A') return 'N/A';
+		try {
+			const date = new Date(dateString);
+			return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+		} catch {
+			return dateString;
+		}
+	}
+
+	function getCheckedConditions(conditions: any): string[] {
+		if (!conditions || typeof conditions !== 'object') return [];
+		return Object.entries(conditions)
+			.filter(([_, value]) => value === true)
+			.map(([key]) => key.replace(/([A-Z])/g, ' $1').trim())
+			.map(str => str.charAt(0).toUpperCase() + str.slice(1));
+	}
+
+	function getFamilyHistoryItems(familyHistory: any): Array<{relative: string, conditions: string[]}> {
+		if (!familyHistory || typeof familyHistory !== 'object') return [];
+		
+		const relativeLabels: {[key: string]: string} = {
+			mother: 'Mother',
+			father: 'Father',
+			sister: 'Sister',
+			brother: 'Brother',
+			daughter: 'Daughter',
+			son: 'Son',
+			otherRelative: 'Other Relative'
+		};
+		
+		return Object.entries(familyHistory)
+			.map(([relative, conditions]: [string, any]) => {
+				const checkedConditions = Object.entries(conditions || {})
+					.filter(([_, value]) => value === true)
+					.map(([key]) => key.replace(/([A-Z])/g, ' $1').trim())
+					.map(str => str.charAt(0).toUpperCase() + str.slice(1));
+				
+				return {
+					relative: relativeLabels[relative] || relative,
+					conditions: checkedConditions
+				};
+			})
+			.filter(item => item.conditions.length > 0);
 	}
 
 </script>
@@ -313,6 +438,277 @@
 		font-size: 0.95rem;
 		color: #333;
 	}
+
+	/* Modal Styles */
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.6);
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		z-index: 1000;
+		padding: 20px;
+		animation: fadeIn 0.3s ease-out;
+		overflow-y: auto;
+	}
+
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	.modal-container {
+		background: white;
+		border-radius: 12px;
+		max-width: 900px;
+		width: 100%;
+		max-height: 90vh;
+		overflow-y: auto;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+		animation: slideUp 0.3s ease-out;
+		margin: auto;
+	}
+
+	@keyframes slideUp {
+		from {
+			opacity: 0;
+			transform: translateY(30px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 24px 32px;
+		border-bottom: 2px solid #e9ecef;
+		background: linear-gradient(135deg, #1e3a66 0%, #172f85 100%);
+		color: white;
+		border-radius: 12px 12px 0 0;
+	}
+
+	.modal-header h2 {
+		margin: 0;
+		font-size: 1.5rem;
+		font-weight: 700;
+	}
+
+	.close-btn {
+		background: none;
+		border: none;
+		color: white;
+		cursor: pointer;
+		padding: 4px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		transition: background-color 0.2s ease;
+	}
+
+	.close-btn:hover {
+		background-color: rgba(255, 255, 255, 0.2);
+	}
+
+	.close-btn svg {
+		width: 24px;
+		height: 24px;
+	}
+
+	.modal-content {
+		padding: 32px;
+	}
+
+	.profile-section {
+		display: flex;
+		align-items: center;
+		gap: 24px;
+		margin-bottom: 32px;
+		padding-bottom: 24px;
+		border-bottom: 2px solid #e9ecef;
+	}
+
+	.profile-image-wrapper {
+		width: 100px;
+		height: 100px;
+		border-radius: 50%;
+		overflow: hidden;
+		border: 4px solid #08B8F3;
+		flex-shrink: 0;
+		background-color: #f8f9fa;
+	}
+
+	.profile-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.profile-placeholder {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: #e9ecef;
+		color: #6c757d;
+	}
+
+	.profile-placeholder svg {
+		width: 50px;
+		height: 50px;
+	}
+
+	.basic-info h3 {
+		margin: 0 0 8px 0;
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: #1e3a66;
+	}
+
+	.status-badge {
+		display: inline-block;
+		padding: 6px 14px;
+		border-radius: 20px;
+		font-size: 0.85rem;
+		font-weight: 600;
+	}
+
+	.status-badge.active {
+		background: rgba(34, 197, 94, 0.15);
+		color: #16a34a;
+		border: 1px solid #16a34a;
+	}
+
+	.status-badge.inactive {
+		background: rgba(239, 68, 68, 0.15);
+		color: #dc2626;
+		border: 1px solid #dc2626;
+	}
+
+	.info-section {
+		margin-bottom: 28px;
+	}
+
+	.section-title {
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: #1e3a66;
+		margin-bottom: 16px;
+		padding-bottom: 8px;
+		border-bottom: 2px solid #e9ecef;
+	}
+
+	.info-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 16px;
+	}
+
+	.info-item {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.info-item.full-width {
+		grid-column: 1 / -1;
+	}
+
+	.info-label {
+		font-weight: 600;
+		font-size: 0.9rem;
+		color: #6c757d;
+	}
+
+	.info-value {
+		font-size: 1rem;
+		color: #212529;
+		word-break: break-word;
+	}
+
+	.conditions-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+		gap: 10px;
+	}
+
+	.condition-badge {
+		background: linear-gradient(135deg, #08B8F3 0%, #067ca1 100%);
+		color: white;
+		padding: 8px 14px;
+		border-radius: 20px;
+		font-size: 0.9rem;
+		font-weight: 500;
+		text-align: center;
+	}
+
+	.condition-badge.surgery {
+		background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+	}
+
+	.family-history-item {
+		background: #f8f9fa;
+		padding: 12px 16px;
+		border-radius: 8px;
+		margin-bottom: 10px;
+		border-left: 4px solid #08B8F3;
+	}
+
+	.family-history-item strong {
+		color: #1e3a66;
+		margin-right: 8px;
+	}
+
+	@media (max-width: 768px) {
+		.modal-container {
+			max-width: 95vw;
+			max-height: 95vh;
+		}
+
+		.modal-header {
+			padding: 16px 20px;
+		}
+
+		.modal-header h2 {
+			font-size: 1.2rem;
+		}
+
+		.modal-content {
+			padding: 20px;
+		}
+
+		.profile-section {
+			flex-direction: column;
+			text-align: center;
+		}
+
+		.profile-image-wrapper {
+			width: 80px;
+			height: 80px;
+		}
+
+		.info-grid {
+			grid-template-columns: 1fr;
+			gap: 12px;
+		}
+
+		.info-item.full-width {
+			grid-column: auto;
+		}
+
+		.conditions-grid {
+			grid-template-columns: 1fr;
+		}
+	}
 </style>
 
 <div class="dashboard">
@@ -417,3 +813,185 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Member Details Modal -->
+{#if showDetailsModal && selectedPatient}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="modal-overlay" on:click={closeDetailsModal}>
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="modal-container" on:click|stopPropagation>
+			<div class="modal-header">
+				<h2>Member Information</h2>
+				<!-- svelte-ignore a11y_consider_explicit_label -->
+				<button class="close-btn" on:click={closeDetailsModal} title="Close" aria-label="Close modal">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+			
+			<div class="modal-content">
+				<!-- Profile Image and Basic Info -->
+				<div class="profile-section">
+					<div class="profile-image-wrapper">
+						{#if selectedPatient.profileImage}
+							<img src={selectedPatient.profileImage} alt="Profile" class="profile-img" />
+						{:else}
+							<div class="profile-placeholder">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+								</svg>
+							</div>
+						{/if}
+					</div>
+					<div class="basic-info">
+						<h3>{[selectedPatient.name, selectedPatient.middleName, selectedPatient.lastName, selectedPatient.suffix].filter(Boolean).join(' ')}</h3>
+						<div class="status-badge {selectedPatient.isArchived ? 'inactive' : 'active'}">
+							{selectedPatient.isArchived ? 'Inactive' : 'Active'}
+						</div>
+					</div>
+				</div>
+
+				<!-- Personal Information -->
+				<div class="info-section">
+					<h4 class="section-title">Personal Information</h4>
+					<div class="info-grid">
+						<div class="info-item">
+							<span class="info-label">Member ID:</span>
+							<span class="info-value">{selectedPatient.customUserId || 'N/A'}</span>
+						</div>
+						<div class="info-item">
+							<span class="info-label">Age:</span>
+							<span class="info-value">{selectedPatient.age || 'N/A'}</span>
+						</div>
+						<div class="info-item">
+							<span class="info-label">Birthday:</span>
+							<span class="info-value">{formatDate(selectedPatient.birthday || '')}</span>
+						</div>
+						<div class="info-item">
+							<span class="info-label">Gender:</span>
+							<span class="info-value">{selectedPatient.gender || 'N/A'}</span>
+						</div>
+						<div class="info-item">
+							<span class="info-label">Phone:</span>
+							<span class="info-value">{selectedPatient.phone || 'N/A'}</span>
+						</div>
+						<div class="info-item">
+							<span class="info-label">Email:</span>
+							<span class="info-value">{selectedPatient.email || 'N/A'}</span>
+						</div>
+						<div class="info-item full-width">
+							<span class="info-label">Address:</span>
+							<span class="info-value">{selectedPatient.address || 'N/A'}</span>
+						</div>
+						<div class="info-item">
+							<span class="info-label">Registered:</span>
+							<span class="info-value">{formatDate(selectedPatient.registeredDate || '')}</span>
+						</div>
+						<div class="info-item">
+							<span class="info-label">Status:</span>
+							<span class="info-value">{selectedPatient.isArchived ? 'Inactive' : 'Active'}</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Medical Information -->
+				<div class="info-section">
+					<h4 class="section-title">Medical Information</h4>
+					<div class="info-grid">
+						<div class="info-item">
+							<span class="info-label">Blood Type:</span>
+							<span class="info-value">{selectedPatient.bloodType || 'Not specified'}</span>
+						</div>
+						<div class="info-item full-width">
+							<span class="info-label">Allergies:</span>
+							<span class="info-value">{selectedPatient.allergies || 'None reported'}</span>
+						</div>
+						<div class="info-item full-width">
+							<span class="info-label">Current Medications:</span>
+							<span class="info-value">{selectedPatient.currentMedications || 'None reported'}</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Medical Conditions -->
+				{#if selectedPatient.medicalConditions && Object.keys(selectedPatient.medicalConditions).length > 0}
+					{@const conditions = getCheckedConditions(selectedPatient.medicalConditions)}
+					{#if conditions.length > 0}
+						<div class="info-section">
+							<h4 class="section-title">Medical Conditions</h4>
+							<div class="conditions-grid">
+								{#each conditions as condition}
+									<div class="condition-badge">{condition}</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				{/if}
+
+				<!-- Surgical History -->
+				{#if selectedPatient.surgicalHistory && Object.keys(selectedPatient.surgicalHistory).length > 0}
+					{@const surgeries = getCheckedConditions(selectedPatient.surgicalHistory)}
+					{#if surgeries.length > 0}
+						<div class="info-section">
+							<h4 class="section-title">Surgical History</h4>
+							<div class="conditions-grid">
+								{#each surgeries as surgery}
+									<div class="condition-badge surgery">{surgery}</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				{/if}
+
+				<!-- Family History -->
+				{#if selectedPatient.familyHistory && Object.keys(selectedPatient.familyHistory).length > 0}
+					{@const familyItems = getFamilyHistoryItems(selectedPatient.familyHistory)}
+					{#if familyItems.length > 0}
+						<div class="info-section">
+							<h4 class="section-title">Family History</h4>
+							{#each familyItems as item}
+								<div class="family-history-item">
+									<strong>{item.relative}:</strong> {item.conditions.join(', ')}
+								</div>
+							{/each}
+						</div>
+					{/if}
+				{/if}
+
+				<!-- Other Medical Information -->
+				{#if selectedPatient.otherMedicalConditions || selectedPatient.otherFamilyHistory || selectedPatient.bloodTransfusionHistory}
+					<div class="info-section">
+						<h4 class="section-title">Additional Medical Information</h4>
+						{#if selectedPatient.otherMedicalConditions}
+							<div class="info-item full-width">
+								<span class="info-label">Other Medical Conditions:</span>
+								<span class="info-value">{selectedPatient.otherMedicalConditions}</span>
+							</div>
+						{/if}
+						{#if selectedPatient.otherFamilyHistory}
+							<div class="info-item full-width">
+								<span class="info-label">Other Family History:</span>
+								<span class="info-value">{selectedPatient.otherFamilyHistory}</span>
+							</div>
+						{/if}
+						{#if selectedPatient.bloodTransfusionHistory}
+							<div class="info-item full-width">
+								<span class="info-label">Blood Transfusion History:</span>
+								<span class="info-value">{selectedPatient.bloodTransfusionHistory}</span>
+							</div>
+						{/if}
+						{#if selectedPatient.bloodTransfusionDate}
+							<div class="info-item">
+								<span class="info-label">Blood Transfusion Date:</span>
+								<span class="info-value">{formatDate(selectedPatient.bloodTransfusionDate)}</span>
+							</div>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
