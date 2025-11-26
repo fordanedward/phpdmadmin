@@ -40,7 +40,7 @@
 
     const allMenuItems: MenuItem[] = [
         { href: '/dashboard', icon: '/images/icon-dashboard.png', alt: 'Dashboard', text: 'Dashboard', roles: ['userDentist', 'userSecretary'] },
-        { href: '/appointment', icon: '/images/appointment.png', alt: 'Appointment', text: 'Appointment', roles: ['userDentist', 'userSecretary'] }, // Dentist only
+        { href: '/appointment', icon: '/images/appointment.png', alt: 'Appointment', text: 'Appointment', roles: ['userDentist'] }, // Dentist only
         { href: '/appointment/manage', icon: '/images/appointment-manage.png', alt: 'Manage Appointments', text: 'Manage Appointments', roles: ['userSecretary'] }, // Secretary only
         { href: '/patient-list', icon: '/images/icon-patient.png', alt: 'Patient List', text: 'Patient List', roles: ['userDentist'] }, // Dentist only
         { href: '/prescription', icon: '/images/prescription1.png', alt: 'Prescriptions', text: 'Prescriptions', roles: ['userDentist'] },
