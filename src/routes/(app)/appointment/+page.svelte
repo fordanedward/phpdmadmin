@@ -7,6 +7,10 @@
   // import { Modal } from 'flowbite-svelte';
   import { writable } from 'svelte/store';
   import Swal from 'sweetalert2';
+  import ChatDrawer from '$lib/components/ChatDrawer.svelte';
+  import MemberChatsList from '$lib/components/MemberChatsList.svelte';
+  import { openChatDrawer } from '$lib/chat/store.js';
+  import { currentUser } from '../../../authStore.js';
 
   let db: ReturnType<typeof getFirestore>;
   try {
@@ -119,6 +123,30 @@
   export const appointmentStore = writable<Appointment[]>([]);
 
   let formTriedSubmit = false;
+  let currentUserAuth: any = null;
+
+  // Subscribe to auth state for chat
+  currentUser.subscribe((user: any) => {
+    currentUserAuth = user;
+  });
+
+  function handleOpenAppointmentChat(appointment: Appointment) {
+    if (!appointment.patientId) {
+      Swal.fire('Error', 'Cannot open chat: Patient information is missing.', 'error');
+      return;
+    }
+    openChatDrawer({
+      chatType: 'appointment',
+      appointmentId: appointment.id,
+      appointmentDate: appointment.date,
+      appointmentTime: appointment.time,
+      appointmentService: appointment.service,
+      patientId: appointment.patientId,
+      patientName: appointment.patientName || 'Patient',
+      patientEmail: appointment.patientEmail || '',
+      source: 'appointment-card'
+    });
+  }
 
   onMount(() => {
       let unsubscribeAppointments: Unsubscribe = () => {};
@@ -992,6 +1020,16 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
                    </section>
 
                    <div class="appointment-buttons flex flex-wrap gap-2 justify-end mt-3 text-sm">
+                     <button
+                       class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded flex items-center gap-1"
+                       on:click={() => handleOpenAppointmentChat(appointment)}
+                       title="Chat with Patient"
+                     >
+                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                       </svg>
+                       Chat
+                     </button>
                      {#if appointment.status === 'Completed' || appointment.status === 'Completed: Need Follow-up'}
                        <button class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded shadow" on:click={() => showAppointmentModal(appointment)}>
                          Add Follow-up
@@ -1170,10 +1208,17 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
                </div>
            {/if}
         </div>
+
+        <!-- Member Chats Section -->
+        <div class="mt-6">
+          <MemberChatsList {db} currentUser={currentUserAuth} />
+        </div>
       </div>
     </div>
   {/if}
 
+  <!-- Chat Drawer -->
+  <ChatDrawer {db} currentUser={currentUserAuth} />
 
   <!-- MODALS -->
 

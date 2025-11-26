@@ -24,7 +24,7 @@
       "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
   ];
   const ALL_POSSIBLE_AFTERNOON_SLOTS = [
-      "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM",
+      "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM",
   ];
   const ALL_POSSIBLE_SLOTS = [...ALL_POSSIBLE_MORNING_SLOTS, ...ALL_POSSIBLE_AFTERNOON_SLOTS];
 
@@ -404,19 +404,53 @@
                                     {allSlotsSelected ? 'Unselect All Slots' : 'Select All Slots'}
                                 </button>
                             </div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
-                                {#each ALL_POSSIBLE_SLOTS as slotOption (slotOption)}
-                                    <button
-                                        type="button"
-                                        class="slot-chip"
-                                        class:selected={currentSlots.includes(slotOption)}
-                                        on:click={() => toggleSlot(slotOption)}
-                                        disabled={isSavingSchedule}
-                                        aria-pressed={currentSlots.includes(slotOption)}
-                                    >
-                                        {slotOption}
-                                    </button>
-                                {/each}
+                            
+                            <!-- Morning Slots -->
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                    Morning
+                                </h4>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+                                    {#each ALL_POSSIBLE_MORNING_SLOTS as slotOption (slotOption)}
+                                        <button
+                                            type="button"
+                                            class="slot-chip"
+                                            class:selected={currentSlots.includes(slotOption)}
+                                            on:click={() => toggleSlot(slotOption)}
+                                            disabled={isSavingSchedule}
+                                            aria-pressed={currentSlots.includes(slotOption)}
+                                        >
+                                            {slotOption}
+                                        </button>
+                                    {/each}
+                                </div>
+                            </div>
+                            
+                            <!-- Afternoon Slots -->
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                    </svg>
+                                    Afternoon
+                                </h4>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+                                    {#each ALL_POSSIBLE_AFTERNOON_SLOTS as slotOption (slotOption)}
+                                        <button
+                                            type="button"
+                                            class="slot-chip"
+                                            class:selected={currentSlots.includes(slotOption)}
+                                            on:click={() => toggleSlot(slotOption)}
+                                            disabled={isSavingSchedule}
+                                            aria-pressed={currentSlots.includes(slotOption)}
+                                        >
+                                            {slotOption}
+                                        </button>
+                                    {/each}
+                                </div>
                             </div>
 
                             <!-- Selected Slots Display -->

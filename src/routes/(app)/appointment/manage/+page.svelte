@@ -3,9 +3,6 @@
     import { getFirestore, collection, getDocs, doc, updateDoc } from 'firebase/firestore';
     import { initializeApp } from 'firebase/app';
     import { firebaseConfig } from '$lib/firebaseConfig'; // Make sure this path is correct
-    import { openChatDrawer } from '$lib/chat/store.js';
-    import MemberChatsList from '$lib/components/MemberChatsList.svelte';
-    import { onAuthStateChanged, getAuth } from 'firebase/auth';
     import Swal from 'sweetalert2';
   
     let db: ReturnType<typeof getFirestore>;
@@ -31,7 +28,6 @@
     let uniqueServices: string[] = [];
   
     let isMobile = false;
-    let currentUser: { uid: string; displayName?: string | null; email?: string | null; role?: string } | null = null;
   
   interface PatientProfile {
     id: string;
@@ -122,21 +118,6 @@
         }
     
         try {
-          // Get current user
-          const auth = getAuth();
-          onAuthStateChanged(auth, (user) => {
-            if (user) {
-              currentUser = {
-                uid: user.uid,
-                displayName: user.displayName,
-                email: user.email,
-                role: 'userSecretary' // Default for admin pages
-              };
-            } else {
-              currentUser = null;
-            }
-          });
-
           await fetchPatientProfiles(); // Fetch profiles first
           await fetchAppointments();    // Then fetch appointments
         } catch (err: any) {
@@ -252,43 +233,6 @@
       }
     }
   
-    function openChatForAppointment(appointment: any) {
-      if (!appointment?.patientId) {
-        Swal.fire('Missing patient', 'This appointment is not linked to a member record yet.', 'warning');
-        return;
-      }
-      // Open appointment-specific chat
-      openChatDrawer({
-        chatType: 'appointment',
-        appointmentId: appointment.id,
-        appointmentDate: appointment.date,
-        appointmentTime: appointment.time,
-        appointmentService: appointment.service,
-        patientId: appointment.patientId,
-        patientName: appointment.patientName,
-        patientEmail: appointment.patientEmail,
-        recipientId: appointment.patientId,
-        source: 'appointment-card'
-      });
-    }
-
-    function openMemberChat(patientId: string, patientName?: string, patientEmail?: string) {
-      if (!patientId) {
-        Swal.fire('Missing patient', 'Patient ID is required to open chat.', 'warning');
-        return;
-      }
-      // Open general member support chat (chats/{memberId})
-      openChatDrawer({
-        chatType: 'member',
-        patientId: patientId,
-        patientName: patientName,
-        patientEmail: patientEmail,
-        recipientId: patientId,
-        threadId: patientId, // For member chats, threadId is the memberId
-        source: 'appointment-card'
-      });
-    }
-
     async function updateStatus(id: string, update: any) {
       loading = true;
       message = '';
@@ -398,11 +342,6 @@
             on:click={() => currentTab = 3}>
             {isMobile ? 'History' : 'Appointment History'}
           </button>
-          <button 
-            class="py-2 px-2 text-sm sm:text-base sm:px-3 md:px-6 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 flex-grow md:flex-grow-0 text-center whitespace-nowrap {currentTab === 4 ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
-            on:click={() => currentTab = 4}>
-            {isMobile ? 'Chats' : 'Member Chats'}
-          </button>
         </div>
   
         {#if currentTab === 0}
@@ -434,12 +373,7 @@
                       <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
                     {/if}
                   </div>
-                  <div class="flex flex-wrap gap-2 mt-3 sm:mt-4 justify-end">
-                    {#if appointment.patientId}
-                      <button class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Open chat with member" on:click={() => openMemberChat(appointment.patientId, appointment.patientName, appointment.patientEmail)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>Chat
-                      </button>
-                    {/if}
+                  <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
                     <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Appointment" on:click={() => handleAccept(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Accept
                     </button>
@@ -487,12 +421,7 @@
                       <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700 mt-1">Selected: {appointment.subServices.join(', ')}</span>
                     {/if}
                   </div>
-                  <div class="flex flex-wrap gap-2 mt-3 sm:mt-4 justify-end">
-                    {#if appointment.patientId}
-                      <button class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Open chat with member" on:click={() => openMemberChat(appointment.patientId, appointment.patientName, appointment.patientEmail)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>Chat
-                      </button>
-                    {/if}
+                  <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
                     <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Reschedule" on:click={() => handleRescheduleAccept(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Accept
                     </button>
@@ -540,12 +469,7 @@
                    {#if appointment.cancellationReason}
                     <p class="text-xs text-gray-600 mt-1">Reason: <span class="italic">{appointment.cancellationReason}</span></p>
                   {/if}
-                  <div class="flex flex-wrap gap-2 mt-3 sm:mt-4 justify-end">
-                    {#if appointment.patientId}
-                      <button class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Open chat with member" on:click={() => openMemberChat(appointment.patientId, appointment.patientName, appointment.patientEmail)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>Chat
-                      </button>
-                    {/if}
+                  <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
                     <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Approve Cancellation" on:click={() => handleCancelApprove(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Approve
                     </button>
@@ -661,14 +585,6 @@
             {:else}
               <div class="text-gray-500 col-span-full text-center py-5">No appointment history found.</div>
             {/if}
-          </section>
-        {:else if currentTab === 4}
-          <section class="mb-12">
-            <h2 class="text-lg sm:text-xl font-bold mb-4 text-blue-700 flex items-center gap-2">
-              <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-blue-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'/></svg>
-              Member Support Chats
-            </h2>
-            <MemberChatsList {db} {currentUser} />
           </section>
         {/if}
       {/if}
