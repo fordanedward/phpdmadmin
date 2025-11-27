@@ -22,6 +22,7 @@ import type {
   ChatSenderInfo,
   ChatThreadMetadata
 } from './types.js';
+import { addPopupNotification } from '../popupNotificationStore.js';
 
 export const CHAT_COLLECTION = 'appointmentChats';
 export const MEMBER_CHAT_COLLECTION = 'chats';

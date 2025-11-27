@@ -11,6 +11,7 @@
     import { auth as firebaseAppAuth, db as firebaseAppDb } from '$lib/firebaseConfig.js';  
     import ChatDrawer from '$lib/components/ChatDrawer.svelte';
     import Notification from '$lib/Notification.svelte';
+    import PopupNotification from '$lib/PopupNotification.svelte';
     import { notification as notificationStore } from '$lib/notificationStore.js';
  
     interface UserProfileForLayout {
@@ -300,6 +301,7 @@
         </main>
         <ChatDrawer db={firebaseAppDb} currentUser={layoutCurrentUser} />
         <Notification message={$notificationStore.message} type={$notificationStore.type} show={$notificationStore.show} />
+        <PopupNotification />
     </div>
 {/if}
 

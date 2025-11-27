@@ -1,8 +1,9 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { getFirestore, collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+    import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
     import { initializeApp } from 'firebase/app';
     import { firebaseConfig } from '$lib/firebaseConfig'; // Make sure this path is correct
+    import { addPopupNotification } from '$lib/popupNotificationStore.js';
     import Swal from 'sweetalert2';
   
     let db: ReturnType<typeof getFirestore>;
@@ -240,10 +241,24 @@
       try {
         await updateDoc(doc(db, 'appointments', id), update);
         message = 'Status updated successfully!';
+        
+        // Show popup notification for status update
+        const statusText = update.status || update.cancellationStatus || 'updated';
+        addPopupNotification(
+          `Appointment status changed to ${statusText}`,
+          'success',
+          5000
+        );
+        
         await fetchAppointments();
       } catch (e: any) {
         console.error("Failed to update status:", e);
         error = `Failed to update status: ${e.message || 'Unknown error'}`;
+        addPopupNotification(
+          'Failed to update appointment status',
+          'error',
+          4000
+        );
       } finally {
         loading = false;
       }
@@ -277,11 +292,48 @@
         });
       }
     }
+
+    async function handleDelete(appointment: any) {
+      const result = await Swal.fire({
+        title: 'Delete Appointment?',
+        text: `Are you sure you want to permanently delete this appointment for ${appointment.patientName || 'this patient'}? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Delete',
+        confirmButtonColor: '#EF4444',
+        cancelButtonColor: '#6B7280',
+      });
+      if (result.isConfirmed) {
+        loading = true;
+        message = '';
+        error = '';
+        try {
+          await deleteDoc(doc(db, 'appointments', appointment.id));
+          message = 'Appointment deleted successfully!';
+          addPopupNotification(
+            `Appointment for ${appointment.patientName || 'patient'} deleted`,
+            'success',
+            5000
+          );
+          await fetchAppointments();
+        } catch (e: any) {
+          console.error("Failed to delete appointment:", e);
+          error = `Failed to delete appointment: ${e.message || 'Unknown error'}`;
+          addPopupNotification(
+            'Failed to delete appointment',
+            'error',
+            4000
+          );
+          loading = false;
+        }
+      }
+    }
   </script>
   
   <!-- HTML Part remains the same -->
   <div class="bg-gradient-to-br from-blue-50 via-white to-gray-100 min-h-screen">
-    <div class="max-w-6xl mx-auto p-4 sm:p-6">
+    <div class="p-4 sm:p-6">
+      <div class="max-w-6xl mx-auto">
         <h1 class="text-2xl sm:text-3xl font-extrabold mb-6 sm:mb-8 text-blue-800 tracking-tight flex items-center gap-2 sm:gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
             Appointment Management
@@ -493,13 +545,14 @@
             a.status === 'Completed' || 
             a.status === 'Rescheduled'
           ))}
-          <section>
-            <h2 class="text-lg sm:text-xl font-bold mb-4 text-green-700 flex items-center gap-2">
-              <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-green-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>
-              Appointment History ({completedAppointments.length})
-            </h2>
-            {#if completedAppointments.length > 0}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <section class="w-full bg-white bg-opacity-50 py-6 sm:py-8 px-4 sm:px-6 mt-6 sm:mt-8 -mx-4 sm:-mx-6">
+            <div class="max-w-full mx-auto">
+                <h2 class="text-lg sm:text-xl font-bold mb-4 text-green-700 flex items-center gap-2">
+                  <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-green-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>
+                  Appointment History ({completedAppointments.length})
+                </h2>
+                {#if completedAppointments.length > 0}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {#each completedAppointments as appointment (appointment.id)}
                 {@const statusColor = 
                   appointment.status === 'Accepted' ? 'green' : 
@@ -554,14 +607,19 @@
                       <span class="font-medium">Remarks:</span> {appointment.completionRemarks}
                     </div>
                   {/if}
-                  {#if appointment.status === 'Accepted' && !appointment.completionTime}
-                    <div class="flex gap-2 mt-3 justify-end">
+                  <div class="flex gap-2 mt-3 justify-between">
+                    {#if appointment.status === 'Accepted' && !appointment.completionTime}
                       <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition flex items-center gap-1" title="Mark as Completed" on:click={() => handleMarkComplete(appointment)}>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Mark Complete
                       </button>
-                    </div>
-                  {/if}
+                    {:else}
+                      <div></div>
+                    {/if}
+                    <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1.5 rounded shadow-sm transition" title="Delete Appointment" aria-label="Delete Appointment" on:click={() => handleDelete(appointment)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
                   {#if appointment.createdAt}
                     <div class="text-xs text-gray-400 mt-2 border-t pt-2">
                       Created: {(() => {
@@ -585,6 +643,7 @@
             {:else}
               <div class="text-gray-500 col-span-full text-center py-5">No appointment history found.</div>
             {/if}
+            </div>
           </section>
         {/if}
       {/if}
@@ -607,6 +666,7 @@
           </div>
         </div>
       {/if}
+      </div>
     </div>
   </div>
   

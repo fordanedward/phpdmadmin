@@ -3,6 +3,7 @@
   import { getFirestore, collection, addDoc, getDocs } from 'firebase/firestore';
   import { initializeApp } from 'firebase/app';
   import { firebaseConfig } from '$lib/firebaseConfig';
+  import { addPopupNotification } from '$lib/popupNotificationStore.js';
 
   let db: ReturnType<typeof getFirestore>;
   try {
@@ -36,11 +37,12 @@
     error = '';
     if (!patientId || !date || !time || !service) {
       error = 'Please fill in all required fields.';
+      addPopupNotification('Please fill in all required fields.', 'error', 4000);
       loading = false;
       return;
     }
     try {
-      await addDoc(collection(db, 'appointments'), {
+      const appointmentData = {
         patientId,
         date,
         time,
@@ -51,11 +53,21 @@
         paymentStatus: '',
         cancellationStatus: '',
         createdAt: new Date().toISOString(),
-      });
+      };
+      
+      await addDoc(collection(db, 'appointments'), appointmentData);
+      
       message = 'Appointment request submitted!';
+      addPopupNotification(
+        `Appointment request created for ${date} at ${time}`,
+        'success',
+        5000
+      );
+      
       patientId = date = time = service = subServices = remarks = '';
     } catch (e) {
       error = 'Failed to submit appointment.';
+      addPopupNotification('Failed to submit appointment request.', 'error', 4000);
     }
     loading = false;
   }
@@ -71,8 +83,8 @@
   {/if}
   <form on:submit|preventDefault={submitAppointment} class="space-y-4">
     <div>
-      <label class="block text-sm font-medium mb-1">Patient</label>
-      <select bind:value={patientId} required class="w-full border rounded p-2">
+      <label for="patientId" class="block text-sm font-medium mb-1">Patient</label>
+      <select id="patientId" bind:value={patientId} required class="w-full border rounded p-2">
         <option value="" disabled selected>Select patient</option>
         {#each patients as p}
           <option value={p.id}>{p.name} {p.lastName} ({p.id})</option>
@@ -80,24 +92,24 @@
       </select>
     </div>
     <div>
-      <label class="block text-sm font-medium mb-1">Date</label>
-      <input type="date" bind:value={date} required class="w-full border rounded p-2" />
+      <label for="date" class="block text-sm font-medium mb-1">Date</label>
+      <input id="date" type="date" bind:value={date} required class="w-full border rounded p-2" />
     </div>
     <div>
-      <label class="block text-sm font-medium mb-1">Time</label>
-      <input type="time" bind:value={time} required class="w-full border rounded p-2" />
+      <label for="time" class="block text-sm font-medium mb-1">Time</label>
+      <input id="time" type="time" bind:value={time} required class="w-full border rounded p-2" />
     </div>
     <div>
-      <label class="block text-sm font-medium mb-1">Service</label>
-      <input type="text" bind:value={service} required class="w-full border rounded p-2" />
+      <label for="service" class="block text-sm font-medium mb-1">Service</label>
+      <input id="service" type="text" bind:value={service} required class="w-full border rounded p-2" />
     </div>
     <div>
-      <label class="block text-sm font-medium mb-1">Sub-services (optional, comma separated)</label>
-      <input type="text" bind:value={subServices} class="w-full border rounded p-2" />
+      <label for="subServices" class="block text-sm font-medium mb-1">Sub-services (optional, comma separated)</label>
+      <input id="subServices" type="text" bind:value={subServices} class="w-full border rounded p-2" />
     </div>
     <div>
-      <label class="block text-sm font-medium mb-1">Remarks (optional)</label>
-      <input type="text" bind:value={remarks} class="w-full border rounded p-2" />
+      <label for="remarks" class="block text-sm font-medium mb-1">Remarks (optional)</label>
+      <input id="remarks" type="text" bind:value={remarks} class="w-full border rounded p-2" />
     </div>
     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" disabled={loading}>
       {loading ? 'Submitting...' : 'Submit Appointment'}

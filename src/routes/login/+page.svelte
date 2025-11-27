@@ -434,7 +434,7 @@
                 <Input
                     type="text"
                     id="emailOrAdminId"
-                    placeholder="Enter your 5-digit Admin ID or email"
+                    placeholder="Enter your Admin ID or email"
                     class="border p-2 w-full"
                     bind:value={emailOrAdminId}
                     required

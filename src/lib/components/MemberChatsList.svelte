@@ -3,6 +3,7 @@
   import type { Firestore } from 'firebase/firestore';
   import { collection, getDocs, onSnapshot, query, orderBy } from 'firebase/firestore';
   import { openChatDrawer } from '$lib/chat/store.js';
+  import { addPopupNotification } from '$lib/popupNotificationStore.js';
 
   interface CurrentUserLite {
     uid: string;
@@ -47,6 +48,7 @@
 
   let patientProfiles: PatientProfile[] = [];
   let chatDataMap: Map<string, MemberChatData> = new Map();
+  let lastMessageTimestamps: Map<string, number> = new Map();
 
   onMount(() => {
     if (db) {
@@ -94,10 +96,31 @@
       const chatsRef = collection(db, 'chats');
       const chatsQuery = query(chatsRef, orderBy('lastMessageTime', 'desc'));
       unsubscribeChats = onSnapshot(chatsQuery, (snapshot) => {
-        chatDataMap.clear();
         snapshot.docs.forEach(doc => {
           const data = doc.data();
-          chatDataMap.set(doc.id, {
+          const memberId = doc.id;
+          const newMessageTime = data.lastMessageTime?.toMillis?.() || Date.now();
+          const oldMessageTime = lastMessageTimestamps.get(memberId);
+
+          // Check if this is a new message (not initial load)
+          if (oldMessageTime && newMessageTime > oldMessageTime) {
+            // Find member name for notification
+            const member = patientProfiles.find(p => p.id === memberId);
+            const memberName = member ? `${member.name} ${member.lastName}`.trim() : 'A member';
+            
+            // Show popup notification
+            addPopupNotification(
+              `New message from ${memberName}: "${data.lastMessage?.substring(0, 50)}${(data.lastMessage?.length || 0) > 50 ? '...' : ''}"`,
+              'info',
+              5000
+            );
+          }
+
+          // Update timestamp for this member
+          lastMessageTimestamps.set(memberId, newMessageTime);
+          
+          // Update chat data
+          chatDataMap.set(memberId, {
             lastMessage: data.lastMessage || '',
             lastMessageTime: data.lastMessageTime,
             unreadCount: data.unreadCount || 0
