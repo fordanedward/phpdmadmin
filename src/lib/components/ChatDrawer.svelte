@@ -35,6 +35,7 @@
   let isLoading = false;
   let initKey: string | null = null;
   let messagesUnsubscribe: (() => void) | null = null;
+  let messagesContainer: HTMLElement | null = null;
 
   const unsubscribeDrawer = chatDrawerState.subscribe((state: ChatDrawerState) => {
     drawerOpen = state.open;
@@ -95,13 +96,26 @@
         ...msg,
         text: msg.text || msg.message || '',
         message: msg.message || msg.text || ''
-      }));
+      })).reverse(); // Reverse to show oldest first, but load from most recent
       try {
         await markThreadRead(db, thread!.id, currentUser.uid, chatType);
       } catch (error) {
         console.warn('Unable to mark messages as read', error);
       }
+      // Auto-scroll to bottom when messages change
+      scrollToBottom();
     }, chatType);
+  }
+
+  function scrollToBottom() {
+    if (messagesContainer) {
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      }, 0);
+    }
   }
 
   async function handleSendMessage() {
@@ -186,7 +200,7 @@
         </button>
       </header>
 
-      <section class="messages" aria-live="polite">
+      <section class="messages" bind:this={messagesContainer} aria-live="polite">
         {#if isLoading}
           <div class="loading">Loading conversation…</div>
         {:else if messages.length === 0}

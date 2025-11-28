@@ -193,11 +193,11 @@ export function subscribeToMessages(
   if (chatType === 'member') {
     // Member chat: chats/{memberId}/messages
     messagesRef = collection(db, MEMBER_CHAT_COLLECTION, threadId, CHAT_MESSAGES_SUBCOLLECTION);
-    messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+    messagesQuery = query(messagesRef, orderBy('timestamp', 'desc'));
   } else {
     // Appointment chat: appointmentChats/{threadId}/messages
     messagesRef = collection(db, CHAT_COLLECTION, threadId, CHAT_MESSAGES_SUBCOLLECTION);
-    messagesQuery = query(messagesRef, orderBy('sentAt', 'asc'));
+    messagesQuery = query(messagesRef, orderBy('sentAt', 'desc'));
   }
 
   return onSnapshot(messagesQuery, (snapshot) => {

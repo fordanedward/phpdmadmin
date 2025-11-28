@@ -406,7 +406,7 @@
             {#if pendingAppointments.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {#each pendingAppointments as appointment (appointment.id)}
-                <div class="bg-white border-l-4 border-blue-400 border-opacity-60 rounded-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all p-4 sm:p-5 flex flex-col gap-2 sm:gap-3">
+                <div class="bg-white border-l-4 border-blue-400 border-opacity-60 rounded-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all p-3 sm:p-4 flex flex-col gap-1 sm:gap-2">
                   {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
                     <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
                       <span>{appointment.patientName}</span>
@@ -418,14 +418,15 @@
                   {:else}
                     <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
                   {/if}
-                  <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-1 sm:mt-2">
+                  <div class="flex flex-col gap-1 text-xs sm:text-sm mt-1">
                     <span class="inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 font-medium">{appointment.date} at {appointment.time}</span>
                     <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700">Service: {appointment.service}</span>
                     {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
                       <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
                     {/if}
                   </div>
-                  <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
+                  <div class="flex-1"></div>
+                  <div class="flex gap-2 justify-end">
                     <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Appointment" on:click={() => handleAccept(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Accept
                     </button>
@@ -451,7 +452,7 @@
             {#if rescheduleRequests.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {#each rescheduleRequests as appointment (appointment.id)}
-                <div class="bg-white border-l-4 border-yellow-400 border-opacity-60 rounded-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all p-4 sm:p-5 flex flex-col gap-2 sm:gap-3">
+                <div class="bg-white border-l-4 border-yellow-400 border-opacity-60 rounded-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all p-3 sm:p-4 flex flex-col gap-1 sm:gap-2">
                   {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
                     <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
                       <span>{appointment.patientName}</span>
@@ -463,17 +464,18 @@
                   {:else}
                     <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
                   {/if}
-                  <div class="flex flex-col gap-1 text-xs sm:text-sm mt-1 sm:mt-2">
+                  <div class="flex flex-col gap-1 text-xs sm:text-sm mt-1">
                     {#if appointment.originalDate && appointment.originalTime}
                       <span class="text-gray-600">Original: <span class="font-medium">{appointment.originalDate} at {appointment.originalTime}</span></span>
                     {/if}
                     <span class="inline-block px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-medium">Requests to: {appointment.date} at {appointment.time}</span>
-                    <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700 mt-1">Service: {appointment.service}</span>
+                    <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700">Service: {appointment.service}</span>
                     {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
-                      <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700 mt-1">Selected: {appointment.subServices.join(', ')}</span>
+                      <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
                     {/if}
                   </div>
-                  <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
+                  <div class="flex-1"></div>
+                  <div class="flex gap-2 justify-end">
                     <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Reschedule" on:click={() => handleRescheduleAccept(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Accept
                     </button>
@@ -499,7 +501,7 @@
             {#if cancellationRequests.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {#each cancellationRequests as appointment (appointment.id)}
-                <div class="bg-white border-l-4 border-red-400 border-opacity-60 rounded-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all p-4 sm:p-5 flex flex-col gap-2 sm:gap-3">
+                <div class="bg-white border-l-4 border-red-400 border-opacity-60 rounded-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all p-3 sm:p-4 flex flex-col gap-1 sm:gap-2">
                   {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
                     <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
                       <span>{appointment.patientName}</span>
@@ -511,7 +513,7 @@
                   {:else}
                     <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
                   {/if}
-                  <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-1 sm:mt-2">
+                  <div class="flex flex-col gap-1 text-xs sm:text-sm mt-1">
                     <span class="inline-block px-2 py-1 rounded bg-red-100 text-red-700 font-medium">{appointment.date} at {appointment.time}</span>
                     <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700">Service: {appointment.service}</span>
                     {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
@@ -521,7 +523,8 @@
                    {#if appointment.cancellationReason}
                     <p class="text-xs text-gray-600 mt-1">Reason: <span class="italic">{appointment.cancellationReason}</span></p>
                   {/if}
-                  <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
+                  <div class="flex-1"></div>
+                  <div class="flex gap-2 justify-end">
                     <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Approve Cancellation" on:click={() => handleCancelApprove(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Approve
                     </button>

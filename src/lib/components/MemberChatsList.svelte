@@ -38,6 +38,7 @@
     lastMessageTime: any;
     unreadCount: number;
     hasChat: boolean;
+    isAdmin?: boolean;
   }
 
   let allMembers: MemberDisplay[] = [];
@@ -140,6 +141,10 @@
       const chatData = chatDataMap.get(profile.id);
       const fullName = `${profile.name} ${profile.lastName}`.trim() || 'Unknown Member';
       
+      // Check if member is admin - we can add this check based on role field in profile
+      // For now, we'll use a simple check based on profile data
+      const isAdmin = (profile as any).role === 'userAdmin' || (profile as any).role === 'userSecretary' || (chatData as any)?.memberRole === 'admin';
+      
       return {
         id: profile.id,
         memberId: profile.id,
@@ -148,7 +153,8 @@
         lastMessage: chatData?.lastMessage || '',
         lastMessageTime: chatData?.lastMessageTime || null,
         unreadCount: chatData?.unreadCount || 0,
-        hasChat: !!chatData
+        hasChat: !!chatData,
+        isAdmin: isAdmin
       };
     });
 
@@ -262,10 +268,11 @@
             class="chat-item"
             class:unread={member.unreadCount > 0}
             class:no-chat={!member.hasChat}
+            class:admin-chat={member.isAdmin}
             on:click={() => handleOpenChat(member)}
           >
             <div class="member-avatar">
-              <div class="avatar-circle">
+              <div class="avatar-circle" class:admin-avatar={member.isAdmin}>
                 {member.memberName.charAt(0).toUpperCase()}
               </div>
               {#if member.unreadCount > 0}
@@ -274,7 +281,12 @@
             </div>
             <div class="chat-content">
               <div class="chat-header-row">
-                <h3 class="member-name">{member.memberName}</h3>
+                <div class="name-badge-row">
+                  <h3 class="member-name">{member.memberName}</h3>
+                  {#if member.isAdmin}
+                    <span class="role-badge admin-badge">Admin</span>
+                  {/if}
+                </div>
                 {#if member.lastMessageTime}
                   <span class="timestamp">{formatRelativeTime(member.lastMessageTime)}</span>
                 {/if}
@@ -507,6 +519,15 @@
     background: #dcfce7;
   }
 
+  .chat-item.admin-chat {
+    background: linear-gradient(to right, #fef3c7 0%, #fffbeb 100%);
+    border-left: 3px solid #f59e0b;
+  }
+
+  .chat-item.admin-chat:hover {
+    background: linear-gradient(to right, #fde68a 0%, #fef08a 100%);
+  }
+
   .member-avatar {
     position: relative;
     flex-shrink: 0;
@@ -524,6 +545,11 @@
     font-size: 1.25rem;
     font-weight: 600;
     text-transform: uppercase;
+  }
+
+  .avatar-circle.admin-avatar {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
   }
 
   .online-indicator {
@@ -550,6 +576,14 @@
     margin-bottom: 0.375rem;
   }
 
+  .name-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow: hidden;
+    flex: 1;
+  }
+
   .member-name {
     font-size: 0.9375rem;
     font-weight: 600;
@@ -558,6 +592,25 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.375rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .role-badge.admin-badge {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    box-shadow: 0 1px 3px rgba(245, 158, 11, 0.3);
   }
 
   .timestamp {
