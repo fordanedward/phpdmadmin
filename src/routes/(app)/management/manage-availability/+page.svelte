@@ -234,7 +234,13 @@
       if (!selectedDate || !db) return;
       isSavingSchedule = true;
 
-      const slotsToSave = sortTimeSlots(currentSlots.filter(slot => slot && slot.trim() !== ''));
+      let slotsToSave = sortTimeSlots(currentSlots.filter(slot => slot && slot.trim() !== ''));
+      
+      // If marked as working day but has no slots, default to all possible slots
+      if (isWorkingDay && slotsToSave.length === 0) {
+          console.warn(`Saving working day ${selectedDate} with no slots. Defaulting to all possible slots.`);
+          slotsToSave = sortTimeSlots(ALL_POSSIBLE_SLOTS);
+      }
 
       try {
           const scheduleRef = doc(db, FIRESTORE_DAILY_SCHEDULES_COLLECTION, selectedDate);
@@ -290,7 +296,7 @@
                 </svg>
                 <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold" style="color: #0b2d56;">Availability Settings</h1>
             </div>
-            <p class="text-gray-600 text-xs sm:text-sm md:text-base pl-8 sm:pl-11">Configure your working days and time slot availability for member bookings.</p>
+            <p class="text-gray-600 text-xs sm:text-sm md:text-base pl-8 sm:pl-11">Configure your working days and time slot availability for member's appointment.</p>
         </div>
 
         <!-- Section for Default Working Days -->
@@ -303,7 +309,7 @@
                     <p class="mt-2 text-gray-600 text-xs sm:text-sm">Loading...</p>
                 </div>
             {:else}
-                <p class="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 md:mb-4">Select days available for booking by default.</p>
+                <p class="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 md:mb-4">Select days available for appointment by default.</p>
                 <div class="grid grid-cols-7 gap-1 sm:gap-2 mb-3 sm:mb-4">
                     {#each DAYS_OF_WEEK as day (day.value)}
                         <label class="day-toggle" class:day-toggle--active={defaultWorkingDays.includes(day.value)}>

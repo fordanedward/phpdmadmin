@@ -92,6 +92,7 @@ interface Patient {
 		service?: string;
 		subServices?: string[];
 		status: 'pending' | 'completed' | 'missed' | string;
+		cancellationStatus?: string;
 	}
 
 	interface Medicine {
@@ -182,7 +183,7 @@ type PatientSortOption = 'name-asc' | 'name-desc' | 'age-asc' | 'age-desc' | 'da
 let patientSortOption: PatientSortOption = 'name-asc';
 let filteredPatients: Patient[] = [];
 
-type AppointmentStatusFilter = 'all' | 'pending' | 'completed' | 'accepted' | 'missed' | 'declined' | 'other';
+type AppointmentStatusFilter = 'all' | 'pending' | 'completed' | 'accepted' | 'missed' | 'declined' | 'cancellation_requested' | 'cancelled';
 type AppointmentSortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc';
 let appointmentSearchTerm = '';
 let appointmentStatusFilter: AppointmentStatusFilter = 'all';
@@ -361,19 +362,19 @@ function matchesAppointmentStatus(appointment: Appointment, filter: AppointmentS
 	const f = normalizeForSearch((filter || '').toString());
 
 	if (!statusNormalized) {
-		const result = f === 'other';
+		const result = f === 'cancelled';
 		if (debug) console.log('apptFilterDebug: status empty', { id: appointment.id, statusRaw, filter, result });
 		return result;
 	}
 
 	// Map filter values to possible status variations
 	const tokensMap: Record<string, string[]> = {
-		pending: ['pending', 'request'],
+		pending: ['pending'],
 		completed: ['complete', 'completed', 'done'],
 		accepted: ['accept', 'accepted'],
 		missed: ['miss', 'missed', 'no-show', 'noshow'],
 		declined: ['declin', 'declined', 'decline'],
-		cancel: ['cancel', 'cancellation', 'cancelled'],
+		'cancellation requested': ['cancellationrequest'],
 		reschedule: ['reschedul', 'rescheduled', 'reschedule']
 	};
 
@@ -396,12 +397,12 @@ function matchesAppointmentStatus(appointment: Appointment, filter: AppointmentS
 		match 
 	});
 	
-	// If no match found and filter is 'other', check if status doesn't match any known status
-	if (!match && f === 'other') {
+	// If no match found and filter is 'cancelled', check if status doesn't match any known status
+	if (!match && f === 'cancelled') {
 		const allKnownTokens = Object.values(tokensMap).flat();
-		const isOther = !allKnownTokens.some(tok => statusNormalized.includes(tok));
-		if (debug) console.log('apptFilterDebug: status other check', { id: appointment.id, statusRaw, isOther });
-		return isOther;
+		const isCancelled = !allKnownTokens.some(tok => statusNormalized.includes(tok));
+		if (debug) console.log('apptFilterDebug: status cancelled check', { id: appointment.id, statusRaw, isCancelled });
+		return isCancelled;
 	}
 	
 	return match;
@@ -587,17 +588,21 @@ $: filteredPatients = (() => {
 		// This reactive block explicitly depends on all filtering variables
 		const _ = [appointmentSearchTerm, appointmentStatusFilter, appointmentSortOption, appointmentFilterStartDate, appointmentFilterEndDate, allAppointments];
 		return getFilteredAppointmentList(allAppointments);
-	})();$: todaysAppointmentsFiltered = (() => {
-	const today = getTodayString();
-	const todaysAppts = allAppointments.filter(a => a.date === today);
-	return getFilteredAppointmentList(todaysAppts);
-})();
+	})();
+
+	$: todaysAppointmentsFiltered = (() => {
+		const today = getTodayString();
+		const todaysAppts = allAppointments.filter(a => a.date === today);
+		return getFilteredAppointmentList(todaysAppts);
+	})();
 
 	$: filteredMonthlyAppointments = (() => {
 		// This reactive block explicitly depends on all filtering variables
 		const _ = [appointmentSearchTerm, appointmentStatusFilter, appointmentSortOption, appointmentFilterStartDate, appointmentFilterEndDate, monthlyAppointmentsData];
 		return getFilteredAppointmentList(monthlyAppointmentsData);
-	})();	// --- UI Event Handlers ---
+	})();
+
+	// --- UI Event Handlers ---
 	function toggleSidebar(): void {
 		isCollapsed = !isCollapsed;
 	}
@@ -1355,6 +1360,79 @@ function downloadExcelReport(
     alert('No data found to include in the report.');
   }
 }
+
+// Export filtered report data to Excel
+function downloadExcelReportFromReport(
+	appointmentsData: Appointment[],
+	patientsData: Patient[]
+): void {
+  console.log('Generating Excel Report from Appointment Reports...');
+  const workbook = XLSX.utils.book_new();
+  const reportDate = getTodayString();
+  const metadataSheetData = [
+    ['Metric', 'Value'],
+    [REPORT_DATE_LABEL, reportDate],
+    ['Date Description', REPORT_DATE_DESCRIPTION],
+  ];
+  const metadataSheet = XLSX.utils.aoa_to_sheet(metadataSheetData);
+  metadataSheet['!cols'] = [
+    { wch: 20 },
+    { wch: Math.max(25, REPORT_DATE_DESCRIPTION.length) },
+  ];
+  XLSX.utils.book_append_sheet(workbook, metadataSheet, 'Report Info');
+
+  const calculateColumnWidths = (data: any[]) => {
+    const keys = Object.keys(data[0] || {});
+    return keys.map(key => ({
+      wch: Math.max(
+        key.length,
+        ...data.map(row => (row[key] ? row[key].toString().length : 0))
+      ),
+    }));
+  };
+
+  // Appointments sheet
+  if (appointmentsData.length > 0) {
+    const appointmentSheetData = appointmentsData.map(appt => ({
+      'Patient Name': appt.patientName || 'Unknown',
+      'Appointment Date': appt.date || 'N/A',
+      'Time': appt.time || 'N/A',
+      'Service': appt.service || 'N/A',
+      'Subservice': appt.subServices?.join(', ') || 'N/A',
+      'Status': appt.status || 'N/A',
+    }));
+    const ws = XLSX.utils.json_to_sheet(appointmentSheetData);
+    ws['!cols'] = calculateColumnWidths(appointmentSheetData);
+    XLSX.utils.book_append_sheet(workbook, ws, 'Appointments');
+  }
+
+  // Patients sheet
+  if (patientsData.length > 0) {
+    const patientSheetData = patientsData.map(p => ({
+      'Full Name': `${p.name} ${p.lastName}`.trim(),
+      'First Name': p.name || 'N/A',
+      'Last Name': p.lastName || 'N/A',
+      'Age': p.age ?? 'N/A',
+      'Birthday': p.birthday || 'N/A',
+      'Gender': p.gender || 'N/A',
+      'Phone Number': p.phone || 'N/A',
+      'Registration Date': p.registrationDate || 'N/A',
+      'Patient ID': p.id,
+    }));
+    const ws = XLSX.utils.json_to_sheet(patientSheetData);
+    ws['!cols'] = calculateColumnWidths(patientSheetData);
+    XLSX.utils.book_append_sheet(workbook, ws, 'Patients');
+  }
+
+  if (workbook.SheetNames.length > 1) {
+    const filename = `Appointment_Report_${reportDate}.xlsx`;
+    XLSX.writeFile(workbook, filename);
+    console.log(`Excel Report Saved as ${filename}`);
+  } else {
+    alert('No data available to export.');
+  }
+}
+
 	// --- Lifecycle Hooks ---
 	onMount(async () => {
 		if (!db) { console.error('Firestore DB not available on mount.'); return; }
@@ -1369,18 +1447,19 @@ function downloadExcelReport(
 			 // Prescriptions not fetched on mount — dashboard focuses on appointments & patients
 
 			// Fetch stats (now uses pre-fetched data)
-			 stats = await fetchDashboardStats();
+			stats = await fetchDashboardStats();
 
 			// Initial render of charts (use current month/year)
 			const currentMonth = new Date().getMonth() + 1;
 			const currentYear = new Date().getFullYear();
-		await Promise.all([
-			updateAndRenderAppointmentStatusPieChart(),
-			updateAndRenderGenderDistributionChart(),
-			updateAndRenderWeeklyAppointmentsChart(),
-			updateAndRenderCompletedMissedChart(),
-			updateAndRenderLineChart(currentYear, currentMonth)
-		]);			// Fetch data for the default view of the monthly table
+			await Promise.all([
+				updateAndRenderAppointmentStatusPieChart(),
+				updateAndRenderGenderDistributionChart(),
+				updateAndRenderWeeklyAppointmentsChart(),
+				updateAndRenderCompletedMissedChart(),
+				updateAndRenderLineChart(currentYear, currentMonth)
+			]);
+			// Fetch data for the default view of the monthly table
 			monthlyAppointmentsData = await fetchMonthlyAppointmentsTableData(selectedYear, selectedMonth);
 			console.log('Initial data load and chart rendering complete.');
 		} catch (error) {
@@ -1457,79 +1536,59 @@ function downloadExcelReport(
 							</svg>
 							<span class="hidden sm:inline">Reports</span>
 						</button>
-						<div class="flex items-center gap-2">
-							<label for="exportTypeSelect" class="text-xs sm:text-sm font-medium text-gray-600 whitespace-nowrap">Export:</label>
-							<select
-								id="exportTypeSelect"
-								bind:value={exportType}
-								class="border border-gray-300 rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500 flex-1"
-							>
-								<option value="excel">Excel</option>
-							</select>
-						</div>
-						<button
-							on:click={generateReport}
-							aria-label="Generate report"
-							class="bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-							</svg>
-							<span class="hidden sm:inline">Generate</span>
-						</button>
 					</div>
 				</div>
 			</div>
 
 			<!-- Stats Cards -->
-			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-indigo-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-indigo-200" on:click={() => handleCardClick('monthlyAppointments')}>
-					<div class="flex items-center justify-between">
-						<div>
+			<div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-2 sm:p-6 border border-indigo-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-indigo-200" on:click={() => handleCardClick('monthlyAppointments')}>
+					<div class="flex items-center justify-between gap-2">
+						<div class="min-w-0">
 							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">This Month's Appointments</p>
-							<h3 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-900 to-indigo-700 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.monthlyAppointments}</h3>
+							<h3 class="text-lg sm:text-3xl font-bold bg-gradient-to-r from-blue-900 to-indigo-700 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.monthlyAppointments}</h3>
 						</div>
-							<div class="p-3 sm:p-4 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md">
-								<svg class="w-6 h-6 sm:w-7 sm:h-7 text-blue-900 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-2 sm:p-4 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md flex-shrink-0">
+								<svg class="w-4 h-4 sm:w-7 sm:h-7 text-blue-900 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'all')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-emerald-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-emerald-200" on:click={() => handleCardClick('appointments', 'all')}>
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Appointments</p>
-							<h3 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.newAppointments}</h3>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'all')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-2 sm:p-6 border border-emerald-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-emerald-200" on:click={() => handleCardClick('appointments', 'all')}>
+					<div class="flex items-center justify-between gap-2">
+						<div class="min-w-0">
+							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Total Appointments</p>
+							<h3 class="text-lg sm:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.newAppointments}</h3>
 						</div>
-							<div class="p-3 sm:p-4 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md">
-								<svg class="w-6 h-6 sm:w-7 sm:h-7 text-emerald-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-2 sm:p-4 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md flex-shrink-0">
+								<svg class="w-4 h-4 sm:w-7 sm:h-7 text-emerald-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'today')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-purple-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-purple-200" on:click={() => handleCardClick('appointments', 'today')}>
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Today's Appointments</p>
-							<h3 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.todaysAppointments}</h3>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'today')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-2 sm:p-6 border border-purple-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-purple-200" on:click={() => handleCardClick('appointments', 'today')}>
+					<div class="flex items-center justify-between gap-2">
+						<div class="min-w-0">
+							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Today's Appointments</p>
+							<h3 class="text-lg sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.todaysAppointments}</h3>
 						</div>
-							<div class="p-3 sm:p-4 bg-gradient-to-br from-purple-100 to-violet-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md">
-								<svg class="w-6 h-6 sm:w-7 sm:h-7 text-purple-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-2 sm:p-4 bg-gradient-to-br from-purple-100 to-violet-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md flex-shrink-0">
+								<svg class="w-4 h-4 sm:w-7 sm:h-7 text-purple-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('patients')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-amber-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-amber-200" on:click={() => handleCardClick('patients')}>
-					<div class="flex items-center justify-between">
-						<div>
-							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Members</p>
-							<h3 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.totalPatients}</h3>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('patients')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-2 sm:p-6 border border-amber-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-amber-200" on:click={() => handleCardClick('patients')}>
+					<div class="flex items-center justify-between gap-2">
+						<div class="min-w-0">
+							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Total Members</p>
+							<h3 class="text-lg sm:text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.totalPatients}</h3>
 						</div>
-							<div class="p-3 sm:p-4 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md">
-								<svg class="w-6 h-6 sm:w-7 sm:h-7 text-amber-600 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="p-2 sm:p-4 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md flex-shrink-0">
+								<svg class="w-4 h-4 sm:w-7 sm:h-7 text-amber-600 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
 							</svg>
 						</div>
@@ -1601,7 +1660,8 @@ function downloadExcelReport(
 							</svg>
 						</div>
 						<div class="flex flex-col gap-2">
-						<div class="flex flex-col sm:flex-row gap-2">
+						<!-- Date Range on Mobile, Status/Sort on Desktop -->
+						<div class="flex flex-col sm:flex-row gap-2 order-first sm:order-last">
 							<select
 								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={appointmentStatusFilter}
@@ -1613,6 +1673,7 @@ function downloadExcelReport(
 								<option value="completed">Completed</option>
 								<option value="missed">Missed</option>
 								<option value="declined">Declined</option>
+								<option value="cancellation_requested">Cancellation Requested</option>
 								<option value="other">Other</option>
 							</select>
 							<select
@@ -1626,17 +1687,20 @@ function downloadExcelReport(
 								<option value="name-desc">Patient (Z → A)</option>
 							</select>
 						</div>
-						<div class="flex flex-col sm:flex-row gap-2 items-end">
-							<div class="flex-1">
-								<label for="appt-filter-start" class="block text-xs font-semibold text-gray-600 mb-1">From</label>
-								<input id="appt-filter-start" type="date" bind:value={appointmentFilterStartDate} class="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments from date" />
-							</div>
-							<div class="flex-1">
-								<label for="appt-filter-end" class="block text-xs font-semibold text-gray-600 mb-1">To</label>
-								<input id="appt-filter-end" type="date" bind:value={appointmentFilterEndDate} class="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments to date" />
+						<!-- Date Range First on Mobile -->
+						<div class="flex flex-col gap-2 order-last sm:order-first">
+							<div class="flex gap-2 items-end">
+								<div class="flex-1 min-w-0">
+									<label for="appt-filter-start" class="block text-xs font-semibold text-gray-600 mb-1">From</label>
+									<input id="appt-filter-start" type="date" bind:value={appointmentFilterStartDate} class="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments from date" />
+								</div>
+								<div class="flex-1 min-w-0">
+									<label for="appt-filter-end" class="block text-xs font-semibold text-gray-600 mb-1">To</label>
+									<input id="appt-filter-end" type="date" bind:value={appointmentFilterEndDate} class="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments to date" />
+								</div>
 							</div>
 							{#if appointmentFilterStartDate || appointmentFilterEndDate}
-								<button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-2 py-1.5 sm:py-2 rounded text-xs font-semibold whitespace-nowrap">Clear</button>
+								<button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-2 py-1.5 sm:py-2 rounded text-xs font-semibold w-full sm:w-auto">Clear</button>
 							{/if}
 						</div>
 					</div>
@@ -1665,6 +1729,8 @@ function downloadExcelReport(
 													appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
 													appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
 													appointment.status && appointment.status.toLowerCase().includes('declined') ? 'bg-gray-200 text-gray-800' :
+													appointment.status && appointment.status.toLowerCase().includes('cancellationrequest') ? 'bg-orange-100 text-orange-800' :
+													appointment.status && appointment.status.toLowerCase().includes('cancelled') ? 'bg-red-200 text-red-900' :
 													'bg-gray-300 text-gray-700'}">
 													{appointment.status}
 												</span>
@@ -1797,51 +1863,58 @@ function downloadExcelReport(
 
             {#if openTable === 'appointments'}
                 <div class="space-y-4">
-                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div class="relative w-full lg:w-1/2">
-                            <input
-                                type="text"
-                                placeholder="Search by patient or service..."
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                bind:value={appointmentSearchTerm}
-                                aria-label="Search appointments"
-                            />
-                            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
-                            </svg>
-                        </div>
-                        <div class="flex flex-wrap gap-2 w-full lg:w-1/2">
-                            <select
-                                class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                bind:value={appointmentStatusFilter}
-                                aria-label="Filter appointments by status"
-                            >
-                                <option value="all">All Statuses</option>
-                                <option value="pending">Pending</option>
-                                <option value="accepted">Accepted</option>
-                                <option value="completed">Completed</option>
-                                <option value="missed">Missed</option>
-                                <option value="declined">Declined</option>
-                                <option value="other">Other</option>
-                            </select>
-                            <select
-                                class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                bind:value={appointmentSortOption}
-                                aria-label="Sort appointments"
-                            >
-                                <option value="date-desc">Date (Newest)</option>
-                                <option value="date-asc">Date (Oldest)</option>
-                                <option value="name-asc">Patient (A → Z)</option>
-                                <option value="name-desc">Patient (Z → A)</option>
-                            </select>
-                        </div>
-                        <div class="flex flex-wrap gap-2 w-full">
-                            <input type="date" bind:value={appointmentFilterStartDate} placeholder="From date" class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments from date" />
-                            <input type="date" bind:value={appointmentFilterEndDate} placeholder="To date" class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments to date" />
+                    <!-- Search Bar (Top) -->
+                    <div class="relative w-full">
+                        <input
+                            type="text"
+                            placeholder="Search by patient or service..."
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            bind:value={appointmentSearchTerm}
+                            aria-label="Search appointments"
+                        />
+                        <svg class="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
+                        </svg>
+                    </div>
+
+                    <!-- Date Range Filters (Middle) -->
+                    <div class="flex flex-col gap-2 w-full">
+                        <div class="text-xs font-semibold text-gray-600 uppercase">Date Range</div>
+                        <div class="flex flex-col sm:flex-row gap-2 w-full">
+                            <input type="date" bind:value={appointmentFilterStartDate} placeholder="From date" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments from date" />
+                            <input type="date" bind:value={appointmentFilterEndDate} placeholder="To date" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments to date" />
                             {#if appointmentFilterStartDate || appointmentFilterEndDate}
                                 <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap">Clear Dates</button>
                             {/if}
                         </div>
+                    </div>
+
+                    <!-- Status and Sort Dropdowns (Below) -->
+                    <div class="flex flex-wrap gap-2 w-full">
+                        <select
+                            class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            bind:value={appointmentStatusFilter}
+                            aria-label="Filter appointments by status"
+                        >
+                            <option value="all">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="completed">Completed</option>
+                            <option value="missed">Missed</option>
+                            <option value="declined">Declined</option>
+                            <option value="cancellation_requested">Cancellation Requested</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                        <select
+                            class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            bind:value={appointmentSortOption}
+                            aria-label="Sort appointments"
+                        >
+                            <option value="date-desc">Date (Newest)</option>
+                            <option value="date-asc">Date (Oldest)</option>
+                            <option value="name-asc">Patient (A → Z)</option>
+                            <option value="name-desc">Patient (Z → A)</option>
+                        </select>
                     </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -1871,6 +1944,7 @@ function downloadExcelReport(
                                             appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
                                             appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
                                             appointment.status && appointment.status.toLowerCase().includes('declined') ? 'bg-gray-200 text-gray-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('cancellation') ? 'bg-orange-100 text-orange-800' :
                                             'bg-gray-300 text-gray-700'}">
                                             {appointment.status}
                                         </span>
@@ -1998,7 +2072,8 @@ function downloadExcelReport(
                                 <option value="completed">Completed</option>
                                 <option value="missed">Missed</option>
                                 <option value="declined">Declined</option>
-                                <option value="other">Other</option>
+                                <option value="cancellation_requested">Cancellation Requested</option>
+                                <option value="cancelled">Cancelled</option>
                             </select>
                             <select
                                 class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
@@ -2047,6 +2122,8 @@ function downloadExcelReport(
                                             appointment.status && appointment.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
                                             appointment.status && appointment.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
                                             appointment.status && appointment.status.toLowerCase().includes('declined') ? 'bg-gray-200 text-gray-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('cancellationrequest') ? 'bg-orange-100 text-orange-800' :
+                                            appointment.status && appointment.status.toLowerCase().includes('cancelled') ? 'bg-red-200 text-red-900' :
                                             'bg-gray-300 text-gray-700'}">
                                             {appointment.status}
                                         </span>
@@ -2290,33 +2367,33 @@ function downloadExcelReport(
 			</div>
 
 			<!-- Modal Content -->
-			<div class="p-6">
+			<div class="p-3 sm:p-4 md:p-6">
 				<!-- Date Range Selector -->
-				<div class="bg-gradient-to-r from-yellow-50 to-yellow-50 rounded-xl p-4 mb-6 border border-yellow-100">
-					<h3 class="text-sm font-semibold text-gray-700 mb-3">Select Date Range</h3>
-					<div class="flex flex-col sm:flex-row gap-4 items-end">
-						<div class="flex-1">
+				<div class="bg-gradient-to-r from-yellow-50 to-yellow-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-yellow-100">
+					<h3 class="text-xs sm:text-sm font-semibold text-gray-700 mb-3">Select Date Range</h3>
+					<div class="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
+						<div class="flex-1 min-w-0">
 							<label for="reportStartDate" class="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
 							<input
 								id="reportStartDate"
 								type="date"
 								bind:value={reportStartDate}
-								class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500"
+								class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
 							/>
 						</div>
-						<div class="flex-1">
+						<div class="flex-1 min-w-0">
 							<label for="reportEndDate" class="block text-xs font-medium text-gray-600 mb-1">End Date</label>
 							<input
 								id="reportEndDate"
 								type="date"
 								bind:value={reportEndDate}
-								class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500"
+								class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
 							/>
 						</div>
 						<button
 							on:click={generateAppointmentReport}
 							disabled={isGeneratingReport}
-							class="bg-gradient-to-r from-yellow-600 to-yellow-600 hover:from-yellow-700 hover:to-yellow-700 disabled:from-yellow-500 disabled:to-yellow-500 text-white px-6 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-75 flex items-center gap-2"
+							class="w-full sm:w-fit bg-gradient-to-r from-yellow-600 to-yellow-600 hover:from-yellow-700 hover:to-yellow-700 disabled:from-yellow-500 disabled:to-yellow-500 text-white px-4 sm:px-5 py-2.5 sm:py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-75 flex items-center justify-center gap-2"
 						>
 							{#if isGeneratingReport}
 								<svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -2331,59 +2408,112 @@ function downloadExcelReport(
 					</div>
 				</div>
 
+				<!-- Export Controls -->
+				{#if reportData}
+					<div class="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-100">
+						<div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+							<div class="flex items-center gap-2 flex-1">
+								<label for="exportFormatSelect" class="text-xs sm:text-sm font-semibold text-gray-700 whitespace-nowrap">Export as:</label>
+								<select
+									id="exportFormatSelect"
+									bind:value={exportType}
+									class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+								>
+									<option value="excel">Excel</option>
+									<option value="pdf">PDF</option>
+								</select>
+							</div>
+							<button
+								on:click={() => {
+									if (reportData && exportType === 'pdf') {
+										downloadPdfReport(reportData.appointments, allPatients);
+									} else if (reportData) {
+										downloadExcelReportFromReport(reportData.appointments, allPatients);
+									}
+								}}
+								class="w-full sm:w-fit bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white px-4 sm:px-5 py-2.5 sm:py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+								</svg>
+								<span class="hidden sm:inline">Download</span>
+							</button>
+						</div>
+						<div class="text-xs sm:text-sm text-gray-700 bg-white rounded p-2 sm:p-3 border border-blue-200">
+							{#if exportType === 'pdf'}
+								<p class="font-semibold text-blue-900 mb-1">PDF Export includes:</p>
+								<ul class="list-disc list-inside space-y-1 text-gray-600">
+									<li>Report generation date and timestamp</li>
+									<li>Filtered appointments data (Patient Name, Date, Time, Service, Subservice, Status)</li>
+									<li>Patient information (Name, Age, Birthday, Gender, Phone, Registration Date)</li>
+									<li>Professional formatting with color-coded tables</li>
+								</ul>
+							{:else}
+								<p class="font-semibold text-blue-900 mb-1">Excel Export includes:</p>
+								<ul class="list-disc list-inside space-y-1 text-gray-600">
+									<li><strong>Report Info Sheet:</strong> Generation date and metadata</li>
+									<li><strong>Appointments Sheet:</strong> Filtered appointments within your date range</li>
+									<li><strong>Patients Sheet:</strong> Patient details (Name, Age, Gender, Phone, ID, Registration Date)</li>
+									<li>Auto-sized columns for easy reading</li>
+								</ul>
+							{/if}
+						</div>
+					</div>
+				{/if}
+
 				{#if reportData}
 					<!-- Summary Statistics -->
-					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-						<div class="bg-white rounded-xl shadow-md p-4 border border-indigo-100">
-							<div class="flex items-center justify-between">
-								<div>
-									<p class="text-xs font-semibold text-gray-600 uppercase">Total Appointments</p>
-									<h3 class="text-2xl font-bold text-indigo-700 mt-1">{reportData.totalAppointments}</h3>
+					<div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
+						<div class="bg-white rounded-lg sm:rounded-xl shadow-md p-2 sm:p-4 border border-indigo-100">
+							<div class="flex items-center justify-between gap-2">
+								<div class="min-w-0">
+									<p class="text-xs font-semibold text-gray-600 uppercase tracking-tight">Total</p>
+									<h3 class="text-lg sm:text-2xl font-bold text-indigo-700 mt-1">{reportData.totalAppointments}</h3>
 								</div>
-								<div class="p-3 bg-indigo-100 rounded-lg">
-									<svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<div class="p-2 sm:p-3 bg-indigo-100 rounded-lg flex-shrink-0">
+									<svg class="w-4 h-4 sm:w-6 sm:h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 									</svg>
 								</div>
 							</div>
 						</div>
 
-						<div class="bg-white rounded-xl shadow-md p-4 border border-emerald-100">
-							<div class="flex items-center justify-between">
-								<div>
-									<p class="text-xs font-semibold text-gray-600 uppercase">Avg Per Day</p>
-									<h3 class="text-2xl font-bold text-emerald-700 mt-1">{reportData.avgPerDay}</h3>
+						<div class="bg-white rounded-lg sm:rounded-xl shadow-md p-2 sm:p-4 border border-emerald-100">
+							<div class="flex items-center justify-between gap-2">
+								<div class="min-w-0">
+									<p class="text-xs font-semibold text-gray-600 uppercase tracking-tight">Avg/Day</p>
+									<h3 class="text-lg sm:text-2xl font-bold text-emerald-700 mt-1">{reportData.avgPerDay}</h3>
 								</div>
-								<div class="p-3 bg-emerald-100 rounded-lg">
-									<svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<div class="p-2 sm:p-3 bg-emerald-100 rounded-lg flex-shrink-0">
+									<svg class="w-4 h-4 sm:w-6 sm:h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
 									</svg>
 								</div>
 							</div>
 						</div>
 
-						<div class="bg-white rounded-xl shadow-md p-4 border border-purple-100 animate-slideInUp" style="--animation-delay: 0.15s;">
-							<div class="flex items-center justify-between">
-								<div>
-									<p class="text-xs font-semibold text-gray-600 uppercase">Most Common</p>
-									<h3 class="text-sm font-bold text-purple-700 mt-1 truncate" title={reportData.mostCommonService}>{reportData.mostCommonService}</h3>
+						<div class="bg-white rounded-lg sm:rounded-xl shadow-md p-2 sm:p-4 border border-purple-100 animate-slideInUp" style="--animation-delay: 0.15s;">
+							<div class="flex items-center justify-between gap-2">
+								<div class="min-w-0">
+									<p class="text-xs font-semibold text-gray-600 uppercase tracking-tight">Common</p>
+									<h3 class="text-lg sm:text-2xl font-bold text-purple-700 mt-1 truncate" title={reportData.mostCommonService}>{reportData.mostCommonService}</h3>
 								</div>
-								<div class="p-3 bg-purple-100 rounded-lg">
-									<svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<div class="p-2 sm:p-3 bg-purple-100 rounded-lg flex-shrink-0">
+									<svg class="w-4 h-4 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
 									</svg>
 								</div>
 							</div>
 						</div>
 
-						<div class="bg-white rounded-xl shadow-md p-4 border border-amber-100 animate-slideInUp" style="--animation-delay: 0.2s;">
-							<div class="flex items-center justify-between">
-								<div>
-									<p class="text-xs font-semibold text-gray-600 uppercase">Busiest Day</p>
-									<h3 class="text-sm font-bold text-amber-700 mt-1">{reportData.busiestDay}</h3>
+						<div class="bg-white rounded-lg sm:rounded-xl shadow-md p-2 sm:p-4 border border-amber-100 animate-slideInUp" style="--animation-delay: 0.2s;">
+							<div class="flex items-center justify-between gap-2">
+								<div class="min-w-0">
+									<p class="text-xs font-semibold text-gray-600 uppercase tracking-tight">Busiest</p>
+									<h3 class="text-lg sm:text-2xl font-bold text-amber-700 mt-1 truncate">{reportData.busiestDay}</h3>
 								</div>
-								<div class="p-3 bg-amber-100 rounded-lg">
-									<svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<div class="p-2 sm:p-3 bg-amber-100 rounded-lg flex-shrink-0">
+									<svg class="w-4 h-4 sm:w-6 sm:h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
 									</svg>
 								</div>
@@ -2392,33 +2522,35 @@ function downloadExcelReport(
 					</div>
 
 					<!-- Status Breakdown -->
-					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-						<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-							<h3 class="text-lg font-bold text-gray-800 mb-4 pb-2 border-b-2 border-indigo-100 flex items-center gap-2">
-								<svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+						<div class="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100">
+							<h3 class="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 pb-2 border-b-2 border-indigo-100 flex items-center gap-2">
+								<svg class="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 								</svg>
-								Status Breakdown
+								<span class="truncate">Status Breakdown</span>
 							</h3>
-							<div class="space-y-3">
+							<div class="space-y-2 sm:space-y-3">
 								{#each Object.entries(reportData.statusBreakdown).sort((a, b) => b[1] - a[1]) as [status, count]}
-									<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-										<div class="flex items-center gap-2">
-											<span class="px-3 py-1 text-xs font-medium rounded-full
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-2">
+										<div class="flex items-center gap-2 min-w-0">
+											<span class="px-2.5 sm:px-3 py-0.5 sm:py-1 text-xs font-medium rounded-full whitespace-nowrap
 												{status.includes('completed') ? 'bg-green-100 text-green-800' :
 												status.includes('pending') ? 'bg-yellow-100 text-yellow-800' :
 												status.includes('accepted') ? 'bg-blue-100 text-blue-800' :
 												status.includes('missed') ? 'bg-red-100 text-red-800' :
 												status.includes('declined') ? 'bg-gray-200 text-gray-800' :
+												status.includes('cancellationrequest') ? 'bg-orange-100 text-orange-800' :
+												status.includes('cancelled') ? 'bg-red-200 text-red-900' :
 												'bg-gray-300 text-gray-700'}">
 												{status.charAt(0).toUpperCase() + status.slice(1)}
 											</span>
 										</div>
-										<div class="flex items-center gap-3">
-											<div class="w-32 bg-gray-200 rounded-full h-2">
+										<div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+											<div class="flex-1 sm:w-24 bg-gray-200 rounded-full h-2">
 												<div class="bg-gradient-to-r from-purple-600 to-violet-600 h-2 rounded-full transition-all" style="width: {(count / reportData.totalAppointments * 100).toFixed(1)}%"></div>
 											</div>
-											<span class="text-sm font-bold text-gray-700 w-12 text-right">{count}</span>
+											<span class="text-xs sm:text-sm font-bold text-gray-700 w-8 sm:w-12 text-right flex-shrink-0">{count}</span>
 										</div>
 									</div>
 								{/each}
@@ -2426,22 +2558,22 @@ function downloadExcelReport(
 						</div>
 
 						<!-- Service Breakdown -->
-						<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-							<h3 class="text-lg font-bold text-gray-800 mb-4 pb-2 border-b-2 border-indigo-100 flex items-center gap-2">
-								<svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<div class="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100">
+							<h3 class="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 pb-2 border-b-2 border-indigo-100 flex items-center gap-2">
+								<svg class="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
 								</svg>
-								Service Breakdown
+								<span class="truncate">Service Breakdown</span>
 							</h3>
-							<div class="space-y-3 max-h-80 overflow-y-auto">
+							<div class="space-y-2 sm:space-y-3 max-h-64 sm:max-h-80 overflow-y-auto">
 								{#each Object.entries(reportData.serviceBreakdown).sort((a, b) => b[1] - a[1]) as [service, count]}
-									<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-										<span class="text-sm font-medium text-gray-700 flex-1 truncate" title={service}>{service}</span>
-										<div class="flex items-center gap-3 ml-3">
-											<div class="w-24 bg-gray-200 rounded-full h-2">
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-2">
+										<span class="text-xs sm:text-sm font-medium text-gray-700 truncate flex-1" title={service}>{service}</span>
+										<div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+											<div class="flex-1 sm:w-20 bg-gray-200 rounded-full h-2">
 												<div class="bg-gradient-to-r from-indigo-600 to-purple-600 h-2 rounded-full transition-all" style="width: {(count / reportData.totalAppointments * 100).toFixed(1)}%"></div>
 											</div>
-											<span class="text-sm font-bold text-gray-700 w-10 text-right">{count}</span>
+											<span class="text-xs sm:text-sm font-bold text-gray-700 w-8 text-right flex-shrink-0">{count}</span>
 										</div>
 									</div>
 								{/each}
@@ -2450,21 +2582,21 @@ function downloadExcelReport(
 					</div>
 
 					<!-- Export Button -->
-					<div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+					<div class="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-gray-200">
 						<button
 							on:click={() => showReportsModal = false}
-							class="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+							class="px-4 sm:px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors w-full sm:w-auto"
 						>
 							Close
 						</button>
 						<button
 							on:click={exportAppointmentReport}
-							class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-6 py-2 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+							class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 w-full sm:w-auto"
 						>
-							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
 							</svg>
-							Export to Excel
+							<span>Export to Excel</span>
 						</button>
 					</div>
 				{:else}

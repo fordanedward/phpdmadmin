@@ -61,7 +61,8 @@
         filtered = filtered.filter(a =>
           (a.patientName && a.patientName.toLowerCase().includes(s)) ||
           (a.patientEmail && a.patientEmail.toLowerCase().includes(s)) ||
-          (a.patientId && a.patientId.toLowerCase().includes(s))
+          (a.patientId && a.patientId.toLowerCase().includes(s)) ||
+          (a.time && a.time.toLowerCase().includes(s))
         );
       }
       if (selectedService) {
@@ -345,7 +346,7 @@
       <div class="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-200 rounded-lg shadow-sm flex flex-wrap gap-3 sm:gap-4 mb-6 sm:mb-8 items-end px-3 sm:px-4 py-3">
         <div class="relative flex-1 min-w-[180px] sm:min-w-[200px]">
           <label for="search-input" class="block text-xs font-semibold text-gray-600 mb-1">Search</label>
-          <input id="search-input" type="text" bind:value={search} placeholder="Name, email, or ID" class="w-full border rounded px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm" />
+          <input id="search-input" type="text" bind:value={search} placeholder="Name, email, ID, or time" class="w-full border rounded px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm" />
         </div>
         <div class="min-w-[140px] sm:min-w-[150px]">
           <label for="service-select" class="block text-xs font-semibold text-gray-600 mb-1">Service</label>
@@ -423,6 +424,8 @@
                   {/if}
                   <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-1 sm:mt-2">
                     <span class="inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 font-medium">{appointment.date} at {appointment.time}</span>
+                  </div>
+                  <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-2">
                     <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700">Service: {appointment.service}</span>
                     {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
                       <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
@@ -471,9 +474,11 @@
                       <span class="text-gray-600">Original: <span class="font-medium">{appointment.originalDate} at {appointment.originalTime}</span></span>
                     {/if}
                     <span class="inline-block px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-medium">Requests to: {appointment.date} at {appointment.time}</span>
-                    <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700 mt-1">Service: {appointment.service}</span>
+                  </div>
+                  <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-2">
+                    <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700">Service: {appointment.service}</span>
                     {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
-                      <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700 mt-1">Selected: {appointment.subServices.join(', ')}</span>
+                      <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
                     {/if}
                   </div>
                   <div class="flex gap-2 mt-3 sm:mt-4 justify-end">

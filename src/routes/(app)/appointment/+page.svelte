@@ -115,6 +115,15 @@
 
   const today = new Date();
 
+  // Time slot constants (same as admin side)
+  const ALL_POSSIBLE_MORNING_SLOTS = [
+      "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
+  ];
+  const ALL_POSSIBLE_AFTERNOON_SLOTS = [
+      "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
+  ];
+  const ALL_POSSIBLE_SLOTS = [...ALL_POSSIBLE_MORNING_SLOTS, ...ALL_POSSIBLE_AFTERNOON_SLOTS];
+
   let search = '';
   let selectedService = '';
   let sortBy = 'dateDesc';
@@ -560,6 +569,13 @@
                   return; 
               }
               scheduledSlotsForDay = scheduleData.availableSlots || [];
+              
+              // Fallback: if marked as working day but no slots defined, use all possible slots
+              if (scheduledSlotsForDay.length === 0) {
+                  console.warn(`${selectedDate} is marked as working day but has no slots. Using all possible slots as fallback.`);
+                  scheduledSlotsForDay = ALL_POSSIBLE_SLOTS;
+              }
+              
               console.log(`Scheduled slots from dailySchedules for ${selectedDate}:`, scheduledSlotsForDay);
           } else {
               console.log(`No schedule defined in dailySchedules for ${selectedDate}. No slots available.`);
