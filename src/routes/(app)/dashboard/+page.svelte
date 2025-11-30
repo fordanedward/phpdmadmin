@@ -1178,19 +1178,39 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
     console.log('Generating PDF Report...');
     const pdfDoc = new jsPDF();
     const reportDate = getTodayString(); // Get today's date
-    let currentY = 15; // Start Y position
+    let currentY = 10; // Start Y position
+    const pageWidth = pdfDoc.internal.pageSize.getWidth();
+    const pageHeight = pdfDoc.internal.pageSize.getHeight();
+
+    // --- Organization Header (Text Only) ---
+    pdfDoc.setFontSize(14);
+    pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.setTextColor(16, 71, 138); // Permanente blue color
+    pdfDoc.text('The Permanente Health Plan Corp.', pageWidth / 2, 10, { align: 'center' });
+    
+    pdfDoc.setFontSize(11);
+    pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.setTextColor(0, 0, 0);
+    pdfDoc.text('Multi-Specialty Health Plan', pageWidth / 2, 17, { align: 'center' });
+    pdfDoc.setFontSize(9);
+    pdfDoc.text('Lot 19, Blk. 7, Mayumi St. Sta. Rita, Olongapo City', pageWidth / 2, 23, { align: 'center' });
+
+    currentY = 30;
 
     // --- Report Title and Generation Date ---
-    pdfDoc.setFontSize(16); pdfDoc.setFont('helvetica', 'bold');
-    pdfDoc.text('Data Report Summary', pdfDoc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
-    currentY += 8; // Move down
+    pdfDoc.setFontSize(14);
+    pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.setTextColor(0, 0, 0);
+    pdfDoc.text('Data Report Summary', pageWidth / 2, currentY, { align: 'center' });
+    currentY += 8;
 
-    pdfDoc.setFontSize(10); pdfDoc.setFont('helvetica', 'normal');
-    pdfDoc.text(`${REPORT_DATE_LABEL}: ${reportDate}`, pdfDoc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
+    pdfDoc.setFontSize(10);
+    pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.text(`${REPORT_DATE_LABEL}: ${reportDate}`, pageWidth / 2, currentY, { align: 'center' });
     currentY += 5;
     pdfDoc.setFontSize(8);
-    pdfDoc.text(`(${REPORT_DATE_DESCRIPTION})`, pdfDoc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
-    currentY += 10; // Add more space before the first table
+    pdfDoc.text(`(${REPORT_DATE_DESCRIPTION})`, pageWidth / 2, currentY, { align: 'center' });
+    currentY += 10;
     pdfDoc.setFontSize(10);
 
 	// Prescriptions removed from report (focus on appointments and patients)
@@ -1198,15 +1218,17 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
     // --- Appointments Section ---
     if (appointmentsData.length > 0) {
         // Check if adding this table will exceed the page height, add new page if needed
-        if (currentY > pdfDoc.internal.pageSize.height - 30) { // Check approx height needed
+        if (currentY > pageHeight - 40) {
            pdfDoc.addPage();
-           currentY = 20; // Reset Y for new page
+           currentY = 20;
         }
 
-        pdfDoc.setFontSize(12); pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.setFontSize(12);
+        pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.setTextColor(0, 0, 0);
         pdfDoc.text('Appointments', 10, currentY);
         currentY += 7;
-		pdfDoc.autoTable({
+		(pdfDoc as any).autoTable({
 			head: [['Patient Name', 'Appointment Date', 'Time', 'Service', 'Subservice', 'Status']],
             body: appointmentsData.map(appt => [
                 appt.patientName || 'Unknown',
@@ -1217,20 +1239,34 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
                 appt.status || 'N/A'
             ]),
             startY: currentY,
-            theme: 'grid', // Grid lines for structure
-            headStyles: { fillColor: [39, 174, 96], textColor: 255, fontStyle: 'bold' }
+            theme: 'grid',
+            headStyles: { 
+                fillColor: [225, 168, 0], // #e1a800 - Gold color
+                textColor: [0, 0, 0], // Black text
+                fontStyle: 'bold',
+                fontSize: 10
+            },
+            bodyStyles: {
+                textColor: [0, 0, 0],
+                fontSize: 9
+            },
+            alternateRowStyles: {
+                fillColor: [255, 250, 240] // Very light gold background for alternate rows
+            }
         });
         currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
     }
 
     // --- Patients Section ---
     if (patientsData.length > 0) {
-        if (currentY > pdfDoc.internal.pageSize.height - 30) {
+        if (currentY > pageHeight - 40) {
            pdfDoc.addPage();
            currentY = 20;
         }
 
-        pdfDoc.setFontSize(12); pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.setFontSize(12);
+        pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.setTextColor(0, 0, 0);
         pdfDoc.text('Patients', 10, currentY);
         currentY += 7;
 		(pdfDoc as any).autoTable({
@@ -1244,10 +1280,21 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
 				p.registrationDate || 'N/A'
 			]),
 			startY: currentY,
-			theme: 'plain', // Simple theme
-			headStyles: { fillColor: [88, 86, 214], textColor: 255, fontStyle: 'bold' }
+			theme: 'grid',
+			headStyles: { 
+                fillColor: [16, 71, 138], // #10478a - Permanente blue
+                textColor: [255, 255, 255], // White text
+                fontStyle: 'bold',
+                fontSize: 10
+            },
+            bodyStyles: {
+                textColor: [0, 0, 0],
+                fontSize: 9
+            },
+            alternateRowStyles: {
+                fillColor: [240, 245, 250] // Very light blue background for alternate rows
+            }
 		});
-        // currentY = (pdfDoc as any).lastAutoTable.finalY + 10; // No need if it's the last table
     }
 
     // --- Save the PDF with Date in Filename ---
