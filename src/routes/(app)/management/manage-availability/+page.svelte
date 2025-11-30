@@ -62,7 +62,8 @@
   let isWorkingDay: boolean = true;
   let defaultWorkingDays: number[] = [1, 2, 3, 4, 5]; 
   let initialLoadComplete: boolean = false;
-  let hasDefaultChanges: boolean = false; 
+  let hasDefaultChanges: boolean = false;
+  let userHasModifiedSlots: boolean = false;
 
 
   function sortTimeSlots(slots: string[]): string[] {
@@ -100,6 +101,7 @@
   function toggleAllSlots() {
       if (isSavingSchedule) return;
       currentSlots = allSlotsSelected ? [] : sortTimeSlots(ALL_POSSIBLE_SLOTS);
+      userHasModifiedSlots = true;
   }
 
   $: allSlotsSelected = currentSlots.length === ALL_POSSIBLE_SLOTS.length &&
@@ -185,7 +187,8 @@
       }
 
       isLoadingSchedule = true;
-      currentSlots = []; 
+      currentSlots = [];
+      userHasModifiedSlots = false; 
 
       let dayOfWeek: number;
       try {
@@ -261,7 +264,7 @@
       loadScheduleForDate();
   }
   
-  $: if (isWorkingDay && initialLoadComplete && !isLoadingSchedule && currentSlots.length === 0) {
+  $: if (isWorkingDay && initialLoadComplete && !isLoadingSchedule && currentSlots.length === 0 && !userHasModifiedSlots) {
       currentSlots = sortTimeSlots(ALL_POSSIBLE_SLOTS);
   }
   

@@ -147,6 +147,7 @@ interface Prescription {
 	let monthlyAppointmentsData: Appointment[] = [];
 
 	let openTable: 'patients' | 'appointments' | 'monthlyAppointments' | null = null;
+	let appointmentViewMode: 'all' | 'today' = 'all';
 	let exportType: 'excel' | 'pdf' = 'excel';
 	let selectedYear = CURRENT_YEAR;
 	let selectedMonth = new Date().getMonth() + 1;
@@ -156,6 +157,7 @@ interface Prescription {
 	let reportStartDate = '';
 	let reportEndDate = '';
 	let reportData: AppointmentReportData | null = null;
+	let isGeneratingReport = false;
 
 	// Chart instances
 	let lineChartInstance: Chart | null = null;
@@ -176,6 +178,8 @@ let showPatientDetailsModal = false;
 
 let patientSearchTerm = '';
 let patientStatusFilter: MemberStatus | 'all' = 'all';
+let patientRegistrationDateStart = '';
+let patientRegistrationDateEnd = '';
 type PatientSortOption = 'name-asc' | 'name-desc' | 'age-asc' | 'age-desc';
 let patientSortOption: PatientSortOption = 'name-asc';
 let filteredPatients: Patient[] = [];
@@ -186,6 +190,7 @@ let appointmentSearchTerm = '';
 let appointmentStatusFilter: AppointmentStatusFilter = 'all';
 let appointmentSortOption: AppointmentSortOption = 'date-desc';
 let filteredAppointments: Appointment[] = [];
+let todaysAppointmentsFiltered: Appointment[] = [];
 let filteredMonthlyAppointments: Appointment[] = [];
 
 	function viewPatientDetails(patientId: string) {
@@ -526,6 +531,19 @@ $: filteredPatients = (() => {
 		patients = patients.filter((patient) => (patient.status ?? 'active') === patientStatusFilter);
 	}
 
+	// Filter by registration date range
+	if (patientRegistrationDateStart || patientRegistrationDateEnd) {
+		patients = patients.filter((patient) => {
+			if (!patient.registrationDate) return false;
+			const regDate = patient.registrationDate;
+			
+			if (patientRegistrationDateStart && regDate < patientRegistrationDateStart) return false;
+			if (patientRegistrationDateEnd && regDate > patientRegistrationDateEnd) return false;
+			
+			return true;
+		});
+	}
+
 	switch (patientSortOption) {
 		case 'name-desc':
 			patients.sort((a, b) => comparePatientsByName(b, a));
@@ -548,6 +566,12 @@ $: filteredAppointments = (() => {
 	// This reactive block explicitly depends on all filtering variables
 	const _ = [appointmentSearchTerm, appointmentStatusFilter, appointmentSortOption, allAppointments];
 	return getFilteredAppointmentList(allAppointments);
+})();
+
+$: todaysAppointmentsFiltered = (() => {
+	const today = getTodayString();
+	const todaysAppts = allAppointments.filter(a => a.date === today);
+	return getFilteredAppointmentList(todaysAppts);
 })();
 
 $: filteredMonthlyAppointments = (() => {
@@ -598,14 +622,17 @@ $: filteredMonthlyAppointments = (() => {
 			return;
 		}
 
-		// Filter appointments by date range
-		const filteredAppointments = allAppointments.filter(apt => {
-			const aptDate = new Date(apt.date);
-			return aptDate >= start && aptDate <= end;
-		});
+		isGeneratingReport = true;
+		// Simulate processing with a small delay for animation effect
+		setTimeout(() => {
+			// Filter appointments by date range
+			const filteredAppointments = allAppointments.filter(apt => {
+				const aptDate = new Date(apt.date);
+				return aptDate >= start && aptDate <= end;
+			});
 
-		// Calculate statistics
-		const totalAppointments = filteredAppointments.length;
+			// Calculate statistics
+			const totalAppointments = filteredAppointments.length;
 		
 		// Status breakdown
 		const statusCounts: Record<string, number> = {};
@@ -648,6 +675,8 @@ $: filteredMonthlyAppointments = (() => {
 			busiestDay,
 			appointments: filteredAppointments
 		};
+		isGeneratingReport = false;
+		}, 600);
 	}
 
 	function exportAppointmentReport(): void {
@@ -1381,8 +1410,11 @@ function downloadExcelReport(
  }
 
  // Add function to handle card clicks
- function handleCardClick(tableType: typeof openTable): void {
+ function handleCardClick(tableType: typeof openTable, mode: 'all' | 'today' = 'all'): void {
      openTable = openTable === tableType ? null : tableType;
+	 if (tableType === 'appointments') {
+	 	appointmentViewMode = mode;
+	 }
  }
 </script>
 
@@ -1447,7 +1479,7 @@ function downloadExcelReport(
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-emerald-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-emerald-200" on:click={() => handleCardClick('appointments')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'all')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-emerald-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-emerald-200" on:click={() => handleCardClick('appointments', 'all')}>
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Appointments</p>
@@ -1460,7 +1492,7 @@ function downloadExcelReport(
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-purple-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-purple-200" on:click={() => handleCardClick('appointments')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'today')} class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-purple-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-purple-200" on:click={() => handleCardClick('appointments', 'today')}>
 					<div class="flex items-center justify-between">
 						<div>
 							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Today's Appointments</p>
@@ -1716,7 +1748,7 @@ function downloadExcelReport(
         <div class="bg-white rounded-lg p-3 sm:p-4 lg:p-6 w-full max-w-6xl max-h-[90vh] overflow-auto">
             <div class="flex justify-between items-center mb-3 sm:mb-4">
 				<h2 class="text-base sm:text-lg lg:text-xl font-bold text-gray-800">
-					{openTable === 'appointments' ? 'All Appointments' :
+					{openTable === 'appointments' ? (appointmentViewMode === 'today' ? "Today's Appointments" : 'All Appointments') :
 					 openTable === 'patients' ? 'All Members' :
 					 'Monthly Appointments'}
 				</h2>
@@ -1784,8 +1816,8 @@ function downloadExcelReport(
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            {#if filteredAppointments.length}
-                            {#each filteredAppointments as appointment}
+                            {#if (appointmentViewMode === 'today' ? todaysAppointmentsFiltered : filteredAppointments).length}
+                            {#each (appointmentViewMode === 'today' ? todaysAppointmentsFiltered : filteredAppointments) as appointment}
 										<tr class="hover:bg-gray-50 transition-colors duration-150 group">
 									<td class="px-4 py-3 text-sm text-gray-900">
 										<button class="text-left text-blue-600 hover:underline member-name-clickable" on:click={() => viewPatientDetails(appointment.patientId)}>{appointment.patientName}</button>
@@ -1852,6 +1884,25 @@ function downloadExcelReport(
                             </select>
                         </div>
                     </div>
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="text-sm font-semibold text-gray-700">Registration Date Range:</div>
+                        <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-1/2">
+                            <input
+                                type="date"
+                                placeholder="From date..."
+                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={patientRegistrationDateStart}
+                                aria-label="Filter by registration date start"
+                            />
+                            <input
+                                type="date"
+                                placeholder="To date..."
+                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                bind:value={patientRegistrationDateEnd}
+                                aria-label="Filter by registration date end"
+                            />
+                        </div>
+                    </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
@@ -1874,7 +1925,7 @@ function downloadExcelReport(
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
                                     <td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.registrationDate}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{formatDateDisplay(patient.registrationDate)}</td>
 									<td class="px-4 py-3 text-sm text-gray-500">
 										<select
 											class="status-select"
@@ -2235,9 +2286,18 @@ function downloadExcelReport(
 						</div>
 						<button
 							on:click={generateAppointmentReport}
-							class="bg-gradient-to-r from-yellow-600 to-yellow-600 hover:from-yellow-700 hover:to-yellow-700 text-white px-6 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg whitespace-nowrap"
+							disabled={isGeneratingReport}
+							class="bg-gradient-to-r from-yellow-600 to-yellow-600 hover:from-yellow-700 hover:to-yellow-700 disabled:from-yellow-500 disabled:to-yellow-500 text-white px-6 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-75 flex items-center gap-2"
 						>
-							Generate Report
+							{#if isGeneratingReport}
+								<svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+								Generating...
+							{:else}
+								Generate Report
+							{/if}
 						</button>
 					</div>
 				</div>
@@ -2273,7 +2333,7 @@ function downloadExcelReport(
 							</div>
 						</div>
 
-						<div class="bg-white rounded-xl shadow-md p-4 border border-purple-100">
+						<div class="bg-white rounded-xl shadow-md p-4 border border-purple-100 animate-slideInUp" style="--animation-delay: 0.15s;">
 							<div class="flex items-center justify-between">
 								<div>
 									<p class="text-xs font-semibold text-gray-600 uppercase">Most Common</p>
@@ -2287,7 +2347,7 @@ function downloadExcelReport(
 							</div>
 						</div>
 
-						<div class="bg-white rounded-xl shadow-md p-4 border border-amber-100">
+						<div class="bg-white rounded-xl shadow-md p-4 border border-amber-100 animate-slideInUp" style="--animation-delay: 0.2s;">
 							<div class="flex items-center justify-between">
 								<div>
 									<p class="text-xs font-semibold text-gray-600 uppercase">Busiest Day</p>
@@ -2538,6 +2598,13 @@ function downloadExcelReport(
 	/* Section Title Animation */
 	:global(.section-title-animated) {
 		animation: slideInUp 0.4s ease-out;
+	}
+
+	/* Report Generation Animations */
+	:global(.animate-slideInUp) {
+		animation: slideInUp 0.5s ease-out forwards;
+		opacity: 0;
+		animation-delay: var(--animation-delay, 0s);
 	}
 </style>
 
