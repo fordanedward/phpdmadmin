@@ -21,10 +21,10 @@
   ];
 
   const ALL_POSSIBLE_MORNING_SLOTS = [
-      "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+      "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
   ];
   const ALL_POSSIBLE_AFTERNOON_SLOTS = [
-      "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM",
+      "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
   ];
   const ALL_POSSIBLE_SLOTS = [...ALL_POSSIBLE_MORNING_SLOTS, ...ALL_POSSIBLE_AFTERNOON_SLOTS];
 
@@ -260,6 +260,11 @@
   $: if (selectedDate && db && initialLoadComplete && !isLoadingDefaults) {
       loadScheduleForDate();
   }
+  
+  $: if (isWorkingDay && initialLoadComplete && !isLoadingSchedule && currentSlots.length === 0) {
+      currentSlots = sortTimeSlots(ALL_POSSIBLE_SLOTS);
+  }
+  
   $: if (initialLoadComplete && !isLoadingDefaults) {
      const currentDefaultsString = JSON.stringify([...defaultWorkingDays].sort((a,b) => a - b));
    
@@ -275,29 +280,24 @@
 
 <div class="bg-gradient-to-br from-blue-50 via-white to-gray-100 min-h-screen">
     <div class="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
-        <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-4 sm:mb-6 lg:mb-8 text-blue-800 tracking-tight flex items-center gap-2 sm:gap-3">
+        <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-6 sm:mb-8 lg:mb-10 text-blue-800 tracking-tight flex items-center gap-2 sm:gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            Manage Availability
+            Availability Settings
         </h1>
 
         <!-- Section for Default Working Days -->
         <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 lg:p-5 mb-4 sm:mb-6">
-            <h2 class="text-base sm:text-lg lg:text-xl font-bold mb-3 sm:mb-4 text-blue-700 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Default Working Days
-            </h2>
+            <h2 class="text-base sm:text-lg lg:text-xl font-bold mb-3 sm:mb-4 text-blue-700">Default Working Days</h2>
 
             {#if isLoadingDefaults}
                 <div class="text-center py-3 sm:py-4">
                     <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4 border-blue-500 border-t-transparent"></div>
-                    <p class="mt-2 text-gray-600 text-xs sm:text-sm">Loading default settings...</p>
+                    <p class="mt-2 text-gray-600 text-xs sm:text-sm">Loading...</p>
                 </div>
             {:else}
-                <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">Select the days of the week that are typically available for booking. This applies to dates without specific settings.</p>
+                <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">Select days available for booking by default.</p>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 mb-3 sm:mb-4">
                     {#each DAYS_OF_WEEK as day (day.value)}
                         <label class="day-toggle" class:day-toggle--active={defaultWorkingDays.includes(day.value)}>
@@ -336,12 +336,7 @@
 
         <!-- Section for Specific Date Availability -->
         <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 lg:p-5">
-            <h2 class="text-base sm:text-lg lg:text-xl font-bold mb-3 sm:mb-4 text-blue-700 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Specific Date Availability
-            </h2>
+            <h2 class="text-base sm:text-lg lg:text-xl font-bold mb-3 sm:mb-4 text-blue-700">Specific Date Schedule</h2>
 
             <div class="mb-4 sm:mb-6">
                 <label for="scheduleDate" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Date:</label>
@@ -371,29 +366,14 @@
                                 class="form-checkbox h-4 w-4 sm:h-5 sm:w-5 text-blue-600 rounded focus:ring-blue-500"
                                 disabled={isSavingSchedule}
                             />
-                            <span class="text-gray-800 font-medium text-xs sm:text-sm">Is this a working day?</span>
+                            <span class="text-gray-800 font-medium text-xs sm:text-sm">Working day?</span>
                         </label>
-                        {#if selectedDate}
-                            {@const dayOfWeekForSelected = new Date(selectedDate + 'T00:00:00Z').getUTCDay()}
-                            <p class="text-xs text-gray-600 mt-1 pl-7">
-                                {#if !defaultWorkingDays.includes(dayOfWeekForSelected) && isWorkingDay}
-                                    (Override: This day is NOT usually a working day based on defaults, but you're enabling it.)
-                                {:else if defaultWorkingDays.includes(dayOfWeekForSelected) && !isWorkingDay}
-                                    (Override: This day IS usually a working day based on defaults, but you're disabling it.)
-                                {:else if defaultWorkingDays.includes(dayOfWeekForSelected) && isWorkingDay}
-                                    (Matches default: This day is a working day.)
-                                {:else if !defaultWorkingDays.includes(dayOfWeekForSelected) && !isWorkingDay}
-                                    (Matches default: This day is not a working day.)
-                                {/if}
-                            </p>
-                        {/if}
                     </div>
 
                     <!-- Time Slot Selection -->
                     {#if isWorkingDay}
                         <div class="space-y-3 sm:space-y-4">
                             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                                <p class="text-xs sm:text-sm text-gray-600">Select available time slots for this specific date:</p>
                                 <button
                                     type="button"
                                     class="select-all-btn text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2"
