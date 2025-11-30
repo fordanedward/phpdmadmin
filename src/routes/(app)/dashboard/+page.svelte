@@ -1267,7 +1267,7 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
         pdfDoc.setFontSize(12);
         pdfDoc.setFont('helvetica', 'bold');
         pdfDoc.setTextColor(0, 0, 0);
-        pdfDoc.text('Patients', 10, currentY);
+        pdfDoc.text('Members', 10, currentY);
         currentY += 7;
 		(pdfDoc as any).autoTable({
 			head: [['Name', 'Age', 'Birthday', 'Gender', 'Phone', 'Registration Date']],
