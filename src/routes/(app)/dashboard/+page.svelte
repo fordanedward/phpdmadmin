@@ -2208,7 +2208,20 @@ function downloadExcelReportFromReport(
 						</div>
 						<div class="info-item-dash">
 							<span class="info-label-dash">Phone:</span>
-							<span class="info-value-dash">{selectedPatient.phone || 'N/A'}</span>
+							{#if selectedPatient.phone && selectedPatient.phone !== 'N/A'}
+								<div class="flex items-center gap-2">
+									<a href="tel:{selectedPatient.phone}" class="info-value-dash text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors">
+										{selectedPatient.phone}
+									</a>
+									<a href="tel:{selectedPatient.phone}" class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 transition-colors" title="Call phone number" aria-label="Call {selectedPatient.phone}">
+										<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+										</svg>
+									</a>
+								</div>
+							{:else}
+								<span class="info-value-dash">N/A</span>
+							{/if}
 						</div>
 						<div class="info-item-dash col-span-full">
 							<span class="info-label-dash">Email:</span>
