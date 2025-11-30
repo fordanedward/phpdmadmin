@@ -119,6 +119,8 @@
   let selectedService = '';
   let sortBy = 'dateDesc';
   let uniqueServices: string[] = [];
+  let filterStartDate = '';
+  let filterEndDate = '';
 
   export const appointmentStore = writable<Appointment[]>([]);
 
@@ -851,6 +853,35 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
         }
     });
 
+    // Apply date range filter
+    if (filterStartDate || filterEndDate) {
+        const startDate = filterStartDate ? new Date(filterStartDate) : null;
+        const endDate = filterEndDate ? new Date(filterEndDate) : null;
+        
+        filtered = filtered.filter(appt => {
+            try {
+                const apptDate = new Date(appt.date);
+                
+                if (startDate && apptDate < startDate) {
+                    return false;
+                }
+                
+                if (endDate) {
+                    // Set end date to end of day for inclusive filtering
+                    const endDateEnd = new Date(endDate);
+                    endDateEnd.setHours(23, 59, 59, 999);
+                    if (apptDate > endDateEnd) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            } catch {
+                return false;
+            }
+        });
+    }
+
     // Apply search filter
     if (search.trim()) {
         const s = search.trim().toLowerCase();
@@ -939,6 +970,17 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
                 <option value="name">Patient Name</option>
               </select>
             </div>
+            <div class="min-w-[130px] sm:min-w-[150px]">
+              <label for="filter-start-date" class="block text-xs font-semibold text-gray-600 mb-1">From</label>
+              <input id="filter-start-date" type="date" bind:value={filterStartDate} class="border rounded px-3 py-2 w-full text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm" />
+            </div>
+            <div class="min-w-[130px] sm:min-w-[150px]">
+              <label for="filter-end-date" class="block text-xs font-semibold text-gray-600 mb-1">To</label>
+              <input id="filter-end-date" type="date" bind:value={filterEndDate} class="border rounded px-3 py-2 w-full text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm" />
+            </div>
+            {#if filterStartDate || filterEndDate}
+              <button type="button" on:click={() => { filterStartDate = ''; filterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-xs font-semibold">Clear Dates</button>
+            {/if}
           </div>
 
           <div class="tabs mb-4 border-b border-gray-200">

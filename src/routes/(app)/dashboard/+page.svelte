@@ -187,6 +187,8 @@ type AppointmentSortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'
 let appointmentSearchTerm = '';
 let appointmentStatusFilter: AppointmentStatusFilter = 'all';
 let appointmentSortOption: AppointmentSortOption = 'date-desc';
+let appointmentFilterStartDate = '';
+let appointmentFilterEndDate = '';
 let filteredAppointments: Appointment[] = [];
 let todaysAppointmentsFiltered: Appointment[] = [];
 let filteredMonthlyAppointments: Appointment[] = [];
@@ -408,6 +410,34 @@ function matchesAppointmentStatus(appointment: Appointment, filter: AppointmentS
 function getFilteredAppointmentList(source: Appointment[]): Appointment[] {
 	let list = [...source];
 
+	// Apply date range filter first
+	if (appointmentFilterStartDate || appointmentFilterEndDate) {
+		const startDate = appointmentFilterStartDate ? new Date(appointmentFilterStartDate) : null;
+		const endDate = appointmentFilterEndDate ? new Date(appointmentFilterEndDate) : null;
+		
+		list = list.filter(appt => {
+			try {
+				const apptDate = new Date(appt.date);
+				
+				if (startDate && apptDate < startDate) {
+					return false;
+				}
+				
+				if (endDate) {
+					const endDateEnd = new Date(endDate);
+					endDateEnd.setHours(23, 59, 59, 999);
+					if (apptDate > endDateEnd) {
+						return false;
+					}
+				}
+				
+				return true;
+			} catch {
+				return false;
+			}
+		});
+	}
+
 	if (appointmentSearchTerm.trim()) {
 		const normalizedTerm = normalizeForSearch(appointmentSearchTerm.trim());
 		const tokens = normalizedTerm.split(/\s+/).filter(Boolean);
@@ -553,25 +583,21 @@ $: filteredPatients = (() => {
 	return patients;
 })();
 
-$: filteredAppointments = (() => {
-	// This reactive block explicitly depends on all filtering variables
-	const _ = [appointmentSearchTerm, appointmentStatusFilter, appointmentSortOption, allAppointments];
-	return getFilteredAppointmentList(allAppointments);
-})();
-
-$: todaysAppointmentsFiltered = (() => {
+	$: filteredAppointments = (() => {
+		// This reactive block explicitly depends on all filtering variables
+		const _ = [appointmentSearchTerm, appointmentStatusFilter, appointmentSortOption, appointmentFilterStartDate, appointmentFilterEndDate, allAppointments];
+		return getFilteredAppointmentList(allAppointments);
+	})();$: todaysAppointmentsFiltered = (() => {
 	const today = getTodayString();
 	const todaysAppts = allAppointments.filter(a => a.date === today);
 	return getFilteredAppointmentList(todaysAppts);
 })();
 
-$: filteredMonthlyAppointments = (() => {
-	// This reactive block explicitly depends on all filtering variables
-	const _ = [appointmentSearchTerm, appointmentStatusFilter, appointmentSortOption, monthlyAppointmentsData];
-	return getFilteredAppointmentList(monthlyAppointmentsData);
-})();
-
-	// --- UI Event Handlers ---
+	$: filteredMonthlyAppointments = (() => {
+		// This reactive block explicitly depends on all filtering variables
+		const _ = [appointmentSearchTerm, appointmentStatusFilter, appointmentSortOption, appointmentFilterStartDate, appointmentFilterEndDate, monthlyAppointmentsData];
+		return getFilteredAppointmentList(monthlyAppointmentsData);
+	})();	// --- UI Event Handlers ---
 	function toggleSidebar(): void {
 		isCollapsed = !isCollapsed;
 	}
@@ -1574,6 +1600,7 @@ function downloadExcelReport(
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
 							</svg>
 						</div>
+						<div class="flex flex-col gap-2">
 						<div class="flex flex-col sm:flex-row gap-2">
 							<select
 								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
@@ -1599,6 +1626,20 @@ function downloadExcelReport(
 								<option value="name-desc">Patient (Z → A)</option>
 							</select>
 						</div>
+						<div class="flex flex-col sm:flex-row gap-2 items-end">
+							<div class="flex-1">
+								<label for="appt-filter-start" class="block text-xs font-semibold text-gray-600 mb-1">From</label>
+								<input id="appt-filter-start" type="date" bind:value={appointmentFilterStartDate} class="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments from date" />
+							</div>
+							<div class="flex-1">
+								<label for="appt-filter-end" class="block text-xs font-semibold text-gray-600 mb-1">To</label>
+								<input id="appt-filter-end" type="date" bind:value={appointmentFilterEndDate} class="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments to date" />
+							</div>
+							{#if appointmentFilterStartDate || appointmentFilterEndDate}
+								<button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-2 py-1.5 sm:py-2 rounded text-xs font-semibold whitespace-nowrap">Clear</button>
+							{/if}
+						</div>
+					</div>
 					</div>
 					<div class="overflow-x-auto -mx-3 sm:mx-0">
 						<table class="min-w-full divide-y divide-gray-200">
@@ -1794,6 +1835,13 @@ function downloadExcelReport(
                                 <option value="name-desc">Patient (Z → A)</option>
                             </select>
                         </div>
+                        <div class="flex flex-wrap gap-2 w-full">
+                            <input type="date" bind:value={appointmentFilterStartDate} placeholder="From date" class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments from date" />
+                            <input type="date" bind:value={appointmentFilterEndDate} placeholder="To date" class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments to date" />
+                            {#if appointmentFilterStartDate || appointmentFilterEndDate}
+                                <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap">Clear Dates</button>
+                            {/if}
+                        </div>
                     </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -1962,6 +2010,13 @@ function downloadExcelReport(
                                 <option value="name-asc">Patient (A → Z)</option>
                                 <option value="name-desc">Patient (Z → A)</option>
                             </select>
+                        </div>
+                        <div class="flex flex-wrap gap-2 w-full">
+                            <input type="date" bind:value={appointmentFilterStartDate} placeholder="From date" class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter monthly appointments from date" />
+                            <input type="date" bind:value={appointmentFilterEndDate} placeholder="To date" class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter monthly appointments to date" />
+                            {#if appointmentFilterStartDate || appointmentFilterEndDate}
+                                <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap">Clear Dates</button>
+                            {/if}
                         </div>
                     </div>
                 <div class="overflow-x-auto">
