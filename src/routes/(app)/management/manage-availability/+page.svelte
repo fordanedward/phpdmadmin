@@ -282,17 +282,20 @@
 </script>
 
 <div class="bg-gradient-to-br from-blue-50 via-white to-gray-100 min-h-screen">
-    <div class="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
-        <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-6 sm:mb-8 lg:mb-10 text-blue-800 tracking-tight flex items-center gap-2 sm:gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Availability Settings
-        </h1>
+    <div class="max-w-6xl mx-auto px-3 sm:p-4 md:p-6 py-4 sm:py-6">
+        <div class="mb-4 sm:mb-6 md:mb-8">
+            <div class="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #0b2d56;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold" style="color: #0b2d56;">Availability Settings</h1>
+            </div>
+            <p class="text-gray-600 text-xs sm:text-sm md:text-base pl-8 sm:pl-11">Configure your working days and time slot availability for member bookings.</p>
+        </div>
 
         <!-- Section for Default Working Days -->
-        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 lg:p-5 mb-4 sm:mb-6">
-            <h2 class="text-base sm:text-lg lg:text-xl font-bold mb-3 sm:mb-4 text-blue-700">Default Working Days</h2>
+        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 md:p-5 mb-4 sm:mb-5 md:mb-6">
+            <h2 class="text-sm sm:text-base md:text-lg lg:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-blue-700">Default Working Days</h2>
 
             {#if isLoadingDefaults}
                 <div class="text-center py-3 sm:py-4">
@@ -300,8 +303,8 @@
                     <p class="mt-2 text-gray-600 text-xs sm:text-sm">Loading...</p>
                 </div>
             {:else}
-                <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">Select days available for booking by default.</p>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <p class="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 md:mb-4">Select days available for booking by default.</p>
+                <div class="grid grid-cols-7 gap-1 sm:gap-2 mb-3 sm:mb-4">
                     {#each DAYS_OF_WEEK as day (day.value)}
                         <label class="day-toggle" class:day-toggle--active={defaultWorkingDays.includes(day.value)}>
                             <input
@@ -313,7 +316,7 @@
                                 disabled={isSavingDefaults}
                             />
                             <span class="day-toggle__dot" aria-hidden="true"></span>
-                            <span class="day-toggle__label">{day.label}</span>
+                            <span class="day-toggle__label">{day.label.slice(0, 3)}</span>
                         </label>
                     {/each}
                 </div>
@@ -338,17 +341,17 @@
         </div>
 
         <!-- Section for Specific Date Availability -->
-        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 lg:p-5">
-            <h2 class="text-base sm:text-lg lg:text-xl font-bold mb-3 sm:mb-4 text-blue-700">Specific Date Schedule</h2>
+        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 md:p-5">
+            <h2 class="text-sm sm:text-base md:text-lg lg:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-blue-700">Specific Date Schedule</h2>
 
-            <div class="mb-4 sm:mb-6">
+            <div class="mb-3 sm:mb-4 md:mb-6">
                 <label for="scheduleDate" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Date:</label>
                 <input
                     type="date"
                     id="scheduleDate"
                     bind:value={selectedDate}
                     min={new Date().toISOString().split('T')[0]}
-                    class="w-full sm:max-w-xs border border-gray-300 rounded p-2 text-sm sm:text-base focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full sm:max-w-xs border border-gray-300 rounded px-3 py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
                     disabled={isLoadingSchedule || isLoadingDefaults || isSavingSchedule || isSavingDefaults}
                 />
             </div>
@@ -359,7 +362,7 @@
                     <p class="mt-2 text-gray-600 text-xs sm:text-sm">Loading schedule for {selectedDate}...</p>
                 </div>
             {:else if selectedDate && db}
-                <div class="space-y-3 sm:space-y-4">
+                <div class="space-y-2 sm:space-y-3 md:space-y-4">
                     <!-- Working Day Toggle -->
                     <div class="p-2 sm:p-3 border rounded bg-blue-50 border-blue-200">
                         <label class="flex items-center space-x-2">
@@ -375,32 +378,32 @@
 
                     <!-- Time Slot Selection -->
                     {#if isWorkingDay}
-                        <div class="space-y-3 sm:space-y-4">
-                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                        <div class="space-y-2 sm:space-y-3 md:space-y-4">
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                 <button
                                     type="button"
-                                    class="select-all-btn text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2"
+                                    class="select-all-btn text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 w-full sm:w-auto"
                                     on:click={toggleAllSlots}
                                     disabled={isSavingSchedule}
                                     aria-pressed={allSlotsSelected}
                                 >
-                                    {allSlotsSelected ? 'Unselect All Slots' : 'Select All Slots'}
+                                    {allSlotsSelected ? 'Unselect All' : 'Select All'}
                                 </button>
                             </div>
                             
                             <!-- Morning Slots -->
                             <div>
-                                <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <h4 class="text-xs sm:text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                                     </svg>
                                     Morning
                                 </h4>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2">
                                     {#each ALL_POSSIBLE_MORNING_SLOTS as slotOption (slotOption)}
                                         <button
                                             type="button"
-                                            class="slot-chip"
+                                            class="slot-chip text-xs sm:text-sm"
                                             class:selected={currentSlots.includes(slotOption)}
                                             on:click={() => toggleSlot(slotOption)}
                                             disabled={isSavingSchedule}
@@ -414,17 +417,17 @@
                             
                             <!-- Afternoon Slots -->
                             <div>
-                                <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <h4 class="text-xs sm:text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 text-orange-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                                     </svg>
                                     Afternoon
                                 </h4>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2">
                                     {#each ALL_POSSIBLE_AFTERNOON_SLOTS as slotOption (slotOption)}
                                         <button
                                             type="button"
-                                            class="slot-chip"
+                                            class="slot-chip text-xs sm:text-sm"
                                             class:selected={currentSlots.includes(slotOption)}
                                             on:click={() => toggleSlot(slotOption)}
                                             disabled={isSavingSchedule}
@@ -437,14 +440,14 @@
                             </div>
 
                             <!-- Selected Slots Display -->
-                            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                                <h3 class="font-medium mb-2 text-gray-700">
+                            <div class="mt-2 sm:mt-3 md:mt-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
+                                <h3 class="font-medium mb-2 text-gray-700 text-xs sm:text-sm">
                                     Selected Slots {selectedDate ? `for ${new Date(selectedDate).toLocaleDateString()}` : ''}
                                 </h3>
                                 {#if currentSlots.length > 0}
-                                    <div class="flex flex-wrap gap-2">
+                                    <div class="flex flex-wrap gap-1.5 sm:gap-2">
                                         {#each sortTimeSlots(currentSlots) as selectedSlot (selectedSlot)}
-                                            <span class="slot-label">
+                                            <span class="slot-label text-xs sm:text-sm">
                                                 {selectedSlot}
                                                 <button
                                                     type="button"
@@ -459,23 +462,23 @@
                                         {/each}
                                     </div>
                                 {:else}
-                                    <p class="text-sm text-gray-500 italic">No time slots selected for this day.</p>
+                                    <p class="text-xs sm:text-sm text-gray-500 italic">No time slots selected for this day.</p>
                                 {/if}
                             </div>
                         </div>
                     {:else}
-                        <p class="text-sm text-gray-500 italic p-3 bg-gray-50 rounded border">Time slots cannot be selected because this date is marked as not a working day.</p>
+                        <p class="text-xs sm:text-sm text-gray-500 italic p-3 bg-gray-50 rounded border">Time slots cannot be selected because this date is marked as not a working day.</p>
                     {/if}
 
                     <!-- Save Button -->
-                    <div class="mt-6 text-right">
+                    <div class="mt-4 sm:mt-6 flex justify-center sm:justify-end">
                         <button
                             on:click={saveSchedule}
                             disabled={isSavingSchedule || isLoadingSchedule || isSavingDefaults}
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-5 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                         >
                             {#if isSavingSchedule}
-                                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
@@ -487,7 +490,7 @@
                     </div>
                 </div>
             {:else if !selectedDate && !isLoadingDefaults && !isLoadingSchedule}
-                <p class="text-gray-500">Please select a date.</p>
+                <p class="text-gray-500 text-sm">Please select a date.</p>
             {/if}
         </div>
     </div>
@@ -508,34 +511,61 @@
     .day-toggle {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        border-radius: 0.75rem;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.5rem 0.5rem;
+        border-radius: 0.5rem;
         border: 1px solid #e5e7eb;
         background: #fff;
         cursor: pointer;
         transition: all 0.15s ease-in-out;
-        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+        min-width: fit-content;
+    }
+    @media (min-width: 640px) {
+        .day-toggle {
+            flex-direction: row;
+            gap: 0.6rem;
+            justify-content: flex-start;
+            min-width: 110px;
+            padding: 0.5rem 1rem;
+        }
     }
     .day-toggle__dot {
-        width: 0.85rem;
-        height: 0.85rem;
-        min-width: 0.85rem;
-        min-height: 0.85rem;
+        width: 0.65rem;
+        height: 0.65rem;
+        min-width: 0.65rem;
+        min-height: 0.65rem;
         flex-shrink: 0;
         border-radius: 9999px;
         background: #d1d5db;
         transition: background 0.15s ease-in-out, transform 0.15s ease-in-out;
+        margin-bottom: 0.1rem;
+    }
+    @media (min-width: 640px) {
+        .day-toggle__dot {
+            margin-bottom: 0;
+            margin-right: 0.5rem;
+        }
     }
     .day-toggle__label {
-        font-size: 0.9rem;
+        font-size: 0.7rem;
         font-weight: 600;
         color: #1f2937;
         letter-spacing: 0.01em;
+        text-align: center;
+        line-height: 1.1;
+    }
+    @media (min-width: 640px) {
+        .day-toggle__label {
+            font-size: 1rem;
+            text-align: left;
+        }
     }
     .day-toggle:hover {
         border-color: #cbd5f5;
-        box-shadow: 0 8px 18px rgba(59, 130, 246, 0.15);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
     }
     .day-toggle--active {
         border-color: #2563eb;
@@ -543,7 +573,7 @@
     }
     .day-toggle--active .day-toggle__dot {
         background: #2563eb;
-        transform: scale(1.15);
+        transform: scale(1.1);
     }
     .day-toggle--active .day-toggle__label {
         color: #1d4ed8;
@@ -553,25 +583,34 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.5rem 0.75rem;
+        padding: 0.4rem 0.6rem;
         border: 1px solid #d1d5db;
         border-radius: 9999px;
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         font-weight: 600;
         color: #1f2937;
         background-color: #fff;
         transition: all 0.15s ease-in-out;
         cursor: pointer;
+        min-height: 32px;
+    }
+    @media (min-width: 640px) {
+        .slot-chip {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            min-height: auto;
+        }
     }
     .slot-chip:hover:not(:disabled) {
         border-color: #2563eb;
         color: #1d4ed8;
+        background-color: #f0f9ff;
     }
     .slot-chip.selected {
         background-color: #2563eb;
         border-color: #2563eb;
         color: #fff;
-        box-shadow: 0 5px 15px rgba(37, 99, 235, 0.2);
+        box-shadow: 0 4px 12px rgba(37, 99,235, 0.25);
     }
     .slot-chip:disabled {
         cursor: not-allowed;
@@ -581,13 +620,19 @@
     .slot-label {
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
-        padding: 0.35rem 0.75rem;
+        gap: 0.3rem;
+        padding: 0.3rem 0.6rem;
         background-color: #e0f2fe;
         color: #075985;
         border-radius: 9999px;
         font-weight: 600;
-        font-size: 0.85rem;
+        font-size: 0.75rem;
+    }
+    @media (min-width: 640px) {
+        .slot-label {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.85rem;
+        }
     }
     .slot-label__remove {
         border: none;
@@ -596,6 +641,8 @@
         font-size: 1rem;
         line-height: 1;
         cursor: pointer;
+        padding: 0;
+        margin-left: 0.2rem;
     }
     .slot-label__remove:disabled {
         cursor: not-allowed;
@@ -603,13 +650,21 @@
     }
 
     .select-all-btn {
-        padding: 0.4rem 0.85rem;
+        padding: 0.35rem 0.75rem;
         border-radius: 0.375rem;
         background-color: #2563eb;
         color: #fff;
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         font-weight: 600;
         transition: background-color 0.15s ease-in-out;
+        border: none;
+        cursor: pointer;
+    }
+    @media (min-width: 640px) {
+        .select-all-btn {
+            padding: 0.4rem 0.85rem;
+            font-size: 0.85rem;
+        }
     }
     .select-all-btn:hover:not(:disabled) {
         background-color: #1d4ed8;
@@ -617,5 +672,13 @@
     .select-all-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+    }
+
+    /* Responsive container padding */
+    @media (max-width: 640px) {
+        :global(.bg-gradient-to-br.from-blue-50) {
+            padding-left: 0;
+            padding-right: 0;
+        }
     }
 </style>

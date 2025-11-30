@@ -7,7 +7,6 @@
     subscribeToNotifications
   } from '$lib/chat/service.js';
   import { openChatDrawer } from '$lib/chat/store.js';
-  import { showNotification } from '$lib/notificationStore.js';
 
   interface CurrentUserLite {
     uid: string;
@@ -23,7 +22,6 @@
   let notifications: any[] = [];
   let unreadCount = 0;
   let unsubscribe: (() => void) | null = null;
-  let latestSeenCreatedAt: string | null = null;
 
   let activeUserKey: string | null = null;
 
@@ -33,7 +31,6 @@
     notifications = [];
     unreadCount = 0;
     activeUserKey = null;
-    latestSeenCreatedAt = null;
   };
 
   onMount(() => {
@@ -59,16 +56,6 @@
     unsubscribe = subscribeToNotifications(db, currentUser.uid, (list: any[]) => {
       notifications = list;
       unreadCount = notifications.filter((n) => !n.read).length;
-
-      if (list.length > 0) {
-        const newest = list[0];
-        const newestTimestamp = newest.createdAt?.toMillis?.() ?? newest.createdAt?.seconds ?? null;
-        if (newestTimestamp && String(newestTimestamp) !== latestSeenCreatedAt && newest.userId === currentUser.uid && !newest.read) {
-          latestSeenCreatedAt = String(newestTimestamp);
-          const sender = newest.metadata?.senderName ?? 'Someone';
-          showNotification(`${sender} sent you a message`, 'info');
-        }
-      }
     });
   }
 

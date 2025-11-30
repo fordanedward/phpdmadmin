@@ -334,10 +334,13 @@
   <div class="bg-gradient-to-br from-blue-50 via-white to-gray-100 min-h-screen">
     <div class="p-4 sm:p-6">
       <div class="max-w-6xl mx-auto">
-        <h1 class="text-2xl sm:text-3xl font-extrabold mb-6 sm:mb-8 text-blue-800 tracking-tight flex items-center gap-2 sm:gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            Appointment Management
-          </h1>
+        <div class="mb-8 sm:mb-10">
+          <div class="flex items-center gap-2 sm:gap-3 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 sm:h-9 sm:w-9" style="color: #0b2d56;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            <h1 class="text-3xl sm:text-4xl font-bold" style="color: #0b2d56;">Appointment Management</h1>
+          </div>
+          <p class="text-gray-600 text-base sm:text-lg ml-11 sm:ml-12">Manage pending appointments, reschedule requests, and cancellation notifications in one centralized location.</p>
+        </div>
   
       <div class="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-200 rounded-lg shadow-sm flex flex-wrap gap-3 sm:gap-4 mb-6 sm:mb-8 items-end px-3 sm:px-4 py-3">
         <div class="relative flex-1 min-w-[180px] sm:min-w-[200px]">

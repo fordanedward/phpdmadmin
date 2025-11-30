@@ -178,9 +178,7 @@ let showPatientDetailsModal = false;
 
 let patientSearchTerm = '';
 let patientStatusFilter: MemberStatus | 'all' = 'all';
-let patientRegistrationDateStart = '';
-let patientRegistrationDateEnd = '';
-type PatientSortOption = 'name-asc' | 'name-desc' | 'age-asc' | 'age-desc';
+type PatientSortOption = 'name-asc' | 'name-desc' | 'age-asc' | 'age-desc' | 'date-asc' | 'date-desc';
 let patientSortOption: PatientSortOption = 'name-asc';
 let filteredPatients: Patient[] = [];
 
@@ -531,19 +529,6 @@ $: filteredPatients = (() => {
 		patients = patients.filter((patient) => (patient.status ?? 'active') === patientStatusFilter);
 	}
 
-	// Filter by registration date range
-	if (patientRegistrationDateStart || patientRegistrationDateEnd) {
-		patients = patients.filter((patient) => {
-			if (!patient.registrationDate) return false;
-			const regDate = patient.registrationDate;
-			
-			if (patientRegistrationDateStart && regDate < patientRegistrationDateStart) return false;
-			if (patientRegistrationDateEnd && regDate > patientRegistrationDateEnd) return false;
-			
-			return true;
-		});
-	}
-
 	switch (patientSortOption) {
 		case 'name-desc':
 			patients.sort((a, b) => comparePatientsByName(b, a));
@@ -553,6 +538,12 @@ $: filteredPatients = (() => {
 			break;
 		case 'age-desc':
 			patients.sort((a, b) => comparePatientsByAge(a, b, 'desc'));
+			break;
+		case 'date-asc':
+			patients.sort((a, b) => (a.registrationDate || '').localeCompare(b.registrationDate || ''));
+			break;
+		case 'date-desc':
+			patients.sort((a, b) => (b.registrationDate || '').localeCompare(a.registrationDate || ''));
 			break;
 		default:
 			patients.sort(comparePatientsByName);
@@ -1881,26 +1872,9 @@ function downloadExcelReport(
                                 <option value="name-desc">Name (Z → A)</option>
                                 <option value="age-asc">Age (Youngest)</option>
                                 <option value="age-desc">Age (Oldest)</option>
+                                <option value="date-asc">Date Registered (Oldest)</option>
+                                <option value="date-desc">Date Registered (Newest)</option>
                             </select>
-                        </div>
-                    </div>
-                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div class="text-sm font-semibold text-gray-700">Registration Date Range:</div>
-                        <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-1/2">
-                            <input
-                                type="date"
-                                placeholder="From date..."
-                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                bind:value={patientRegistrationDateStart}
-                                aria-label="Filter by registration date start"
-                            />
-                            <input
-                                type="date"
-                                placeholder="To date..."
-                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                bind:value={patientRegistrationDateEnd}
-                                aria-label="Filter by registration date end"
-                            />
                         </div>
                     </div>
                 <div class="overflow-x-auto">
