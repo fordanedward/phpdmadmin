@@ -127,7 +127,9 @@ interface Prescription {
 
 	interface AppointmentReportData {
 		dateRange: { start: string; end: string };
+		generationDate: string;
 		totalAppointments: number;
+		completedAppointments: number;
 		statusBreakdown: Record<string, number>;
 		serviceBreakdown: Record<string, number>;
 		dailyBreakdown: Record<string, number>;
@@ -669,49 +671,54 @@ $: filteredPatients = (() => {
 
 			// Calculate statistics
 			const totalAppointments = filteredAppointments.length;
+			const completedAppointments = filteredAppointments.filter(apt => 
+				apt.status === 'Completed' || apt.status === 'Completed: Need Follow-up'
+			).length;
 		
-		// Status breakdown
-		const statusCounts: Record<string, number> = {};
-		filteredAppointments.forEach(apt => {
-			const status = (apt.status || 'unknown').toLowerCase();
-			statusCounts[status] = (statusCounts[status] || 0) + 1;
-		});
+			// Status breakdown
+			const statusCounts: Record<string, number> = {};
+			filteredAppointments.forEach(apt => {
+				const status = (apt.status || 'unknown').toLowerCase();
+				statusCounts[status] = (statusCounts[status] || 0) + 1;
+			});
 
-		// Service breakdown
-		const serviceCounts: Record<string, number> = {};
-		filteredAppointments.forEach(apt => {
-			const service = apt.service || 'Unknown Service';
-			serviceCounts[service] = (serviceCounts[service] || 0) + 1;
-		});
+			// Service breakdown
+			const serviceCounts: Record<string, number> = {};
+			filteredAppointments.forEach(apt => {
+				const service = apt.service || 'Unknown Service';
+				serviceCounts[service] = (serviceCounts[service] || 0) + 1;
+			});
 
-		// Daily breakdown
-		const dailyCounts: Record<string, number> = {};
-		filteredAppointments.forEach(apt => {
-			dailyCounts[apt.date] = (dailyCounts[apt.date] || 0) + 1;
-		});
+			// Daily breakdown
+			const dailyCounts: Record<string, number> = {};
+			filteredAppointments.forEach(apt => {
+				dailyCounts[apt.date] = (dailyCounts[apt.date] || 0) + 1;
+			});
 
-		// Calculate averages and trends
-		const dateRange = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-		const avgPerDay = totalAppointments / dateRange;
+			// Calculate averages and trends
+			const dateRange = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+			const avgPerDay = totalAppointments / dateRange;
 
-		// Most common service
-		const mostCommonService = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
-		
-		// Busiest day
-		const busiestDay = Object.entries(dailyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+			// Most common service
+			const mostCommonService = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+			
+			// Busiest day
+			const busiestDay = Object.entries(dailyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
-		reportData = {
-			dateRange: { start: reportStartDate, end: reportEndDate },
-			totalAppointments,
-			statusBreakdown: statusCounts,
-			serviceBreakdown: serviceCounts,
-			dailyBreakdown: dailyCounts,
-			avgPerDay: avgPerDay.toFixed(2),
-			mostCommonService,
-			busiestDay,
-			appointments: filteredAppointments
-		};
-		isGeneratingReport = false;
+			reportData = {
+				dateRange: { start: reportStartDate, end: reportEndDate },
+				generationDate: getTodayString(),
+				totalAppointments,
+				completedAppointments,
+				statusBreakdown: statusCounts,
+				serviceBreakdown: serviceCounts,
+				dailyBreakdown: dailyCounts,
+				avgPerDay: avgPerDay.toFixed(2),
+				mostCommonService,
+				busiestDay,
+				appointments: filteredAppointments
+			};
+			isGeneratingReport = false;
 		}, 600);
 	}
 
@@ -727,11 +734,14 @@ $: filteredPatients = (() => {
 		// Summary Sheet
 		const summaryData = [
 			['Appointment Report'],
-			['Generated Date', reportDate],
+			['Report Generated Date', reportDate],
+			['Report Generated Time', new Date().toLocaleTimeString()],
 			['Date Range', `${reportData.dateRange.start} to ${reportData.dateRange.end}`],
 			[''],
 			['SUMMARY STATISTICS'],
 			['Total Appointments', reportData.totalAppointments],
+			['Completed Appointments', reportData.completedAppointments],
+			['Pending/Other Status', reportData.totalAppointments - reportData.completedAppointments],
 			['Average Per Day', reportData.avgPerDay],
 			['Most Common Service', reportData.mostCommonService],
 			['Busiest Day', reportData.busiestDay],
@@ -750,12 +760,14 @@ $: filteredPatients = (() => {
 		XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
 		// Detailed Appointments Sheet
-		const appointmentData = reportData.appointments.map((apt: Appointment) => ({
-			'Date': apt.date,
+		const appointmentData = reportData.appointments.map((apt: any) => ({
+			'Appointment Date': apt.date,
 			'Time': apt.time || 'N/A',
 			'Patient': apt.patientName || 'Unknown',
 			'Service': apt.service || 'N/A',
-			'Status': apt.status
+			'Status': apt.status,
+			'Created On': apt.createdAt ? new Date(apt.createdAt).toLocaleString() : 'N/A',
+			'Completed On': apt.completionTime ? new Date(apt.completionTime).toLocaleString() : 'N/A'
 		}));
 
 		const detailSheet = XLSX.utils.json_to_sheet(appointmentData);
