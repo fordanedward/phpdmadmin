@@ -1303,6 +1303,211 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
     console.log(`PDF Report Saved as ${filename}`);
 }
 
+function downloadPdfReportWithBreakdown(appointmentsData: Appointment[], patientsData: Patient[], statusBreakdown: Record<string, number>, serviceBreakdown: Record<string, number>): void {
+    console.log('Generating PDF Report from Appointment Reports...');
+    const pdfDoc = new jsPDF();
+    const reportDate = getTodayString();
+    let currentY = 10;
+    const pageWidth = pdfDoc.internal.pageSize.getWidth();
+    const pageHeight = pdfDoc.internal.pageSize.getHeight();
+
+    // --- Organization Header ---
+    pdfDoc.setFontSize(14);
+    pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.setTextColor(16, 71, 138);
+    pdfDoc.text('The Permanente Health Plan Corp.', pageWidth / 2, 10, { align: 'center' });
+    
+    pdfDoc.setFontSize(11);
+    pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.setTextColor(0, 0, 0);
+    pdfDoc.text('Multi-Specialty Health Plan', pageWidth / 2, 17, { align: 'center' });
+    pdfDoc.setFontSize(9);
+    pdfDoc.text('Lot 19, Blk. 7, Mayumi St. Sta. Rita, Olongapo City', pageWidth / 2, 23, { align: 'center' });
+
+    currentY = 30;
+
+    // --- Report Title and Generation Date ---
+    pdfDoc.setFontSize(14);
+    pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.setTextColor(0, 0, 0);
+    pdfDoc.text('Appointment Report', pageWidth / 2, currentY, { align: 'center' });
+    currentY += 8;
+
+    pdfDoc.setFontSize(10);
+    pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.text(`${REPORT_DATE_LABEL}: ${reportDate}`, pageWidth / 2, currentY, { align: 'center' });
+    currentY += 5;
+    pdfDoc.setFontSize(8);
+    pdfDoc.text(`(${REPORT_DATE_DESCRIPTION})`, pageWidth / 2, currentY, { align: 'center' });
+    currentY += 10;
+
+    // --- Status Breakdown ---
+    if (Object.keys(statusBreakdown).length > 0) {
+        if (currentY > pageHeight - 50) {
+            pdfDoc.addPage();
+            currentY = 20;
+        }
+
+        pdfDoc.setFontSize(12);
+        pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.setTextColor(0, 0, 0);
+        pdfDoc.text('Status Breakdown', 10, currentY);
+        currentY += 7;
+
+        const statusData = Object.entries(statusBreakdown).map(([status, count]) => [
+            status.charAt(0).toUpperCase() + status.slice(1),
+            count.toString()
+        ]);
+
+        (pdfDoc as any).autoTable({
+            head: [['Status', 'Count']],
+            body: statusData,
+            startY: currentY,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [101, 116, 205],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 10
+            },
+            bodyStyles: {
+                textColor: [0, 0, 0],
+                fontSize: 9
+            },
+            alternateRowStyles: {
+                fillColor: [240, 245, 250]
+            }
+        });
+        currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
+    }
+
+    // --- Service Breakdown ---
+    if (Object.keys(serviceBreakdown).length > 0) {
+        if (currentY > pageHeight - 50) {
+            pdfDoc.addPage();
+            currentY = 20;
+        }
+
+        pdfDoc.setFontSize(12);
+        pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.setTextColor(0, 0, 0);
+        pdfDoc.text('Service Breakdown', 10, currentY);
+        currentY += 7;
+
+        const serviceData = Object.entries(serviceBreakdown).map(([service, count]) => [
+            service,
+            count.toString()
+        ]);
+
+        (pdfDoc as any).autoTable({
+            head: [['Service', 'Count']],
+            body: serviceData,
+            startY: currentY,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [16, 71, 138],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 10
+            },
+            bodyStyles: {
+                textColor: [0, 0, 0],
+                fontSize: 9
+            },
+            alternateRowStyles: {
+                fillColor: [240, 245, 250]
+            }
+        });
+        currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
+    }
+
+    // --- Appointments Section ---
+    if (appointmentsData.length > 0) {
+        if (currentY > pageHeight - 40) {
+            pdfDoc.addPage();
+            currentY = 20;
+        }
+
+        pdfDoc.setFontSize(12);
+        pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.setTextColor(0, 0, 0);
+        pdfDoc.text('Appointments', 10, currentY);
+        currentY += 7;
+
+        (pdfDoc as any).autoTable({
+            head: [['Patient Name', 'Appointment Date', 'Time', 'Service', 'Status']],
+            body: appointmentsData.map(appt => [
+                appt.patientName || 'Unknown',
+                appt.date || 'N/A',
+                appt.time || 'N/A',
+                appt.service || 'N/A',
+                appt.status || 'N/A'
+            ]),
+            startY: currentY,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [225, 168, 0],
+                textColor: [0, 0, 0],
+                fontStyle: 'bold',
+                fontSize: 10
+            },
+            bodyStyles: {
+                textColor: [0, 0, 0],
+                fontSize: 9
+            },
+            alternateRowStyles: {
+                fillColor: [255, 250, 240]
+            }
+        });
+        currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
+    }
+
+    // --- Patients Section ---
+    if (patientsData.length > 0) {
+        if (currentY > pageHeight - 40) {
+            pdfDoc.addPage();
+            currentY = 20;
+        }
+
+        pdfDoc.setFontSize(12);
+        pdfDoc.setFont('helvetica', 'bold');
+        pdfDoc.setTextColor(0, 0, 0);
+        pdfDoc.text('Members', 10, currentY);
+        currentY += 7;
+
+        (pdfDoc as any).autoTable({
+            head: [['Name', 'Age', 'Birthday', 'Gender', 'Phone', 'Registration Date']],
+            body: patientsData.map(p => [
+                `${p.name} ${p.lastName}`.trim(),
+                p.age ?? 'N/A',
+                p.birthday || 'N/A',
+                p.gender || 'N/A',
+                p.phone || 'N/A',
+                p.registrationDate || 'N/A'
+            ]),
+            startY: currentY,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [16, 71, 138],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 10
+            },
+            bodyStyles: {
+                textColor: [0, 0, 0],
+                fontSize: 9
+            },
+            alternateRowStyles: {
+                fillColor: [240, 245, 250]
+            }
+        });
+    }
+
+    const filename = `Appointment_Report_${reportDate}.pdf`;
+    pdfDoc.save(filename);
+    console.log(`PDF Report Saved as ${filename}`);
+}
+
 function downloadExcelReport(
 	appointmentsData: Appointment[],
 	patientsData: Patient[]
@@ -1411,7 +1616,9 @@ function downloadExcelReport(
 // Export filtered report data to Excel
 function downloadExcelReportFromReport(
 	appointmentsData: Appointment[],
-	patientsData: Patient[]
+	patientsData: Patient[],
+	statusBreakdown?: Record<string, number>,
+	serviceBreakdown?: Record<string, number>
 ): void {
   console.log('Generating Excel Report from Appointment Reports...');
   const workbook = XLSX.utils.book_new();
@@ -1437,6 +1644,28 @@ function downloadExcelReportFromReport(
       ),
     }));
   };
+
+  // Status Breakdown sheet
+  if (statusBreakdown && Object.keys(statusBreakdown).length > 0) {
+    const statusData = Object.entries(statusBreakdown).map(([status, count]) => ({
+      'Status': status.charAt(0).toUpperCase() + status.slice(1),
+      'Count': count
+    }));
+    const ws = XLSX.utils.json_to_sheet(statusData);
+    ws['!cols'] = calculateColumnWidths(statusData);
+    XLSX.utils.book_append_sheet(workbook, ws, 'Status Breakdown');
+  }
+
+  // Service Breakdown sheet
+  if (serviceBreakdown && Object.keys(serviceBreakdown).length > 0) {
+    const serviceData = Object.entries(serviceBreakdown).map(([service, count]) => ({
+      'Service': service,
+      'Count': count
+    }));
+    const ws = XLSX.utils.json_to_sheet(serviceData);
+    ws['!cols'] = calculateColumnWidths(serviceData);
+    XLSX.utils.book_append_sheet(workbook, ws, 'Service Breakdown');
+  }
 
   // Appointments sheet
   if (appointmentsData.length > 0) {
@@ -2485,10 +2714,12 @@ function downloadExcelReportFromReport(
 							</div>
 							<button
 								on:click={() => {
-									if (reportData && exportType === 'pdf') {
-										downloadPdfReport(reportData.appointments, allPatients);
-									} else if (reportData) {
-										downloadExcelReportFromReport(reportData.appointments, allPatients);
+									if (reportData) {
+										if (exportType === 'pdf') {
+											downloadPdfReportWithBreakdown(reportData.appointments, allPatients, reportData.statusBreakdown, reportData.serviceBreakdown);
+										} else {
+											downloadExcelReportFromReport(reportData.appointments, allPatients, reportData.statusBreakdown, reportData.serviceBreakdown);
+										}
 									}
 								}}
 								class="w-full sm:w-fit bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white px-4 sm:px-5 py-2.5 sm:py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
@@ -2504,14 +2735,18 @@ function downloadExcelReportFromReport(
 								<p class="font-semibold text-blue-900 mb-1">PDF Export includes:</p>
 								<ul class="list-disc list-inside space-y-1 text-gray-600">
 									<li>Report generation date and timestamp</li>
-									<li>Filtered appointments data (Patient Name, Date, Time, Service, Subservice, Status)</li>
-									<li>Patient information (Name, Age, Birthday, Gender, Phone, Registration Date)</li>
+									<li>Status Breakdown table</li>
+									<li>Service Breakdown table</li>
+									<li>Filtered appointments data (Patient Name, Date, Time, Service, Status)</li>
+									<li>Member information (Name, Age, Birthday, Gender, Phone, Registration Date)</li>
 									<li>Professional formatting with color-coded tables</li>
 								</ul>
 							{:else}
 								<p class="font-semibold text-blue-900 mb-1">Excel Export includes:</p>
 								<ul class="list-disc list-inside space-y-1 text-gray-600">
 									<li><strong>Report Info Sheet:</strong> Generation date and metadata</li>
+									<li><strong>Status Breakdown Sheet:</strong> Count of appointments by status</li>
+									<li><strong>Service Breakdown Sheet:</strong> Count of appointments by service</li>
 									<li><strong>Appointments Sheet:</strong> Filtered appointments within your date range</li>
 									<li><strong>Patients Sheet:</strong> Patient details (Name, Age, Gender, Phone, ID, Registration Date)</li>
 									<li>Auto-sized columns for easy reading</li>
@@ -2641,22 +2876,13 @@ function downloadExcelReportFromReport(
 						</div>
 					</div>
 
-					<!-- Export Button -->
-					<div class="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-gray-200">
+					<!-- Close Button -->
+					<div class="flex justify-end gap-2 sm:gap-3 pt-4 border-t border-gray-200">
 						<button
 							on:click={() => showReportsModal = false}
 							class="px-4 sm:px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors w-full sm:w-auto"
 						>
 							Close
-						</button>
-						<button
-							on:click={exportAppointmentReport}
-							class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 w-full sm:w-auto"
-						>
-							<svg class="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-							</svg>
-							<span>Export to Excel</span>
 						</button>
 					</div>
 				{:else}
