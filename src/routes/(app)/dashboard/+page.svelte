@@ -2405,8 +2405,8 @@ function downloadExcelReportFromReport(
 
 <!-- Reports Modal -->
 {#if showReportsModal}
-	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" transition:fade={{ duration: 200 }}>
-		<div class="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl" transition:scale={{ duration: 200, start: 0.95 }}>
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4" transition:fade={{ duration: 200 }}>
+		<div class="bg-white rounded-2xl w-full max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl" transition:scale={{ duration: 200, start: 0.95 }}>
 			<!-- Modal Header -->
 			<div class="sticky top-0 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-4 rounded-t-2xl flex justify-between items-center z-10">
 				<div class="flex items-center gap-3">
@@ -2471,13 +2471,13 @@ function downloadExcelReportFromReport(
 				<!-- Export Controls -->
 				{#if reportData}
 					<div class="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-100">
-						<div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-							<div class="flex items-center gap-2 flex-1">
+						<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+							<div class="flex items-center gap-2">
 								<label for="exportFormatSelect" class="text-xs sm:text-sm font-semibold text-gray-700 whitespace-nowrap">Export as:</label>
 								<select
 									id="exportFormatSelect"
 									bind:value={exportType}
-									class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+									class="border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 								>
 									<option value="excel">Excel</option>
 									<option value="pdf">PDF</option>
