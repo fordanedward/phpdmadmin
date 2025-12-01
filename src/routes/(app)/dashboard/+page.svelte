@@ -2016,51 +2016,52 @@ function downloadExcelReportFromReport(
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
 							</svg>
 						</div>
-						<div class="flex flex-col gap-2">
-						<!-- Date Range on Mobile, Status/Sort on Desktop -->
-						<div class="flex flex-col sm:flex-row gap-2 order-first sm:order-last">
-							<select
-								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-								bind:value={appointmentStatusFilter}
-								aria-label="Filter appointments by status"
-							>
-								<option value="all">All Statuses</option>
-								<option value="pending">Pending</option>
-								<option value="accepted">Accepted</option>
-								<option value="completed">Completed</option>
-								<option value="missed">Missed</option>
-								<option value="declined">Declined</option>
-								<option value="cancellation_requested">Cancellation Requested</option>
-								<option value="other">Other</option>
-							</select>
-							<select
-								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-								bind:value={appointmentSortOption}
-								aria-label="Sort appointments"
-							>
-								<option value="date-desc">Date (Newest)</option>
-								<option value="date-asc">Date (Oldest)</option>
-								<option value="name-asc">Patient (A → Z)</option>
-								<option value="name-desc">Patient (Z → A)</option>
-							</select>
-						</div>
-						<!-- Date Range First on Mobile -->
-						<div class="flex flex-col gap-2 order-last sm:order-first">
-							<div class="flex flex-col sm:flex-row gap-2 sm:items-end">
-								<div class="flex-1">
-									<label for="appt-filter-start" class="block text-xs font-semibold text-gray-600 mb-1">From</label>
-									<input id="appt-filter-start" type="date" bind:value={appointmentFilterStartDate} class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments from date" />
+						<div class="flex flex-col gap-4">
+							<!-- DATE RANGE SECTION -->
+							<div class="flex flex-col gap-2">
+								<div class="block text-xs font-semibold text-gray-600 uppercase">Date Range</div>
+								<div class="flex flex-col sm:flex-row gap-2">
+									<div class="flex-1">
+										<label for="appt-filter-start" class="block text-xs font-semibold text-gray-600 mb-1">From</label>
+										<input id="appt-filter-start" type="date" bind:value={appointmentFilterStartDate} class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments from date" />
+									</div>
+									<div class="flex-1">
+										<label for="appt-filter-end" class="block text-xs font-semibold text-gray-600 mb-1">To</label>
+										<input id="appt-filter-end" type="date" bind:value={appointmentFilterEndDate} class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments to date" />
+									</div>
 								</div>
-								<div class="flex-1">
-									<label for="appt-filter-end" class="block text-xs font-semibold text-gray-600 mb-1">To</label>
-									<input id="appt-filter-end" type="date" bind:value={appointmentFilterEndDate} class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments to date" />
-								</div>
+								{#if appointmentFilterStartDate || appointmentFilterEndDate}
+									<button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-2 py-1.5 sm:py-2 rounded text-xs font-semibold w-full sm:w-auto">Clear Dates</button>
+								{/if}
 							</div>
-							{#if appointmentFilterStartDate || appointmentFilterEndDate}
-								<button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-2 py-1.5 sm:py-2 rounded text-xs font-semibold w-full sm:w-auto">Clear</button>
-							{/if}
+							<!-- FILTER & SORT SECTION -->
+							<div class="flex flex-col sm:flex-row gap-2">
+								<select
+									class="w-full sm:max-w-xs border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+									bind:value={appointmentStatusFilter}
+									aria-label="Filter appointments by status"
+								>
+									<option value="all">All Statuses</option>
+									<option value="pending">Pending</option>
+									<option value="accepted">Accepted</option>
+									<option value="completed">Completed</option>
+									<option value="missed">Missed</option>
+									<option value="declined">Declined</option>
+									<option value="cancellation_requested">Cancellation Requested</option>
+									<option value="other">Other</option>
+								</select>
+								<select
+									class="w-full sm:max-w-xs border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+									bind:value={appointmentSortOption}
+									aria-label="Sort appointments"
+								>
+									<option value="date-desc">Date (Newest)</option>
+									<option value="date-asc">Date (Oldest)</option>
+									<option value="name-asc">Patient (A → Z)</option>
+									<option value="name-desc">Patient (Z → A)</option>
+								</select>
+							</div>
 						</div>
-					</div>
 					</div>
 					<div class="overflow-x-auto -mx-3 sm:mx-0">
 						<table class="min-w-full divide-y divide-gray-200">
@@ -2127,7 +2128,7 @@ function downloadExcelReportFromReport(
 						</div>
 						<div class="flex flex-col sm:flex-row gap-2">
 							<select
-								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="w-full sm:max-w-xs border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={patientStatusFilter}
 								aria-label="Filter by status"
 							>
@@ -2136,7 +2137,7 @@ function downloadExcelReportFromReport(
 								<option value="inactive">Inactive</option>
 							</select>
 							<select
-								class="flex-1 border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="w-full sm:max-w-xs border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={patientSortOption}
 								aria-label="Sort patients"
 							>
@@ -2257,7 +2258,7 @@ function downloadExcelReportFromReport(
                     <!-- Status and Sort Dropdowns (Below) -->
                     <div class="flex flex-wrap gap-2 w-full">
                         <select
-                            class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            class="flex-1 sm:max-w-xs min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             bind:value={appointmentStatusFilter}
                             aria-label="Filter appointments by status"
                         >
@@ -2271,7 +2272,7 @@ function downloadExcelReportFromReport(
                             <option value="cancelled">Cancelled</option>
                         </select>
                         <select
-                            class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            class="flex-1 sm:max-w-xs min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             bind:value={appointmentSortOption}
                             aria-label="Sort appointments"
                         >
@@ -2350,7 +2351,7 @@ function downloadExcelReportFromReport(
                         </div>
                         <div class="flex flex-wrap gap-2 w-full lg:w-1/2">
                             <select
-                                class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="flex-1 sm:max-w-xs min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                 bind:value={patientStatusFilter}
                                 aria-label="Filter by status"
                             >
@@ -2359,7 +2360,7 @@ function downloadExcelReportFromReport(
                                 <option value="inactive">Inactive</option>
                             </select>
                             <select
-                                class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="flex-1 sm:max-w-xs min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                 bind:value={patientSortOption}
                                 aria-label="Sort patients"
                             >
@@ -2435,7 +2436,7 @@ function downloadExcelReportFromReport(
                         </div>
                         <div class="flex flex-wrap gap-2 w-full lg:w-1/2">
                             <select
-                                class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="flex-1 sm:max-w-xs min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                 bind:value={appointmentStatusFilter}
                                 aria-label="Filter monthly appointments by status"
                             >
@@ -2449,7 +2450,7 @@ function downloadExcelReportFromReport(
                                 <option value="cancelled">Cancelled</option>
                             </select>
                             <select
-                                class="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="flex-1 sm:max-w-xs min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                 bind:value={appointmentSortOption}
                                 aria-label="Sort monthly appointments"
                             >
