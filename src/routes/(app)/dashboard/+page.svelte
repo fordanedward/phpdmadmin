@@ -164,7 +164,7 @@ interface Prescription {
 	// Chart instances
 	let lineChartInstance: Chart | null = null;
 	let appointmentStatusChartInstance: Chart | null = null;
-	let genderDistributionChartInstance: Chart | null = null;
+	let serviceBreakdownChartInstance: Chart | null = null;
 	let weeklyAppointmentsChartInstance: Chart | null = null;
 	let completedMissedChartInstance: Chart | null = null;
 
@@ -1070,29 +1070,67 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
     console.log('Appointment status pie chart updated.');
 }
 
-	async function updateAndRenderGenderDistributionChart(): Promise<void> {
-		console.log('Updating gender distribution chart...');
-		const canvas = document.getElementById('genderDistributionDoughnutChart') as HTMLCanvasElement | null;
-		if (!canvas) { console.error('Gender distribution doughnut chart canvas not found.'); return; }
+	async function updateAndRenderServiceBreakdownChart(): Promise<void> {
+		console.log('Updating service breakdown chart...');
+		const canvas = document.getElementById('serviceBreakdownChart') as HTMLCanvasElement | null;
+		if (!canvas) { console.error('Service breakdown chart canvas not found.'); return; }
 
-		if (!allPatients.length) allPatients = await fetchAllPatients();
+		if (!allAppointments.length) allAppointments = await fetchAllAppointments();
 
-		const genderCounts = { male: 0, female: 0, other: 0 };
-		allPatients.forEach(p => {
-			const gender = (p.gender || '').toLowerCase();
-			if (gender === 'male') genderCounts.male++;
-			else if (gender === 'female') genderCounts.female++;
-			else genderCounts.other++;
+		// Filter to only focus on: Laboratory, Doctor's Consultation, Imaging
+		const focusedServices = ['Laboratory', "Doctor's Consultation", 'Imaging'];
+		const serviceCounts: Record<string, number> = {};
+		focusedServices.forEach(s => serviceCounts[s] = 0);
+
+		allAppointments.forEach(a => {
+			const service = a.service || '';
+			if (focusedServices.includes(service)) {
+				serviceCounts[service] = (serviceCounts[service] || 0) + 1;
+			}
 		});
 
-		const doughnutData = {
-			labels: ['Male', 'Female', 'Other/Unspecified'],
-			datasets: [{ data: [genderCounts.male, genderCounts.female, genderCounts.other], backgroundColor: ['#2196f3', '#e91e63', '#9e9e9e'] }]
+		// Use the focused services order as labels
+		const labels = focusedServices;
+		const data = labels.map(label => serviceCounts[label]);
+		
+		// Color mapping for the three services
+		const colorMap: Record<string, string> = {
+			'Laboratory': '#FF6B6B',
+			"Doctor's Consultation": '#4ECDC4',
+			'Imaging': '#45B7D1'
 		};
 
-		if (genderDistributionChartInstance) genderDistributionChartInstance.destroy();
-		genderDistributionChartInstance = new Chart(canvas, { type: 'doughnut', data: doughnutData, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' } } } });
-		console.log('Gender distribution doughnut chart updated.');
+		const chartData = {
+			labels,
+			datasets: [{
+				data,
+				backgroundColor: labels.map(label => colorMap[label]),
+				borderColor: '#fff',
+				borderWidth: 2
+			}]
+		};
+
+		if (serviceBreakdownChartInstance) serviceBreakdownChartInstance.destroy();
+		serviceBreakdownChartInstance = new Chart(canvas, {
+			type: 'doughnut',
+			data: chartData,
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				cutout: '60%',
+				plugins: {
+					legend: {
+						position: 'bottom',
+						labels: {
+							font: { size: 12 },
+							padding: 15
+						}
+					}
+				}
+			}
+		});
+
+		console.log('Service breakdown chart updated.');
 	}
 
 	async function updateAndRenderWeeklyAppointmentsChart(): Promise<void> {
@@ -1742,7 +1780,7 @@ function downloadExcelReportFromReport(
 			const currentYear = new Date().getFullYear();
 			await Promise.all([
 				updateAndRenderAppointmentStatusPieChart(),
-				updateAndRenderGenderDistributionChart(),
+				updateAndRenderServiceBreakdownChart(),
 				updateAndRenderWeeklyAppointmentsChart(),
 				updateAndRenderCompletedMissedChart(),
 				updateAndRenderLineChart(currentYear, currentMonth)
@@ -1759,7 +1797,7 @@ function downloadExcelReportFromReport(
 		console.log('Component Destroyed. Cleaning up charts...');
 		lineChartInstance?.destroy();
 		appointmentStatusChartInstance?.destroy();
-		genderDistributionChartInstance?.destroy();
+		serviceBreakdownChartInstance?.destroy();
 		weeklyAppointmentsChartInstance?.destroy();
 		completedMissedChartInstance?.destroy();
 	});
@@ -1908,9 +1946,9 @@ function downloadExcelReportFromReport(
 				</div>
 
 				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Gender Distribution</h3>
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Service Breakdown</h3>
 					<div class="h-64 sm:h-72 lg:h-80">
-						<canvas id="genderDistributionDoughnutChart"></canvas>
+						<canvas id="serviceBreakdownChart"></canvas>
 					</div>
 				</div>
 
@@ -2181,7 +2219,7 @@ function downloadExcelReportFromReport(
                             </div>
                         </div>
                         {#if appointmentFilterStartDate || appointmentFilterEndDate}
-                            <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap w-fit">Clear Dates</button>
+                            <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; appointmentFilterError = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap w-fit">Clear Dates</button>
                         {/if}
                     </div>
 
@@ -2403,7 +2441,7 @@ function downloadExcelReportFromReport(
                             </div>
                         </div>
                         {#if appointmentFilterStartDate || appointmentFilterEndDate}
-                            <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap w-fit">Clear Dates</button>
+                            <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; appointmentFilterError = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap w-fit">Clear Dates</button>
                         {/if}
                     </div>
                 <div class="overflow-x-auto">
