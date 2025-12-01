@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getFirestore, collection, addDoc, getDocs } from 'firebase/firestore';
+  import { getFirestore, collection, addDoc, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
   import { initializeApp } from 'firebase/app';
   import { firebaseConfig } from '$lib/firebaseConfig';
   import { addPopupNotification } from '$lib/popupNotificationStore.js';
@@ -22,6 +22,8 @@
   let loading = false;
   let message = '';
   let error = '';
+  let availableSlots: string[] = [];
+  let loadingSlotsForDate = false;
 
   // Optional: fetch patient list for dropdown
   let patients: any[] = [];
@@ -30,6 +32,76 @@
     const querySnapshot = await getDocs(profilesRef);
     patients = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   });
+
+  // Reactive: Load available slots whenever date changes
+  $: if (date) {
+    loadAvailableSlotsForDate(date);
+  }
+
+  // Function to load available slots for a specific date
+  async function loadAvailableSlotsForDate(selectedDate: string) {
+    availableSlots = [];
+    loadingSlotsForDate = true;
+
+    if (!selectedDate) {
+      loadingSlotsForDate = false;
+      return;
+    }
+
+    try {
+      const scheduleRef = doc(db, 'dailySchedules', selectedDate);
+      const scheduleSnap = await getDoc(scheduleRef);
+
+      if (scheduleSnap.exists()) {
+        const scheduleData = scheduleSnap.data();
+        if (scheduleData.isWorkingDay === false) {
+          console.log(`${selectedDate} is marked as a non-working day.`);
+          loadingSlotsForDate = false;
+          return;
+        }
+        
+        const scheduledSlotsForDay = scheduleData.availableSlots || [];
+        
+        if (scheduledSlotsForDay.length === 0) {
+          console.warn(`${selectedDate} is marked as working day but has no slots. Using all possible slots as fallback.`);
+          const ALL_POSSIBLE_SLOTS = [
+            "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
+            "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"
+          ];
+          availableSlots = ALL_POSSIBLE_SLOTS;
+        } else {
+          availableSlots = scheduledSlotsForDay;
+        }
+
+        // Get booked slots for this date
+        const q = query(
+          collection(db, "appointments"),
+          where("date", "==", selectedDate),
+          where("status", "in", ["Accepted", "Pending", "Scheduled", "Rescheduled", "Completed: Need Follow-up"])
+        );
+
+        const querySnapshot = await getDocs(q);
+        const bookedSlots = querySnapshot.docs.map((doc) => doc.data().time);
+        console.log(`Booked slots on ${selectedDate}:`, bookedSlots);
+
+        // Filter out booked slots
+        availableSlots = availableSlots.filter(
+          (slot) => !bookedSlots.includes(slot)
+        );
+        
+        // Sort slots chronologically
+        availableSlots.sort((a, b) => new Date(`1970-01-01T${a}`).getTime() - new Date(`1970-01-01T${b}`).getTime());
+
+        console.log(`Final available slots for ${selectedDate}:`, availableSlots);
+      } else {
+        console.log(`No schedule defined in dailySchedules for ${selectedDate}. No slots available.`);
+      }
+    } catch (error) {
+      console.error(`Error loading available slots for ${selectedDate}:`, error);
+    } finally {
+      loadingSlotsForDate = false;
+    }
+  }
 
   async function submitAppointment() {
     loading = true;
@@ -94,10 +166,36 @@
     <div>
       <label for="date" class="block text-sm font-medium mb-1">Date</label>
       <input id="date" type="date" bind:value={date} required class="w-full border rounded p-2" />
+      {#if loadingSlotsForDate}
+        <p class="text-xs text-blue-600 mt-1">Loading available slots...</p>
+      {:else if date && availableSlots.length === 0}
+        <p class="text-xs text-red-600 mt-1">No available slots for this date.</p>
+      {:else if date && availableSlots.length > 0}
+        <p class="text-xs text-green-600 mt-1">{availableSlots.length} slot(s) available</p>
+      {/if}
     </div>
     <div>
       <label for="time" class="block text-sm font-medium mb-1">Time</label>
-      <input id="time" type="time" bind:value={time} required class="w-full border rounded p-2" />
+      {#if date && availableSlots.length > 0}
+        <select id="time" bind:value={time} required class="w-full border rounded p-2">
+          <option value="" disabled selected>Select an available time</option>
+          {#each availableSlots as slot}
+            <option value={slot}>{slot}</option>
+          {/each}
+        </select>
+      {:else if date && loadingSlotsForDate}
+        <select id="time" disabled class="w-full border rounded p-2 bg-gray-100 text-gray-500">
+          <option>Loading slots...</option>
+        </select>
+      {:else if date && availableSlots.length === 0}
+        <select id="time" disabled class="w-full border rounded p-2 bg-gray-100 text-gray-500">
+          <option>No available times for this date</option>
+        </select>
+      {:else}
+        <select id="time" disabled class="w-full border rounded p-2 bg-gray-100 text-gray-500">
+          <option>Select a date first</option>
+        </select>
+      {/if}
     </div>
     <div>
       <label for="service" class="block text-sm font-medium mb-1">Service</label>
