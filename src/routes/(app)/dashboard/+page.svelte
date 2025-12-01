@@ -191,6 +191,7 @@ let appointmentStatusFilter: AppointmentStatusFilter = 'all';
 let appointmentSortOption: AppointmentSortOption = 'date-desc';
 let appointmentFilterStartDate = '';
 let appointmentFilterEndDate = '';
+let appointmentFilterError = '';
 let filteredAppointments: Appointment[] = [];
 let todaysAppointmentsFiltered: Appointment[] = [];
 let filteredMonthlyAppointments: Appointment[] = [];
@@ -416,6 +417,14 @@ function getFilteredAppointmentList(source: Appointment[]): Appointment[] {
 	if (appointmentFilterStartDate || appointmentFilterEndDate) {
 		const startDate = appointmentFilterStartDate ? new Date(appointmentFilterStartDate) : null;
 		const endDate = appointmentFilterEndDate ? new Date(appointmentFilterEndDate) : null;
+		
+		// Check for inverted dates
+		if (startDate && endDate && startDate > endDate) {
+			appointmentFilterError = 'Start date must be before end date';
+			return [];
+		}
+		
+		appointmentFilterError = '';
 		
 		list = list.filter(appt => {
 			try {
@@ -2203,6 +2212,14 @@ function downloadExcelReportFromReport(
                             <option value="name-desc">Patient (Z → A)</option>
                         </select>
                     </div>
+                {#if appointmentFilterError}
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start gap-2 sm:gap-3 mb-4">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-sm text-red-700 font-medium">{appointmentFilterError}</span>
+                    </div>
+                {/if}
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
