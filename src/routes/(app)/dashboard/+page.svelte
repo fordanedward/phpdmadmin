@@ -159,6 +159,7 @@ interface Prescription {
 	let reportEndDate = '';
 	let reportData: AppointmentReportData | null = null;
 	let isGeneratingReport = false;
+	let reportValidationError = '';
 
 	// Chart instances
 	let lineChartInstance: Chart | null = null;
@@ -631,8 +632,10 @@ $: filteredPatients = (() => {
 	}
 
 	function generateAppointmentReport(): void {
+		reportValidationError = '';
+		
 		if (!reportStartDate || !reportEndDate) {
-			alert('Please select both start and end dates');
+			reportValidationError = 'Please select both start and end dates';
 			return;
 		}
 
@@ -640,7 +643,7 @@ $: filteredPatients = (() => {
 		const end = new Date(reportEndDate);
 		
 		if (start > end) {
-			alert('Start date must be before end date');
+			reportValidationError = 'Start date must be before end date';
 			return;
 		}
 
@@ -1965,14 +1968,14 @@ function downloadExcelReportFromReport(
 						</div>
 						<!-- Date Range First on Mobile -->
 						<div class="flex flex-col gap-2 order-last sm:order-first">
-							<div class="flex gap-2 items-end">
-								<div class="flex-1 min-w-0">
+							<div class="flex flex-col sm:flex-row gap-2 sm:items-end">
+								<div class="flex-1">
 									<label for="appt-filter-start" class="block text-xs font-semibold text-gray-600 mb-1">From</label>
-									<input id="appt-filter-start" type="date" bind:value={appointmentFilterStartDate} class="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments from date" />
+									<input id="appt-filter-start" type="date" bind:value={appointmentFilterStartDate} class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments from date" />
 								</div>
-								<div class="flex-1 min-w-0">
+								<div class="flex-1">
 									<label for="appt-filter-end" class="block text-xs font-semibold text-gray-600 mb-1">To</label>
-									<input id="appt-filter-end" type="date" bind:value={appointmentFilterEndDate} class="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments to date" />
+									<input id="appt-filter-end" type="date" bind:value={appointmentFilterEndDate} class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="MM/DD/YYYY" aria-label="Filter appointments to date" />
 								</div>
 							</div>
 							{#if appointmentFilterStartDate || appointmentFilterEndDate}
@@ -2154,15 +2157,23 @@ function downloadExcelReportFromReport(
                     </div>
 
                     <!-- Date Range Filters (Middle) -->
-                    <div class="flex flex-col gap-2 w-full">
+                    <div class="flex flex-col gap-3 w-full">
                         <div class="text-xs font-semibold text-gray-600 uppercase">Date Range</div>
-                        <div class="flex flex-col sm:flex-row gap-2 w-full">
-                            <input type="date" bind:value={appointmentFilterStartDate} placeholder="From date" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments from date" />
-                            <input type="date" bind:value={appointmentFilterEndDate} placeholder="To date" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments to date" />
-                            {#if appointmentFilterStartDate || appointmentFilterEndDate}
-                                <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap">Clear Dates</button>
-                            {/if}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                            <div>
+                                <!-- svelte-ignore a11y_label_has_associated_control -->
+                                <label for="aptFilterStartDate" class="block text-xs font-medium text-gray-600 mb-2">From</label>
+                                <input id="aptFilterStartDate" type="date" bind:value={appointmentFilterStartDate} placeholder="mm/dd/yyyy" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments from date" />
+                            </div>
+                            <div>
+                                <!-- svelte-ignore a11y_label_has_associated_control -->
+                                <label for="aptFilterEndDate" class="block text-xs font-medium text-gray-600 mb-2">To</label>
+                                <input id="aptFilterEndDate" type="date" bind:value={appointmentFilterEndDate} placeholder="mm/dd/yyyy" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter appointments to date" />
+                            </div>
                         </div>
+                        {#if appointmentFilterStartDate || appointmentFilterEndDate}
+                            <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap w-fit">Clear Dates</button>
+                        {/if}
                     </div>
 
                     <!-- Status and Sort Dropdowns (Below) -->
@@ -2362,13 +2373,21 @@ function downloadExcelReportFromReport(
                                 <option value="name-desc">Patient (Z → A)</option>
                             </select>
                         </div>
-                        <div class="flex flex-wrap gap-2 w-full">
-                            <input type="date" bind:value={appointmentFilterStartDate} placeholder="From date" class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter monthly appointments from date" />
-                            <input type="date" bind:value={appointmentFilterEndDate} placeholder="To date" class="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter monthly appointments to date" />
-                            {#if appointmentFilterStartDate || appointmentFilterEndDate}
-                                <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap">Clear Dates</button>
-                            {/if}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                            <div>
+                                <!-- svelte-ignore a11y_label_has_associated_control -->
+                                <label for="monthlyFilterStartDate" class="block text-xs font-medium text-gray-600 mb-2">From</label>
+                                <input id="monthlyFilterStartDate" type="date" bind:value={appointmentFilterStartDate} placeholder="mm/dd/yyyy" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter monthly appointments from date" />
+                            </div>
+                            <div>
+                                <!-- svelte-ignore a11y_label_has_associated_control -->
+                                <label for="monthlyFilterEndDate" class="block text-xs font-medium text-gray-600 mb-2">To</label>
+                                <input id="monthlyFilterEndDate" type="date" bind:value={appointmentFilterEndDate} placeholder="mm/dd/yyyy" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" aria-label="Filter monthly appointments to date" />
+                            </div>
                         </div>
+                        {#if appointmentFilterStartDate || appointmentFilterEndDate}
+                            <button type="button" on:click={() => { appointmentFilterStartDate = ''; appointmentFilterEndDate = ''; }} class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded text-sm font-semibold whitespace-nowrap w-fit">Clear Dates</button>
+                        {/if}
                     </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -2659,30 +2678,34 @@ function downloadExcelReportFromReport(
 			<div class="p-3 sm:p-4 md:p-6">
 				<!-- Date Range Selector -->
 				<div class="bg-gradient-to-r from-yellow-50 to-yellow-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-yellow-100">
-					<h3 class="text-xs sm:text-sm font-semibold text-gray-700 mb-3">Select Date Range</h3>
-					<div class="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
-						<div class="flex-1 min-w-0">
-							<label for="reportStartDate" class="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+					<h3 class="text-xs sm:text-sm font-semibold text-gray-700 mb-4">Select Date Range</h3>
+					<div class="space-y-3 sm:space-y-0 sm:flex sm:gap-4 sm:items-end">
+						<div class="flex-1">
+							<label for="reportStartDate" class="block text-xs font-medium text-gray-600 mb-2">From</label>
 							<input
 								id="reportStartDate"
 								type="date"
 								bind:value={reportStartDate}
-								class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+								placeholder="From date"
+								class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[44px]"
+								aria-label="Report start date"
 							/>
 						</div>
-						<div class="flex-1 min-w-0">
-							<label for="reportEndDate" class="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+						<div class="flex-1">
+							<label for="reportEndDate" class="block text-xs font-medium text-gray-600 mb-2">To</label>
 							<input
 								id="reportEndDate"
 								type="date"
 								bind:value={reportEndDate}
-								class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+								placeholder="To date"
+								class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[44px]"
+								aria-label="Report end date"
 							/>
 						</div>
 						<button
 							on:click={generateAppointmentReport}
 							disabled={isGeneratingReport}
-							class="w-full sm:w-fit bg-gradient-to-r from-yellow-600 to-yellow-600 hover:from-yellow-700 hover:to-yellow-700 disabled:from-yellow-500 disabled:to-yellow-500 text-white px-4 sm:px-5 py-2.5 sm:py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-75 flex items-center justify-center gap-2"
+							class="w-full sm:w-auto bg-gradient-to-r from-yellow-600 to-yellow-600 hover:from-yellow-700 hover:to-yellow-700 disabled:from-yellow-500 disabled:to-yellow-500 text-white px-6 py-3 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-75 flex items-center justify-center gap-2 min-h-[44px] whitespace-nowrap"
 						>
 							{#if isGeneratingReport}
 								<svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -2695,6 +2718,14 @@ function downloadExcelReportFromReport(
 							{/if}
 						</button>
 					</div>
+					{#if reportValidationError}
+						<div class="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
+							<svg class="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+							</svg>
+							<span class="text-sm text-red-700 font-medium">{reportValidationError}</span>
+						</div>
+					{/if}
 				</div>
 
 				<!-- Export Controls -->
@@ -2727,7 +2758,7 @@ function downloadExcelReportFromReport(
 								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
 								</svg>
-								<span class="hidden sm:inline">Download</span>
+								<span>Download</span>
 							</button>
 						</div>
 						<div class="text-xs sm:text-sm text-gray-700 bg-white rounded p-2 sm:p-3 border border-blue-200">
