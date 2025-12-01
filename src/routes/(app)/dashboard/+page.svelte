@@ -1947,6 +1947,8 @@ function downloadExcelReportFromReport(
 						<span class="text-xs sm:text-sm text-gray-500">
 							{#if weekStartDate && weekEndDate}
 								{weekStartDate} - {weekEndDate}
+							{:else}
+								mm/dd - mm/dd
 							{/if}
 						</span>
 					</div>
