@@ -173,6 +173,8 @@ interface Prescription {
 	let lineChartNewAppointmentsData: number[] = [];
 	let lineChartTotalPatientsData: number[] = [];
 	let weeklyAppointmentCounts: DailyAppointmentCount[] = []; 
+	let weekStartDate = '';
+	let weekEndDate = '';
 
 let patientMap = new Map<string, Patient>();
 let selectedPatient: Patient | null = null;
@@ -1149,6 +1151,14 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 		lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
 		lastDayOfWeek.setHours(23, 59, 59, 999);
 
+		// Set the date range display
+		const startMM = String(firstDayOfWeek.getMonth() + 1).padStart(2, '0');
+		const startDD = String(firstDayOfWeek.getDate()).padStart(2, '0');
+		const endMM = String(lastDayOfWeek.getMonth() + 1).padStart(2, '0');
+		const endDD = String(lastDayOfWeek.getDate()).padStart(2, '0');
+		weekStartDate = `${startMM}/${startDD}`;
+		weekEndDate = `${endMM}/${endDD}`;
+
 		const counts = Array(7).fill(0);
 		allAppointments.forEach(a => { try { const appDate = new Date(a.date); if (appDate >= firstDayOfWeek && appDate <= lastDayOfWeek) { counts[appDate.getDay()]++; } } catch (e) {} });
 
@@ -1932,7 +1942,14 @@ function downloadExcelReportFromReport(
 				</div>
 
 				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Weekly Appointments</h3>
+					<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2 sm:mb-3 lg:mb-4">
+						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800">Weekly Appointments</h3>
+						<span class="text-xs sm:text-sm text-gray-500">
+							{#if weekStartDate && weekEndDate}
+								{weekStartDate} - {weekEndDate}
+							{/if}
+						</span>
+					</div>
 					<div class="h-64 sm:h-72 lg:h-80">
 						<canvas id="weeklyAppointmentsBarChart"></canvas>
 					</div>
