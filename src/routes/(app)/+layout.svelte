@@ -75,8 +75,22 @@
 
     async function handleLogout() {
         if (browser) {
+            const result = await Swal.fire({
+                icon: 'warning',
+                title: 'Are you sure?',
+                text: 'You are about to log out.',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, logout',
+                cancelButtonText: 'No, keep me logged in',
+                confirmButtonColor: '#1e3a66',
+                cancelButtonColor: '#6c757d'
+            });
+
+            if (!result.isConfirmed) {
+                return;
+            }
+
             sessionStorage.removeItem('isDesktopSidebarCollapsed');  
-            // sessionStorage.removeItem('isCollapsed');  
         }
         console.log('Logging out...');
         closeSidebarMobile();  
@@ -244,7 +258,7 @@
                         <button on:click={closeSidebarMobile} class="close-sidebar-btn" aria-label="Close Menu">×</button>
                     {/if}
                     <div class="circle-background">
-                        <img src={layoutCurrentUser.photoURL || '/images/digital member portal.png'} alt="User or Logo" />
+                        <img src={layoutCurrentUser.photoURL || '/images/logo(landing).png'} alt="User or Logo" />
                     </div>
 
                     {#if (!isMobile && !isCollapsed) || (isMobile && isSidebarOpen)}
@@ -375,9 +389,10 @@
 /* Sidebar Header (User Info) */
 	.sidebar-header {
 		display: flex; flex-direction: column; align-items: center;
-		padding: 20px 10px; /* Adjusted padding */
+		padding: 24px 16px 20px; 
 		flex-shrink: 0; 
 		position: relative;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 	}
 	.sidebar-header .circle-background {
 		display: flex; justify-content: center; align-items: center;
@@ -386,74 +401,98 @@
 		overflow: hidden;
 		flex-shrink: 0;
 		transition: width var(--sidebar-transition), height var(--sidebar-transition);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 	}
 	.sidebar-header .circle-background img {
 		display: block; width: 100%; height: 100%; object-fit: cover;
 	}
 	.name-container {
-		margin-top: 10px; display: flex; flex-direction: column; align-items: center;
+		margin-top: 12px; display: flex; flex-direction: column; align-items: center;
 		flex-shrink: 0; text-align: center;
+		gap: 2px;
 	}
 	.name-container span {
-		margin-top: 2px; font-size: 0.9rem; white-space: nowrap;
-        max-width: calc(var(--sidebar-width-desktop) - 40px); /* Prevent overflow */
+		margin-top: 0; font-size: 0.95rem; font-weight: 700; white-space: nowrap;
+        max-width: calc(var(--sidebar-width-desktop) - 40px);
         overflow: hidden; text-overflow: ellipsis;
 	}
-    .name-container span:last-child { font-size: 0.75rem; opacity: 0.8; text-transform: capitalize;}
+    .name-container span:last-child { font-size: 0.7rem; opacity: 0.65; text-transform: uppercase; font-weight: 500; letter-spacing: 0.5px; margin-top: 4px;}
 
 
 /* Sidebar Menu Items */
 	.sidebar-menu {
 		list-style: none; padding: 0; margin: 0;
-		padding-top: 0.5rem; /* Reduced */
+		padding-top: 16px; 
 		flex-grow: 1; 
 	}
 	.sidebar-menu li a {
 		display: flex; align-items: center; text-decoration: none;
 		color: var(--sidebar-text-color);
 		width: 100%;
-		padding: 10px 20px; /* Slightly less padding */
+		padding: 12px 16px; 
 		white-space: nowrap; overflow: hidden; 
-        transition: background-color 0.2s ease;
+        transition: all 0.3s ease;
+        position: relative;
 	}
-	.sidebar-menu li a:hover { background-color: var(--sidebar-hover-bg-color); }
+	.sidebar-menu li a::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0;
+		bottom: 0;
+		width: 3px;
+		background-color: #ffbc22;
+		transform: scaleY(0);
+		transition: transform 0.3s ease;
+		transform-origin: top;
+	}
+	.sidebar-menu li a:hover::before { transform: scaleY(1); }
+	.sidebar-menu li a:hover { background-color: rgba(255, 255, 255, 0.08); padding-left: 20px; }
 	.sidebar-menu li a.active { background-color: var(--sidebar-active-bg-color); font-weight: 500; }
+	.sidebar-menu li a:hover .text { color: #ffbc22; }
 
 	.sidebar-menu a .icon {
-		width: 20px; height: 20px; /* Slightly smaller icons */
+		width: 22px; height: 22px; 
 		flex-shrink: 0;
-		transition: margin-right var(--sidebar-transition);
+		transition: transform 0.3s ease, opacity 0.3s ease;
+		opacity: 0.9;
+		margin-right: 16px;
 	}
+	.sidebar-menu a:hover .icon { transform: scale(1.1); opacity: 1; }
 	.sidebar-menu a .text {
-		font-size: 0.9rem; /* Slightly smaller text */
+		font-size: 0.9rem; 
 		overflow: hidden; text-overflow: ellipsis;
 		opacity: 1; 
-		transition: opacity 0.1s ease 0.1s, width var(--sidebar-transition);  
-		margin-left: 12px; /* Adjusted space */
+		transition: color 0.3s ease, opacity 0.1s ease 0.1s, width var(--sidebar-transition);  
+		font-weight: 500;
+		letter-spacing: 0.2px;
 	}
 
 /* Logout & Toggle Buttons */
 	.logout-btn {
 		background-color: transparent;
-		border: 1px solid rgba(255,255,255,0.3);
+		border: 1.5px solid rgba(255,255,255,0.4);
 		color: var(--sidebar-text-color); cursor: pointer; font-size: 0.9rem;
-		padding: 8px 15px; margin: 15px; margin-top: auto;  
-		border-radius: 20px; text-align: center;
-		transition: background-color 0.2s ease, padding var(--sidebar-transition), border-color 0.2s ease;
+		padding: 10px 16px; margin: 16px; margin-top: auto;  
+		border-radius: 24px; text-align: center;
+		transition: all 0.3s ease;
 		display: flex; align-items: center; justify-content: center;
-		flex-shrink: 0; gap: 8px;
+		flex-shrink: 0; gap: 10px;
+		font-weight: 500;
+		letter-spacing: 0.3px;
 	}
-	.logout-btn:hover { background-color: var(--sidebar-hover-bg-color); border-color: var(--sidebar-hover-bg-color); }
-	.logout-btn img.logout-icon { width: 16px; height: 16px; }  
+	.logout-btn:hover { background-color: rgba(255,255,255,0.12); border-color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
+	.logout-btn img.logout-icon { width: 18px; height: 18px; }  
 
 	.toggle-btn {  
 		display: none;  
-		cursor: pointer; background-color: rgba(0,0,0,0.1); border: none;
-		color: var(--sidebar-text-color); font-size: 1rem; padding: 8px 0;
+		cursor: pointer; background-color: rgba(0,0,0,0.15); border: none;
+		color: var(--sidebar-text-color); font-size: 0.95rem; padding: 10px 0;
 		text-align: center; flex-shrink: 0; width: 100%;
-		margin-top: 10px;  
+		margin-top: 8px;
+		transition: all 0.3s ease;
 	}
-	.toggle-btn:hover { background-color: rgba(0,0,0,0.2); }
+	.toggle-btn:hover { background-color: rgba(0,0,0,0.25); }
 
 	@media (max-width: 767px) {
 		.sidebar {

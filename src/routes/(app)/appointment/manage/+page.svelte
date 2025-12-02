@@ -661,11 +661,25 @@
              style="opacity: 1;">
           <div class="bg-white rounded-lg p-5 sm:p-6 w-full max-w-md shadow-xl transform transition-all duration-300 ease-out scale-100">
             <h2 class="text-lg font-semibold mb-4 text-gray-800">Reason for Decline</h2>
+            
+            <!-- Information/Warning Banner -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-3 mb-4 rounded">
+              <div class="flex gap-2">
+                <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <div class="text-sm text-blue-800">
+                  <p class="font-semibold mb-1">Important Notice</p>
+                  <p>Please provide a clear reason explaining why this appointment is being declined. This message will be sent to the member, so make sure it clearly explains why the selected date appointment will be cancelled.</p>
+                </div>
+              </div>
+            </div>
+            
             <textarea
               class="w-full border border-gray-300 rounded p-2 mb-4 focus:ring-blue-500 focus:border-blue-500 text-sm"
               rows="4"
               bind:value={rejectionReason}
-              placeholder="Enter the reason for declining this appointment..."
+              placeholder="Example: 'The doctor is unavailable on this date. Please select an alternative date from our available slots.'"
             ></textarea>
             <div class="flex justify-end space-x-3">
               <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm font-medium transition-colors" on:click={() => (showReasonModal = false)}>Cancel</button>

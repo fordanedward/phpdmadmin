@@ -108,20 +108,22 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		padding: 20px 0; 
-		flex-shrink: 0; 
+		padding: 24px 16px 20px; 
+		flex-shrink: 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 	}
 	.sidebar-header .circle-background {
 		display: flex;
 		justify-content: center;
 		align-items: center;
 		background-color: white;
-		width: 80px; 
-		height: 80px; 
+		width: 72px; 
+		height: 72px; 
 		border-radius: 50%;
 		transition: width 0.3s ease, height 0.3s ease; 
 		overflow: hidden; 
 		flex-shrink: 0;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 	}
     .sidebar-header .circle-background img {
         display: block; 
@@ -134,29 +136,39 @@
 		height: 50px; 
 	}
 	.name-container {
-		margin-top: 11px;
+		margin-top: 12px;
 		display: flex;
 		flex-direction: column; 
 		align-items: center; 
         flex-shrink: 0;
+		gap: 2px;
 	}
-    .name-container span {
-        margin-top: 2px; 
-		font-size: 0.9rem; 
-		white-space: nowrap;
-		text-align: center;
+    .name-container .user-name {
+        font-size: 0.95rem;
+        font-weight: 700;
+        white-space: nowrap;
+        text-align: center;
+        letter-spacing: 0.3px;
+    }
+    .name-container .user-role {
+        font-size: 0.7rem; 
+        opacity: 0.65; 
+        margin-top: 4px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 	.sidebar-menu {
 		list-style: none;
 		padding: 0; 
-		padding-top: 2rem; 
+		padding-top: 16px; 
 		margin: 0;
 		flex-grow: 1; 
 		overflow-y: auto; 
         overflow-x: hidden;
 	}
     .sidebar-menu li:hover {
-        background-color: var(--sidenav-hover);
+        background-color: transparent;
     }
 	.sidebar-menu a {
 		display: flex; 
@@ -164,11 +176,33 @@
 		text-decoration: none;
 		color: white;
 		width: 100%;
-		padding: 12px 20px; 
+		padding: 12px 16px; 
 		white-space: nowrap; 
 		overflow: hidden; 
-        transition: background-color 0.3s ease, color 0.3s ease;
+        transition: all 0.3s ease;
+        position: relative;
 	}
+    .sidebar-menu a::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background-color: var(--sidenav-accent);
+        transform: scaleY(0);
+        transition: transform 0.3s ease;
+        transform-origin: top;
+    }
+    .sidebar-menu a:hover::before,
+    .sidebar-menu a:focus-visible::before {
+        transform: scaleY(1);
+    }
+    .sidebar-menu a:hover,
+    .sidebar-menu a:focus-visible {
+        background-color: rgba(255, 255, 255, 0.08);
+        padding-left: 20px;
+    }
     .sidebar-menu a .text {
         transition: color 0.3s ease;
     }
@@ -177,23 +211,24 @@
         color: var(--sidenav-accent);
     }
 	.sidebar-menu a .icon {
-		width: 24px; 
-		height: 24px;
-		margin-right: 15px; 
+		width: 22px; 
+		height: 22px;
+		margin-right: 16px; 
         flex-shrink: 0; 
-        transition: transform 0.35s ease, filter 0.3s ease;
-        transform: translateX(0) scale(1);
+        transition: transform 0.3s ease, filter 0.3s ease;
+        opacity: 0.9;
 	}
     .sidebar-menu a:hover .icon,
-    .sidebar-menu a:focus-visible .icon,
-    .sidebar-menu li:focus-within .icon {
-        transform: translateX(6px) scale(1.08);
-        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+    .sidebar-menu a:focus-visible .icon {
+        transform: scale(1.1);
+        opacity: 1;
     }
 	.sidebar-menu a .text {
-		font-size: 0.95rem; 
+		font-size: 0.9rem; 
         overflow: hidden;
-        text-overflow: ellipsis; 
+        text-overflow: ellipsis;
+        font-weight: 500;
+        letter-spacing: 0.2px;
 	}
 	.sidebar.collapsed .sidebar-header {
 		padding: 20px 0;
@@ -201,14 +236,17 @@
 	.sidebar.collapsed .sidebar-menu a {
 		justify-content: center; 
 		padding: 12px 0;
+        padding-left: 0;
 	}
-    .sidebar.collapsed .sidebar-menu a .icon {
-        transform: translateX(-4px) scale(0.95);
+    .sidebar.collapsed .sidebar-menu a::before {
+        display: none;
     }
-    .sidebar.collapsed .sidebar-menu a:hover .icon,
-    .sidebar.collapsed .sidebar-menu a:focus-visible .icon,
-    .sidebar.collapsed .sidebar-menu li:focus-within .icon {
-        transform: translateX(2px) scale(1.05);
+    .sidebar.collapsed .sidebar-menu a:hover {
+        padding-left: 0;
+        background-color: rgba(255, 255, 255, 0.12);
+    }
+    .sidebar.collapsed .sidebar-menu a .icon {
+        margin-right: 0;
     }
 	.sidebar.collapsed .text {
         opacity: 0; 
@@ -219,25 +257,29 @@
 	}
 	.logout-btn {
 		background-color: transparent; 
-        border: 1px solid rgba(255, 255, 255, 0.5); 
+        border: 1.5px solid rgba(255, 255, 255, 0.4); 
 		color: white;
 		cursor: pointer;
-		font-size: 0.95rem;
-		padding: 8px 15px; 
-		margin: 15px; 
+		font-size: 0.9rem;
+		padding: 10px 16px; 
+		margin: 16px; 
         margin-top: auto; 
-		border-radius: 20px; 
+		border-radius: 24px; 
 		text-align: center;
-		transition: background-color 0.2s ease, padding 0.3s ease, border-color 0.2s ease;
+		transition: all 0.3s ease;
 		display: flex;
 		align-items: center;
 		justify-content: center;
         flex-shrink: 0; 
-        gap: 8px; 
+        gap: 10px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
 	}
     .logout-btn:hover {
-        background-color: var(--sidenav-hover);
-        border-color: var(--sidenav-hover);
+        background-color: rgba(255, 255, 255, 0.12);
+        border-color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
 	.logout-btn img.logout-icon {
 		width: 18px; 
@@ -245,26 +287,27 @@
 	}
 	.sidebar.collapsed .logout-btn {
 		width: auto; 
-		padding: 8px; 
-        margin: 15px auto; 
+		padding: 10px; 
+        margin: 16px auto; 
 	}
      .sidebar.collapsed .logout-btn span { 
          display: none;
      }
 	.toggle-btn {
 		cursor: pointer;
-		background-color: rgba(0, 0, 0, 0.1); 
+		background-color: rgba(0, 0, 0, 0.15); 
 		border: none;
 		color: white;
-		font-size: 1rem;
-		padding: 8px 0; 
+		font-size: 0.95rem;
+		padding: 10px 0; 
 		text-align: center;
         flex-shrink: 0; 
         width: 100%; 
-        margin-top: 10px; 
+        margin-top: 8px;
+        transition: all 0.3s ease;
 	}
     .toggle-btn:hover {
-        background-color: rgba(0, 0, 0, 0.2);
+        background-color: rgba(0, 0, 0, 0.25);
     }
 
 </style>
@@ -281,13 +324,10 @@
         {#if !isCollapsed && userName}
             <div class="name-container" in:fade out:fade>
                 <!-- Displaying first and last name if available -->
-                <span>{displayFirstName}</span>
-                {#if displayLastName}
-                    <span>{displayLastName}</span>
-                {/if}
+                <span class="user-name">{displayFirstName} {displayLastName}</span>
                 {#if userRole}
-                    <span style="font-size: 0.75rem; opacity: 0.8; margin-top: 4px;">
-                        ({roleLabel})
+                    <span class="user-role">
+                        {roleLabel}
                     </span>
                 {/if}
             </div>

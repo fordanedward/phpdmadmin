@@ -1889,8 +1889,8 @@ function downloadExcelReportFromReport(
 			</div>
 
 			<!-- Stats Cards -->
-			<div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-2 sm:p-6 border border-indigo-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-indigo-200" on:click={() => handleCardClick('monthlyAppointments')}>
+			<div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8 lg:mb-10">
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-lg sm:rounded-2xl shadow-md hover:shadow-2xl p-4 sm:p-6 lg:p-8 border border-indigo-100 transition-all transform hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-indigo-200" on:click={() => handleCardClick('monthlyAppointments')}>
 					<div class="flex items-center justify-between gap-2">
 						<div class="min-w-0">
 							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">This Month's Appointments</p>
@@ -1945,18 +1945,18 @@ function downloadExcelReportFromReport(
 			</div>
 
 			<!-- Charts Section -->
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
-				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Appointment Trends</h3>
-					<div class="h-64 sm:h-72 lg:h-80">
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-7 mb-6 sm:mb-8 lg:mb-10">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-2xl transition-shadow">
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-3 sm:mb-4 lg:mb-6 pb-2 sm:pb-3 border-b-2 border-indigo-100">Appointment Trends</h3>
+					<div class="h-72 sm:h-80 lg:h-96">
 						<canvas id="lineChart"></canvas>
 					</div>
 				</div>
 
-				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-					<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2 sm:mb-3 lg:mb-4">
-						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800">Weekly Appointments</h3>
-						<span class="text-xs sm:text-sm text-gray-500">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-2xl transition-shadow">
+					<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4 lg:mb-6">
+						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 whitespace-nowrap">Weekly Appointments (mm/dd)</h3>
+						<span class="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
 							{#if weekStartDate && weekEndDate}
 								{weekStartDate} - {weekEndDate}
 							{:else}
@@ -1964,37 +1964,37 @@ function downloadExcelReportFromReport(
 							{/if}
 						</span>
 					</div>
-					<div class="h-64 sm:h-72 lg:h-80">
+					<div class="h-72 sm:h-80 lg:h-96">
 						<canvas id="weeklyAppointmentsBarChart"></canvas>
 					</div>
 				</div>
 
-				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Appointment Status</h3>
-					<div class="h-64 sm:h-72 lg:h-80">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-2xl transition-shadow">
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-3 sm:mb-4 lg:mb-6 pb-2 sm:pb-3 border-b-2 border-indigo-100">Appointment Status</h3>
+					<div class="h-72 sm:h-80 lg:h-96">
 						<canvas id="appointmentStatusPieChart"></canvas>
 					</div>
 				</div>
 
-				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Service Breakdown</h3>
-					<div class="h-64 sm:h-72 lg:h-80">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-2xl transition-shadow">
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-3 sm:mb-4 lg:mb-6 pb-2 sm:pb-3 border-b-2 border-indigo-100">Service Breakdown</h3>
+					<div class="h-72 sm:h-80 lg:h-96">
 						<canvas id="serviceBreakdownChart"></canvas>
 					</div>
 				</div>
 
-				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 lg:col-span-2 hover:shadow-xl transition-shadow">
-					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">Completed vs Missed Appointments</h3>
-					<div class="h-64 sm:h-72 lg:h-80">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 lg:col-span-2 hover:shadow-2xl transition-shadow">
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-3 sm:mb-4 lg:mb-6 pb-2 sm:pb-3 border-b-2 border-indigo-100">Completed vs Missed Appointments</h3>
+					<div class="h-72 sm:h-80 lg:h-96">
 						<canvas id="completedMissedLineChart"></canvas>
 					</div>
 				</div>
 			</div>
 
 			<!-- Data Tables Section -->
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-					<div class="flex justify-between items-center mb-3 sm:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-7">
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-2xl transition-shadow">
+					<div class="flex justify-between items-center mb-4 sm:mb-5 lg:mb-6 pb-2 sm:pb-3 border-b-2 border-indigo-100">
 						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800">Recent Appointments</h3>
 						<button
 							class="text-xs sm:text-sm font-semibold text-blue-900 hover:text-indigo-700 transition-colors whitespace-nowrap"
@@ -2037,7 +2037,7 @@ function downloadExcelReportFromReport(
 							<!-- FILTER & SORT SECTION -->
 							<div class="flex flex-col sm:flex-row gap-2">
 								<select
-									class="w-full sm:max-w-xs border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+									class="w-full sm:flex-1 lg:max-w-sm border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 									bind:value={appointmentStatusFilter}
 									aria-label="Filter appointments by status"
 								>
@@ -2051,7 +2051,7 @@ function downloadExcelReportFromReport(
 									<option value="other">Other</option>
 								</select>
 								<select
-									class="w-full sm:max-w-xs border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+									class="w-full sm:flex-1 lg:max-w-sm border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 									bind:value={appointmentSortOption}
 									aria-label="Sort appointments"
 								>
@@ -2103,8 +2103,8 @@ function downloadExcelReportFromReport(
 								</tbody>
 							</table>
 						</div>
-					</div>				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-xl transition-shadow">
-					<div class="flex justify-between items-center mb-3 sm:mb-4 pb-1 sm:pb-2 border-b-2 border-indigo-100">
+					</div>				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 hover:shadow-2xl transition-shadow">
+					<div class="flex justify-between items-center mb-4 sm:mb-5 lg:mb-6 pb-2 sm:pb-3 border-b-2 border-indigo-100">
 						<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800">Recent Members</h3>
 						<button
 							class="text-xs sm:text-sm font-semibold text-blue-900 hover:text-indigo-700 transition-colors whitespace-nowrap"
@@ -2128,7 +2128,7 @@ function downloadExcelReportFromReport(
 						</div>
 						<div class="flex flex-col sm:flex-row gap-2">
 							<select
-								class="w-full sm:max-w-xs border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="w-full sm:flex-1 lg:max-w-sm border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={patientStatusFilter}
 								aria-label="Filter by status"
 							>
@@ -2137,7 +2137,7 @@ function downloadExcelReportFromReport(
 								<option value="inactive">Inactive</option>
 							</select>
 							<select
-								class="w-full sm:max-w-xs border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+								class="w-full sm:flex-1 lg:max-w-sm border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
 								bind:value={patientSortOption}
 								aria-label="Sort patients"
 							>
@@ -2258,7 +2258,7 @@ function downloadExcelReportFromReport(
                     <!-- Status and Sort Dropdowns (Below) -->
                     <div class="flex flex-wrap gap-2 w-full">
                         <select
-                            class="flex-1 sm:max-w-xs min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            class="flex-1 lg:w-64 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             bind:value={appointmentStatusFilter}
                             aria-label="Filter appointments by status"
                         >
@@ -2272,7 +2272,7 @@ function downloadExcelReportFromReport(
                             <option value="cancelled">Cancelled</option>
                         </select>
                         <select
-                            class="flex-1 sm:max-w-xs min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            class="flex-1 lg:w-64 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             bind:value={appointmentSortOption}
                             aria-label="Sort appointments"
                         >
@@ -2351,7 +2351,7 @@ function downloadExcelReportFromReport(
                         </div>
                         <div class="flex flex-wrap gap-2 w-full lg:w-1/2">
                             <select
-                                class="flex-1 sm:max-w-xs min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="flex-1 lg:w-64 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                 bind:value={patientStatusFilter}
                                 aria-label="Filter by status"
                             >
@@ -2360,7 +2360,7 @@ function downloadExcelReportFromReport(
                                 <option value="inactive">Inactive</option>
                             </select>
                             <select
-                                class="flex-1 sm:max-w-xs min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="flex-1 lg:w-64 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                 bind:value={patientSortOption}
                                 aria-label="Sort patients"
                             >
@@ -2436,7 +2436,7 @@ function downloadExcelReportFromReport(
                         </div>
                         <div class="flex flex-wrap gap-2 w-full lg:w-1/2">
                             <select
-                                class="flex-1 sm:max-w-xs min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="flex-1 lg:w-64 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                 bind:value={appointmentStatusFilter}
                                 aria-label="Filter monthly appointments by status"
                             >
@@ -2450,7 +2450,7 @@ function downloadExcelReportFromReport(
                                 <option value="cancelled">Cancelled</option>
                             </select>
                             <select
-                                class="flex-1 sm:max-w-xs min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="flex-1 lg:w-64 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                 bind:value={appointmentSortOption}
                                 aria-label="Sort monthly appointments"
                             >
