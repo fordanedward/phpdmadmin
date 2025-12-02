@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { fade, scale } from 'svelte/transition';
+	import { fade, scale, fly } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 
 	import {
@@ -2206,8 +2206,8 @@ function downloadExcelReportFromReport(
 
 <!-- Full Table Views -->
 {#if openTable}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-        <div class="bg-white rounded-lg p-3 sm:p-4 lg:p-6 w-full max-w-6xl max-h-[90vh] overflow-auto">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4" transition:fade={{ duration: 300 }}>
+        <div class="bg-white rounded-lg p-3 sm:p-4 lg:p-6 w-full max-w-6xl max-h-[90vh] overflow-auto" transition:fly={{ duration: 350, y: 40 }}>
             <div class="flex justify-between items-center mb-3 sm:mb-4">
 				<h2 class="text-base sm:text-lg lg:text-xl font-bold text-gray-800">
 					{openTable === 'appointments' ? (appointmentViewMode === 'today' ? "Today's Appointments" : 'All Appointments') :
@@ -3180,6 +3180,30 @@ function downloadExcelReportFromReport(
 		animation: slideInUp 0.5s ease-out forwards;
 		opacity: 0;
 		animation-delay: var(--animation-delay, 0s);
+	}
+
+	/* Modal Backdrop Animations */
+	:global(.modal-open) {
+		overflow: hidden;
+	}
+
+	/* Enhanced Modal Content Animations */
+	:global(.modal-content) {
+		/* Animation is handled by Svelte transitions */
+	}
+
+	/* Smoother fade for backdrop */
+	:global([transition\:fade]) {
+		animation: backdropFade 0.25s ease-in-out;
+	}
+
+	@keyframes backdropFade {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 </style>
 
