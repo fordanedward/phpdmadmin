@@ -184,7 +184,7 @@ let showPatientDetailsModal = false;
 
 let patientSearchTerm = '';
 let patientStatusFilter: MemberStatus | 'all' = 'all';
-type PatientSortOption = 'name-asc' | 'name-desc' | 'age-asc' | 'age-desc' | 'date-asc' | 'date-desc';
+type PatientSortOption = 'name-asc' | 'name-desc' | 'age-asc' | 'age-desc' | 'date-asc' | 'date-desc' | 'id-asc' | 'id-desc';
 let patientSortOption: PatientSortOption = 'name-asc';
 let filteredPatients: Patient[] = [];
 
@@ -589,6 +589,12 @@ $: filteredPatients = (() => {
 			break;
 		case 'date-desc':
 			patients.sort((a, b) => (b.registrationDate || '').localeCompare(a.registrationDate || ''));
+			break;
+		case 'id-asc':
+			patients.sort((a, b) => (a.displayId || a.id || '').localeCompare(b.displayId || b.id || ''));
+			break;
+		case 'id-desc':
+			patients.sort((a, b) => (b.displayId || b.id || '').localeCompare(a.displayId || a.id || ''));
 			break;
 		default:
 			patients.sort(comparePatientsByName);
@@ -1984,7 +1990,7 @@ function downloadExcelReportFromReport(
 				</div>
 
 				<div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 lg:p-6 border border-indigo-100 lg:col-span-2 hover:shadow-2xl transition-shadow">
-					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-3 sm:mb-4 lg:mb-6 pb-2 sm:pb-3 border-b-2 border-indigo-100">Completed vs Missed Appointments</h3>
+					<h3 class="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-3 sm:mb-4 lg:mb-6 pb-2 sm:pb-3 border-b-2 border-indigo-100">Completed and Missed Appointments</h3>
 					<div class="h-72 sm:h-80 lg:h-96">
 						<canvas id="completedMissedLineChart"></canvas>
 					</div>
@@ -2366,6 +2372,8 @@ function downloadExcelReportFromReport(
                             >
                                 <option value="name-asc">Name (A → Z)</option>
                                 <option value="name-desc">Name (Z → A)</option>
+                                <option value="id-asc">Member ID (0 → 9)</option>
+                                <option value="id-desc">Member ID (9 → 0)</option>
                                 <option value="age-asc">Age (Youngest)</option>
                                 <option value="age-desc">Age (Oldest)</option>
                                 <option value="date-asc">Date Registered (Oldest)</option>
@@ -2378,10 +2386,11 @@ function downloadExcelReportFromReport(
                         <thead>
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration Date</th>
+                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]">Member ID</th>
+                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
+                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration Date</th>
 								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             </tr>
                         </thead>
@@ -2392,10 +2401,11 @@ function downloadExcelReportFromReport(
 									<td class="px-4 py-3 text-sm text-gray-900">
 										<button class="text-left text-blue-600 hover:underline member-name-clickable" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
 									</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{formatDateDisplay(patient.registrationDate)}</td>
+                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-700 min-w-[140px]">{patient.displayId || patient.id}</td>
+                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
+                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
+                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
+                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">{formatDateDisplay(patient.registrationDate)}</td>
 									<td class="px-4 py-3 text-sm text-gray-500">
 										<select
 											class="status-select"
@@ -2411,7 +2421,7 @@ function downloadExcelReportFromReport(
                             {/each}
                             {:else}
                                 <tr>
-                                    <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No members match the current filters.</td>
+                                    <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">No members match the current filters.</td>
                                 </tr>
                             {/if}
                         </tbody>

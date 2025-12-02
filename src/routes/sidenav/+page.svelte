@@ -319,7 +319,7 @@
 <div class="sidebar {isCollapsed ? 'collapsed' : ''}">
     <div class="sidebar-header">
         <div class="circle-background" in:fade>
-            <img src={userPhotoURL || '/images/logo(landing).png'} alt="User or Logo" />
+            <img src={userPhotoURL || '/images/phpdgmpadmin.png'} alt="User or Logo" />
         </div>
         {#if !isCollapsed && userName}
             <div class="name-container" in:fade out:fade>

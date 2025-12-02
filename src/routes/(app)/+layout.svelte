@@ -258,7 +258,7 @@
                         <button on:click={closeSidebarMobile} class="close-sidebar-btn" aria-label="Close Menu">×</button>
                     {/if}
                     <div class="circle-background">
-                        <img src={layoutCurrentUser.photoURL || '/images/logo(landing).png'} alt="User or Logo" />
+                        <img src={layoutCurrentUser.photoURL || '/images/phpdgmpadmin.png'} alt="User or Logo" />
                     </div>
 
                     {#if (!isMobile && !isCollapsed) || (isMobile && isSidebarOpen)}
@@ -404,7 +404,7 @@
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 	}
 	.sidebar-header .circle-background img {
-		display: block; width: 100%; height: 100%; object-fit: cover;
+		display: block; width: 75%; height: 75%; object-fit: contain;
 	}
 	.name-container {
 		margin-top: 12px; display: flex; flex-direction: column; align-items: center;
