@@ -1895,54 +1895,58 @@ function downloadExcelReportFromReport(
 			</div>
 
 			<!-- Stats Cards -->
-			<div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8 lg:mb-10">
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-lg sm:rounded-2xl shadow-md hover:shadow-2xl p-4 sm:p-6 lg:p-8 border border-indigo-100 transition-all transform hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-indigo-200" on:click={() => handleCardClick('monthlyAppointments')}>
+			<div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 mb-6 sm:mb-8 lg:mb-10">
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('monthlyAppointments')} class="bg-white rounded-lg sm:rounded-2xl shadow-md hover:shadow-2xl p-3 sm:p-6 lg:p-8 border border-indigo-100 transition-all transform hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-indigo-200" on:click={() => handleCardClick('monthlyAppointments')}>
 					<div class="flex items-center justify-between gap-2">
 						<div class="min-w-0">
-							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">This Month's Appointments</p>
-							<h3 class="text-lg sm:text-3xl font-bold bg-gradient-to-r from-blue-900 to-indigo-700 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.monthlyAppointments}</h3>
+							<p class="text-[11px] sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">This Month's</p>
+							<p class="text-[11px] sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Appointments</p>
+							<h3 class="text-xl sm:text-3xl font-bold bg-gradient-to-r from-blue-900 to-indigo-700 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.monthlyAppointments}</h3>
 						</div>
 							<div class="p-2 sm:p-4 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md flex-shrink-0">
-								<svg class="w-4 h-4 sm:w-7 sm:h-7 text-blue-900 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="w-5 h-5 sm:w-7 sm:h-7 text-blue-900 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'all')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-2 sm:p-6 border border-emerald-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-emerald-200" on:click={() => handleCardClick('appointments', 'all')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'all')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-3 sm:p-6 border border-emerald-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-emerald-200" on:click={() => handleCardClick('appointments', 'all')}>
 					<div class="flex items-center justify-between gap-2">
 						<div class="min-w-0">
-							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Total Appointments</p>
-							<h3 class="text-lg sm:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.newAppointments}</h3>
+							<p class="text-[11px] sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Total</p>
+							<p class="text-[11px] sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Appointments</p>
+							<h3 class="text-xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.newAppointments}</h3>
 						</div>
 							<div class="p-2 sm:p-4 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md flex-shrink-0">
-								<svg class="w-4 h-4 sm:w-7 sm:h-7 text-emerald-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="w-5 h-5 sm:w-7 sm:h-7 text-emerald-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'today')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-2 sm:p-6 border border-purple-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-purple-200" on:click={() => handleCardClick('appointments', 'today')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('appointments', 'today')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-3 sm:p-6 border border-purple-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-purple-200" on:click={() => handleCardClick('appointments', 'today')}>
 					<div class="flex items-center justify-between gap-2">
 						<div class="min-w-0">
-							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Today's Appointments</p>
-							<h3 class="text-lg sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.todaysAppointments}</h3>
+							<p class="text-[11px] sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Today's</p>
+							<p class="text-[11px] sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Appointments</p>
+							<h3 class="text-xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.todaysAppointments}</h3>
 						</div>
 							<div class="p-2 sm:p-4 bg-gradient-to-br from-purple-100 to-violet-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md flex-shrink-0">
-								<svg class="w-4 h-4 sm:w-7 sm:h-7 text-purple-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="w-5 h-5 sm:w-7 sm:h-7 text-purple-700 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
 							</svg>
 						</div>
 					</div>
 				</div>
-				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('patients')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-2 sm:p-6 border border-amber-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-amber-200" on:click={() => handleCardClick('patients')}>
+				<div role="button" tabindex="0" on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') && handleCardClick('patients')} class="bg-white rounded-lg sm:rounded-2xl shadow-md p-3 sm:p-6 border border-amber-100 transition-all transform hover:shadow-xl hover:scale-105 hover:-translate-y-2 cursor-pointer group hover:border-amber-200" on:click={() => handleCardClick('patients')}>
 					<div class="flex items-center justify-between gap-2">
 						<div class="min-w-0">
-							<p class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Total Members</p>
-							<h3 class="text-lg sm:text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.totalPatients}</h3>
+							<p class="text-[11px] sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Total</p>
+							<p class="text-[11px] sm:text-sm font-semibold text-gray-600 uppercase tracking-tight">Members</p>
+							<h3 class="text-xl sm:text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent mt-1 sm:mt-2">{stats.totalPatients}</h3>
 						</div>
 							<div class="p-2 sm:p-4 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg sm:rounded-xl transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3 shadow-sm group-hover:shadow-md flex-shrink-0">
-								<svg class="w-4 h-4 sm:w-7 sm:h-7 text-amber-600 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="w-5 h-5 sm:w-7 sm:h-7 text-amber-600 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
 							</svg>
 						</div>
@@ -2381,34 +2385,34 @@ function downloadExcelReportFromReport(
                             </select>
                         </div>
                     </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead>
+                <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <table class="w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]">Member ID</th>
-                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
-                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                                <th class="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration Date</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Name</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">ID</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Age</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Gender</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Phone</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Reg. Date</th>
+								<th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             {#if filteredPatients.length}
                             {#each filteredPatients as patient}
 								<tr class="hover:bg-gray-50">
-									<td class="px-4 py-3 text-sm text-gray-900">
-										<button class="text-left text-blue-600 hover:underline member-name-clickable" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
+									<td class="px-2 py-2 text-xs text-gray-900 whitespace-nowrap">
+										<button class="text-left text-blue-600 hover:underline member-name-clickable text-xs" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
 									</td>
-                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-700 min-w-[140px]">{patient.displayId || patient.id}</td>
-                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
-                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
-                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">{patient.phone}</td>
-                                    <td class="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">{formatDateDisplay(patient.registrationDate)}</td>
-									<td class="px-4 py-3 text-sm text-gray-500">
+                                    <td class="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">{patient.displayId || patient.id}</td>
+                                    <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
+                                    <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
+                                    <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.phone}</td>
+                                    <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{formatDateDisplay(patient.registrationDate)}</td>
+									<td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">
 										<select
-											class="status-select"
+											class="status-select text-xs border border-gray-300 rounded px-1 py-1 bg-white w-16 sm:w-24"
 											aria-label="Set member status"
 											value={patient.status ?? 'active'}
 											on:change={(event) => updateMemberStatus(patient.id, event.currentTarget.value as MemberStatus)}
@@ -2421,7 +2425,7 @@ function downloadExcelReportFromReport(
                             {/each}
                             {:else}
                                 <tr>
-                                    <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">No members match the current filters.</td>
+                                    <td colspan="7" class="px-2 py-4 text-center text-xs text-gray-500">No members match the current filters.</td>
                                 </tr>
                             {/if}
                         </tbody>
@@ -3185,11 +3189,6 @@ function downloadExcelReportFromReport(
 	/* Modal Backdrop Animations */
 	:global(.modal-open) {
 		overflow: hidden;
-	}
-
-	/* Enhanced Modal Content Animations */
-	:global(.modal-content) {
-		/* Animation is handled by Svelte transitions */
 	}
 
 	/* Smoother fade for backdrop */
