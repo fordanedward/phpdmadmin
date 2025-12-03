@@ -305,7 +305,7 @@
 
 </script>
 
-<div class="bg-gradient-to-br from-blue-50 via-white to-gray-100 min-h-screen">
+<div class="min-h-screen" style="background: linear-gradient(to bottom right, #f0f4f8, white, #f5f5f5);">
     <div class="max-w-6xl mx-auto px-3 sm:p-4 md:p-6 py-4 sm:py-6">
         <div class="mb-4 sm:mb-6 md:mb-8">
             <div class="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
@@ -319,11 +319,11 @@
 
         <!-- Section for Default Working Days -->
         <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 md:p-5 mb-4 sm:mb-5 md:mb-6">
-            <h2 class="text-sm sm:text-base md:text-lg lg:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-blue-700">Default Working Days</h2>
+            <h2 class="text-sm sm:text-base md:text-lg lg:text-xl font-bold mb-2 sm:mb-3 md:mb-4" style="color: #0b2d56;">Default Working Days</h2>
 
             {#if isLoadingDefaults}
                 <div class="text-center py-3 sm:py-4">
-                    <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4 border-blue-500 border-t-transparent"></div>
+                    <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4" style="border-color: #0b2d56; border-top-color: transparent;"></div>
                     <p class="mt-2 text-gray-600 text-xs sm:text-sm">Loading...</p>
                 </div>
             {:else}
@@ -347,17 +347,18 @@
                 <div class="mt-3 sm:mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
                     {#if isSavingDefaults}
                         <div class="flex items-center gap-2">
-                            <svg class="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <svg class="animate-spin h-4 w-4" style="color: #0b2d56;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <p class="text-xs sm:text-sm text-blue-600 font-medium">Saving changes...</p>
+                            <p class="text-xs sm:text-sm font-medium" style="color: #0b2d56;">Saving changes...</p>
                         </div>
                     {/if}
                     <button
                         on:click={() => saveDefaultSettings(false)}
                         disabled={isSavingDefaults || !hasDefaultChanges}
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500 w-full sm:w-auto font-medium"
+                        class="text-white px-3 sm:px-4 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto font-medium"
+                        style="background-color: #0b2d56;"
                         title={isSavingDefaults ? 'Saving... please wait' : (!hasDefaultChanges ? 'No changes to save' : 'Click to save changes')}
                     >
                         {#if isSavingDefaults}
@@ -377,11 +378,11 @@
 
         <!-- Section for Specific Date Availability/Availability Hours -->
         <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 md:p-5">
-            <h2 class="text-sm sm:text-base md:text-lg lg:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-blue-700">Availability Hours</h2>
+            <h2 class="text-sm sm:text-base md:text-lg lg:text-xl font-bold mb-2 sm:mb-3 md:mb-4" style="color: #0b2d56;">Availability Hours</h2>
             
             <!-- Purpose & How It Works -->
-            <div class="mb-4 sm:mb-5 md:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h3 class="text-xs sm:text-sm font-semibold text-blue-900 mb-2">How Availability Hours Work:</h3>
+            <div class="mb-4 sm:mb-5 md:mb-6 p-3 sm:p-4 rounded-lg" style="background-color: #f0f4f8; border: 1px solid #c5d4e8;">
+                <h3 class="text-xs sm:text-sm font-semibold mb-2" style="color: #0b2d56;">How Availability Hours Work:</h3>
                 <ul class="text-xs sm:text-sm text-gray-700 space-y-1.5 ml-4 list-disc">
                     <li><strong>Select a Date:</strong> Choose a specific date to configure its availability.</li>
                     <li><strong>Mark as Working Day:</strong> Toggle whether this date is a working day or a non-working day (holiday, day off, etc.).</li>
@@ -397,25 +398,27 @@
                     id="scheduleDate"
                     bind:value={selectedDate}
                     min={new Date().toISOString().split('T')[0]}
-                    class="w-full sm:max-w-xs border border-gray-300 rounded px-3 py-2 text-xs sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full sm:max-w-xs border border-gray-300 rounded px-3 py-2 text-xs sm:text-sm"
+                    style="--input-focus-color: #0b2d56;"
                     disabled={isLoadingSchedule || isLoadingDefaults || isSavingSchedule || isSavingDefaults}
                 />
             </div>
 
             {#if isLoadingSchedule || isLoadingDefaults}
                 <div class="text-center py-3 sm:py-4">
-                    <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4 border-blue-500 border-t-transparent"></div>
+                    <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-3 sm:border-4" style="border-color: #0b2d56; border-top-color: transparent;"></div>
                     <p class="mt-2 text-gray-600 text-xs sm:text-sm">Loading schedule for {selectedDate}...</p>
                 </div>
             {:else if selectedDate && db}
                 <div class="space-y-2 sm:space-y-3 md:space-y-4">
                     <!-- Working Day Toggle -->
-                    <div class="p-2 sm:p-3 border rounded bg-blue-50 border-blue-200">
+                    <div class="p-2 sm:p-3 border rounded" style="background-color: #f0f4f8; border-color: #c5d4e8;">
                         <label class="flex items-center space-x-2">
                             <input
                                 type="checkbox"
                                 bind:checked={isWorkingDay}
-                                class="form-checkbox h-4 w-4 sm:h-5 sm:w-5 text-blue-600 rounded focus:ring-blue-500"
+                                class="form-checkbox h-4 w-4 sm:h-5 sm:w-5 rounded"
+                                style="accent-color: #0b2d56;"
                                 disabled={isSavingSchedule}
                             />
                             <span class="text-gray-800 font-medium text-xs sm:text-sm">Working day?</span>
@@ -521,7 +524,8 @@
                         <button
                             on:click={saveSchedule}
                             disabled={isSavingSchedule || isLoadingSchedule || isSavingDefaults}
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-5 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500 w-full sm:w-auto font-medium flex items-center justify-center gap-2"
+                            class="text-white px-4 sm:px-5 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto font-medium flex items-center justify-center gap-2"
+                            style="background-color: #0b2d56;"
                             title={isSavingSchedule ? 'Saving... please wait' : (isLoadingSchedule ? 'Loading schedule...' : 'Click to save schedule')}
                         >
                             {#if isSavingSchedule}
@@ -537,7 +541,7 @@
                             {/if}
                         </button>
                         {#if isSavingSchedule}
-                            <p class="text-[10px] sm:text-xs text-blue-600 text-center">This may take a moment...</p>
+                            <p class="text-[10px] sm:text-xs text-center" style="color: #0b2d56;">This may take a moment...</p>
                         {/if}
                     </div>
                 </div>
@@ -616,19 +620,19 @@
         }
     }
     .day-toggle:hover {
-        border-color: #cbd5f5;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+        border-color: #c5d4e8;
+        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.12);
     }
     .day-toggle--active {
-        border-color: #2563eb;
-        background: linear-gradient(135deg, rgba(37,99,235,0.12), rgba(59,130,246,0.08));
+        border-color: #0b2d56;
+        background: linear-gradient(135deg, rgba(11,45,86,0.12), rgba(11,45,86,0.08));
     }
     .day-toggle--active .day-toggle__dot {
-        background: #2563eb;
+        background: #0b2d56;
         transform: scale(1.1);
     }
     .day-toggle--active .day-toggle__label {
-        color: #1d4ed8;
+        color: #0b2d56;
     }
 
     .slot-chip {
@@ -636,11 +640,11 @@
         align-items: center;
         justify-content: center;
         padding: 0.4rem 0.6rem;
-        border: 1px solid #d1d5db;
-        border-radius: 9999px;
+        border: 1.5px solid #0b2d56;
+        border-radius: 0.5rem;
         font-size: 0.75rem;
         font-weight: 600;
-        color: #1f2937;
+        color: #0b2d56;
         background-color: #fff;
         transition: all 0.15s ease-in-out;
         cursor: pointer;
@@ -654,15 +658,16 @@
         }
     }
     .slot-chip:hover:not(:disabled) {
-        border-color: #2563eb;
-        color: #1d4ed8;
-        background-color: #f0f9ff;
+        border-color: #0b2d56;
+        color: #fff;
+        background-color: #0b2d56;
+        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.15);
     }
     .slot-chip.selected {
-        background-color: #2563eb;
-        border-color: #2563eb;
+        background-color: #0b2d56;
+        border-color: #0b2d56;
         color: #fff;
-        box-shadow: 0 4px 12px rgba(37, 99,235, 0.25);
+        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.25);
     }
     .slot-chip:disabled {
         cursor: not-allowed;
@@ -674,9 +679,10 @@
         align-items: center;
         gap: 0.3rem;
         padding: 0.3rem 0.6rem;
-        background-color: #e0f2fe;
-        color: #075985;
-        border-radius: 9999px;
+        background-color: #f0f4f8;
+        color: #0b2d56;
+        border: 1px solid #c5d4e8;
+        border-radius: 0.5rem;
         font-weight: 600;
         font-size: 0.75rem;
     }
@@ -704,7 +710,7 @@
     .select-all-btn {
         padding: 0.35rem 0.75rem;
         border-radius: 0.375rem;
-        background-color: #2563eb;
+        background-color: #0b2d56;
         color: #fff;
         font-size: 0.75rem;
         font-weight: 600;
@@ -719,7 +725,7 @@
         }
     }
     .select-all-btn:hover:not(:disabled) {
-        background-color: #1d4ed8;
+        background-color: #051f35;
     }
     .select-all-btn:disabled {
         opacity: 0.6;
@@ -728,7 +734,7 @@
 
     /* Responsive container padding */
     @media (max-width: 640px) {
-        :global(.bg-gradient-to-br.from-blue-50) {
+        :global(.min-h-screen) {
             padding-left: 0;
             padding-right: 0;
         }
