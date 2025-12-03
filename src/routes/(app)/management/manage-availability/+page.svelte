@@ -64,6 +64,7 @@
   let initialLoadComplete: boolean = false;
   let hasDefaultChanges: boolean = false;
   let userHasModifiedSlots: boolean = false;
+  let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 
   function sortTimeSlots(slots: string[]): string[] {
@@ -155,6 +156,14 @@
       }
       isSavingDefaults = true;
       console.log("Saving default working days:", defaultWorkingDays);
+      
+      // Set timeout safeguard - if save takes longer than 30 seconds, force unlock
+      saveTimeout = setTimeout(() => {
+          console.warn("Save operation timeout - forcing unlock");
+          isSavingDefaults = false;
+          Swal.fire('Warning', 'Save is taking longer than expected. Please try again if it did not complete.', 'warning');
+      }, 30000);
+      
       try {
       
           const sortedDays = [...defaultWorkingDays].sort((a,b) => a - b);
@@ -174,6 +183,7 @@
               console.warn("Initial save of default settings failed (might be permissions?).");
           }
       } finally {
+          if (saveTimeout) clearTimeout(saveTimeout);
           isSavingDefaults = false;
       }
   }
@@ -242,6 +252,13 @@
           slotsToSave = sortTimeSlots(ALL_POSSIBLE_SLOTS);
       }
 
+      // Set timeout safeguard - if save takes longer than 30 seconds, force unlock
+      saveTimeout = setTimeout(() => {
+          console.warn("Save operation timeout - forcing unlock");
+          isSavingSchedule = false;
+          Swal.fire('Warning', 'Save is taking longer than expected. Please try again if it did not complete.', 'warning');
+      }, 30000);
+
       try {
           const scheduleRef = doc(db, FIRESTORE_DAILY_SCHEDULES_COLLECTION, selectedDate);
           await setDoc(scheduleRef, {
@@ -257,6 +274,7 @@
           console.error("Error saving schedule:", error);
           Swal.fire('Error', 'Could not save schedule.', 'error');
       } finally {
+          if (saveTimeout) clearTimeout(saveTimeout);
           isSavingSchedule = false;
       }
   }
@@ -328,19 +346,30 @@
                 </div>
                 <div class="mt-3 sm:mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
                     {#if isSavingDefaults}
-                        <p class="text-xs sm:text-sm text-blue-600 italic text-center sm:text-right">Saving...</p>
+                        <div class="flex items-center gap-2">
+                            <svg class="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p class="text-xs sm:text-sm text-blue-600 font-medium">Saving changes...</p>
+                        </div>
                     {/if}
                     <button
                         on:click={() => saveDefaultSettings(false)}
                         disabled={isSavingDefaults || !hasDefaultChanges}
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500 w-full sm:w-auto font-medium"
+                        title={isSavingDefaults ? 'Saving... please wait' : (!hasDefaultChanges ? 'No changes to save' : 'Click to save changes')}
                     >
-                        Save Default Settings
+                        {#if isSavingDefaults}
+                            Saving...
+                        {:else}
+                            Save Default Settings
+                        {/if}
                     </button>
                     {#if !hasDefaultChanges && !isSavingDefaults}
                         <p class="text-[10px] sm:text-xs text-gray-500 text-center sm:text-right">No changes to save.</p>
                     {:else if hasDefaultChanges && !isSavingDefaults}
-                        <p class="text-[10px] sm:text-xs text-orange-600 text-center sm:text-right">You have unsaved changes.</p>
+                        <p class="text-[10px] sm:text-xs text-orange-600 text-center sm:text-right">Unsaved changes</p>
                     {/if}
                 </div>
             {/if}
@@ -488,22 +517,28 @@
                     {/if}
 
                     <!-- Save Button -->
-                    <div class="mt-4 sm:mt-6 flex justify-center sm:justify-end">
+                    <div class="mt-4 sm:mt-6 flex flex-col items-center sm:items-end gap-2">
                         <button
                             on:click={saveSchedule}
                             disabled={isSavingSchedule || isLoadingSchedule || isSavingDefaults}
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-5 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-5 py-2 text-xs sm:text-sm rounded shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500 w-full sm:w-auto font-medium flex items-center justify-center gap-2"
+                            title={isSavingSchedule ? 'Saving... please wait' : (isLoadingSchedule ? 'Loading schedule...' : 'Click to save schedule')}
                         >
                             {#if isSavingSchedule}
-                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Saving...
+                                <span>Saving Schedule...</span>
+                            {:else if isLoadingSchedule}
+                                <span>Loading...</span>
                             {:else}
-                                Save Schedule
+                                <span>Save Schedule</span>
                             {/if}
                         </button>
+                        {#if isSavingSchedule}
+                            <p class="text-[10px] sm:text-xs text-blue-600 text-center">This may take a moment...</p>
+                        {/if}
                     </div>
                 </div>
             {:else if !selectedDate && !isLoadingDefaults && !isLoadingSchedule}
