@@ -247,7 +247,7 @@
           await setDoc(scheduleRef, {
               date: selectedDate,
               availableSlots: isWorkingDay ? slotsToSave : [],
-              isWorkingDay: isWorkingDay 
+              isWorkingDay: isWorkingDay
           }, { merge: true });
 
           console.log(`Saved schedule for ${selectedDate}:`, slotsToSave, `Working Day: ${isWorkingDay}`);
@@ -346,9 +346,20 @@
             {/if}
         </div>
 
-        <!-- Section for Specific Date Availability -->
+        <!-- Section for Specific Date Availability/Availability Hours -->
         <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-all p-3 sm:p-4 md:p-5">
-            <h2 class="text-sm sm:text-base md:text-lg lg:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-blue-700">Specific Date Schedule</h2>
+            <h2 class="text-sm sm:text-base md:text-lg lg:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-blue-700">Availability Hours</h2>
+            
+            <!-- Purpose & How It Works -->
+            <div class="mb-4 sm:mb-5 md:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 class="text-xs sm:text-sm font-semibold text-blue-900 mb-2">How Availability Hours Work:</h3>
+                <ul class="text-xs sm:text-sm text-gray-700 space-y-1.5 ml-4 list-disc">
+                    <li><strong>Select a Date:</strong> Choose a specific date to configure its availability.</li>
+                    <li><strong>Mark as Working Day:</strong> Toggle whether this date is a working day or a non-working day (holiday, day off, etc.).</li>
+                    <li><strong>Select Time Slots:</strong> If it's a working day, choose which appointment time slots are available (Morning: 8 AM - 11 AM, Afternoon: 12 PM - 4 PM).</li>
+                    <li><strong>Members see availability:</strong> When members schedule an appointment, they can only select dates and times you've marked as available.</li>
+                </ul>
+            </div>
 
             <div class="mb-3 sm:mb-4 md:mb-6">
                 <label for="scheduleDate" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Date:</label>
