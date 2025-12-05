@@ -305,7 +305,7 @@
 
 </script>
 
-<div class="min-h-screen" style="background: linear-gradient(135deg, #f5f7fa 0%, #e9ecf1 50%, #f0f4f8 100%);">
+<div class="min-h-screen" style="background-color: #f6faff;">
     <div class="max-w-6xl mx-auto px-3 sm:p-4 md:p-8 py-6 sm:py-8 md:py-10">
         <div class="mb-6 sm:mb-8 md:mb-10">
             <div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
@@ -437,6 +437,15 @@
                             <span class="text-gray-800 font-semibold text-sm sm:text-base">This is a working day</span>
                         </label>
                     </div>
+
+                    <!-- Non-working Day Note -->
+                    {#if !isWorkingDay}
+                        <div class="p-4 sm:p-5 rounded-xl border-l-4 bg-amber-50" style="border-color: #f59e0b;">
+                            <p class="text-sm sm:text-base font-medium text-amber-900">
+                                This date is marked as a <strong>non-working day</strong>. No appointment slots will be available for members to book on this date.
+                            </p>
+                        </div>
+                    {/if}
 
                     <!-- Time Slot Selection -->
                     {#if isWorkingDay}
@@ -666,9 +675,9 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        gap: 0.35rem;
-        padding: 0.65rem 0.75rem;
-        border-radius: 0.75rem;
+        gap: 0.25rem;
+        padding: 0.5rem 0.6rem;
+        border-radius: 0.65rem;
         border: 2px solid #e5e7eb;
         background: #fff;
         cursor: pointer;
@@ -680,46 +689,52 @@
     @media (min-width: 640px) {
         .time-slot-label {
             flex-direction: row;
-            gap: 0.7rem;
+            gap: 0.6rem;
             justify-content: flex-start;
             min-width: fit-content;
             padding: 0.6rem 1rem;
+            border-radius: 0.75rem;
         }
     }
     .time-slot-label__dot {
-        width: 0.65rem;
-        height: 0.65rem;
-        min-width: 0.65rem;
-        min-height: 0.65rem;
+        width: 0.5rem;
+        height: 0.5rem;
+        min-width: 0.5rem;
+        min-height: 0.5rem;
         flex-shrink: 0;
         border-radius: 9999px;
         background: #d1d5db;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        margin-bottom: 0.1rem;
+        margin-bottom: 0.05rem;
     }
     @media (min-width: 640px) {
         .time-slot-label__dot {
+            width: 0.65rem;
+            height: 0.65rem;
+            min-width: 0.65rem;
+            min-height: 0.65rem;
             margin-bottom: 0;
-            margin-right: 0.5rem;
+            margin-right: 0.3rem;
         }
     }
     .time-slot-label__text {
-        font-size: 0.75rem;
+        font-size: 0.65rem;
         font-weight: 700;
         color: #374151;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.01em;
         text-align: center;
-        line-height: 1.1;
+        line-height: 1;
     }
     @media (min-width: 640px) {
         .time-slot-label__text {
             font-size: 0.9rem;
             text-align: left;
+            line-height: 1.1;
         }
     }
     .time-slot-label:hover {
         border-color: #93c5fd;
-        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.08);
+        box-shadow: 0 2px 6px rgba(11, 45, 86, 0.08);
     }
     .time-slot-label--active {
         border-color: #0b2d56;
@@ -727,8 +742,8 @@
     }
     .time-slot-label--active .time-slot-label__dot {
         background: #0b2d56;
-        transform: scale(1.2);
-        box-shadow: 0 2px 4px rgba(11, 45, 86, 0.2);
+        transform: scale(1.15);
+        box-shadow: 0 1px 3px rgba(11, 45, 86, 0.2);
     }
     .time-slot-label--active .time-slot-label__text {
         color: #0b2d56;
