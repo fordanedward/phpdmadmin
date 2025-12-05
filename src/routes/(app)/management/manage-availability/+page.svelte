@@ -53,7 +53,17 @@
       Swal.fire('Error', 'Could not initialize database connection.', 'error');
   }
 
-  let selectedDate: string = new Date().toISOString().split('T')[0];
+  // Helper function to get today's date in Philippines timezone (UTC+8)
+  function getTodayInPhilippines(): string {
+      const now = new Date();
+      const philippinesDate = new Date(now.getTime() + (8 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
+      const year = philippinesDate.getUTCFullYear();
+      const month = String(philippinesDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(philippinesDate.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+  }
+
+  let selectedDate: string = getTodayInPhilippines();
   let isLoadingSchedule: boolean = false; 
   let isLoadingDefaults: boolean = true; 
   let isSavingDefaults: boolean = false;
@@ -203,10 +213,12 @@
       let dayOfWeek: number;
       try {
   
-          const dateObj = new Date(selectedDate + 'T00:00:00Z');
-          dayOfWeek = dateObj.getUTCDay(); // 0 = Sunday, 1 = Monday, ...
+          // Parse date in Philippines timezone (UTC+8)
+          const [year, month, day] = selectedDate.split('-').map(Number);
+          const dateObj = new Date(year, month - 1, day);
+          dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, ...
           isWorkingDay = defaultWorkingDays.includes(dayOfWeek);
-          console.log(`Date: ${selectedDate}, Day of Week (UTC): ${dayOfWeek}, Default Working based on [${defaultWorkingDays}]: ${isWorkingDay}`);
+          console.log(`Date: ${selectedDate}, Day of Week: ${dayOfWeek}, Default Working based on [${defaultWorkingDays}]: ${isWorkingDay}`);
       } catch (e) {
           console.error("Error parsing selected date:", e);
           Swal.fire('Error', 'Invalid date selected.', 'error');
@@ -408,7 +420,7 @@
                     type="date"
                     id="scheduleDate"
                     bind:value={selectedDate}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={getTodayInPhilippines()}
                     class="w-full sm:max-w-sm border-2 border-gray-200 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus:border-blue-400 hover:border-gray-300"
                     style="--input-focus-color: #0b2d56;"
                     disabled={isLoadingSchedule || isLoadingDefaults || isSavingSchedule || isSavingDefaults}
