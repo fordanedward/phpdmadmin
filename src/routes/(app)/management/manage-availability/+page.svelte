@@ -467,21 +467,14 @@
                                     {#each ALL_POSSIBLE_MORNING_SLOTS as slotOption (slotOption)}
                                         <button
                                             type="button"
-                                            class="time-slot-btn text-xs sm:text-sm font-bold relative overflow-hidden group"
-                                            class:selected={currentSlots.includes(slotOption)}
+                                            class="time-slot-label"
+                                            class:time-slot-label--active={currentSlots.includes(slotOption)}
                                             on:click={() => toggleSlot(slotOption)}
                                             disabled={isSavingSchedule}
                                             aria-pressed={currentSlots.includes(slotOption)}
                                         >
-                                            <span class="slot-content flex items-center justify-center gap-2 relative z-10">
-                                                <span>{slotOption}</span>
-                                                {#if currentSlots.includes(slotOption)}
-                                                    <svg class="slot-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                {/if}
-                                            </span>
-                                            <span class="slot-bg absolute inset-0 -z-10"></span>
+                                            <span class="time-slot-label__dot"></span>
+                                            <span class="time-slot-label__text">{slotOption}</span>
                                         </button>
                                     {/each}
                                 </div>
@@ -501,21 +494,14 @@
                                     {#each ALL_POSSIBLE_AFTERNOON_SLOTS as slotOption (slotOption)}
                                         <button
                                             type="button"
-                                            class="time-slot-btn text-xs sm:text-sm font-bold relative overflow-hidden group"
-                                            class:selected={currentSlots.includes(slotOption)}
+                                            class="time-slot-label"
+                                            class:time-slot-label--active={currentSlots.includes(slotOption)}
                                             on:click={() => toggleSlot(slotOption)}
                                             disabled={isSavingSchedule}
                                             aria-pressed={currentSlots.includes(slotOption)}
                                         >
-                                            <span class="slot-content flex items-center justify-center gap-2 relative z-10">
-                                                <span>{slotOption}</span>
-                                                {#if currentSlots.includes(slotOption)}
-                                                    <svg class="slot-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                {/if}
-                                            </span>
-                                            <span class="slot-bg absolute inset-0 -z-10"></span>
+                                            <span class="time-slot-label__dot"></span>
+                                            <span class="time-slot-label__text">{slotOption}</span>
                                         </button>
                                     {/each}
                                 </div>
@@ -674,185 +660,82 @@
         color: #0b2d56;
     }
 
-    .slot-chip {
+    /* Time Slot Buttons - Label Style (matching day-toggle) */
+    .time-slot-label {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.55rem 0.85rem;
-        border: 2px solid #0b2d56;
-        border-radius: 0.625rem;
-        font-size: 0.8rem;
-        font-weight: 700;
-        color: #0b2d56;
-        background-color: #fff;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        cursor: pointer;
-        min-height: 42px;
-        touch-action: manipulation;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        position: relative;
-        overflow: visible;
+        flex-direction: column;
         gap: 0.35rem;
-    }
-    .slot-chip__text {
-        position: relative;
-        z-index: 1;
-    }
-    .slot-chip__check {
-        width: 1.1rem;
-        height: 1.1rem;
-        min-width: 1.1rem;
-        flex-shrink: 0;
-        animation: slideInCheck 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    @keyframes slideInCheck {
-        from {
-            opacity: 0;
-            transform: scale(0.6);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
+        padding: 0.65rem 0.75rem;
+        border-radius: 0.75rem;
+        border: 2px solid #e5e7eb;
+        background: #fff;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        min-width: fit-content;
+        font-weight: 600;
     }
     @media (min-width: 640px) {
-        .slot-chip {
-            padding: 0.55rem 0.9rem;
-            font-size: 0.9rem;
-            min-height: 38px;
-        }
-        .slot-chip__check {
-            width: 1.2rem;
-            height: 1.2rem;
-            min-width: 1.2rem;
+        .time-slot-label {
+            flex-direction: row;
+            gap: 0.7rem;
+            justify-content: flex-start;
+            min-width: fit-content;
+            padding: 0.6rem 1rem;
         }
     }
-    .slot-chip:disabled {
+    .time-slot-label__dot {
+        width: 0.65rem;
+        height: 0.65rem;
+        min-width: 0.65rem;
+        min-height: 0.65rem;
+        flex-shrink: 0;
+        border-radius: 9999px;
+        background: #d1d5db;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-bottom: 0.1rem;
+    }
+    @media (min-width: 640px) {
+        .time-slot-label__dot {
+            margin-bottom: 0;
+            margin-right: 0.5rem;
+        }
+    }
+    .time-slot-label__text {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #374151;
+        letter-spacing: 0.02em;
+        text-align: center;
+        line-height: 1.1;
+    }
+    @media (min-width: 640px) {
+        .time-slot-label__text {
+            font-size: 0.9rem;
+            text-align: left;
+        }
+    }
+    .time-slot-label:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.08);
+    }
+    .time-slot-label--active {
+        border-color: #0b2d56;
+        background: linear-gradient(135deg, rgba(11,45,86,0.08), rgba(11,45,86,0.04));
+    }
+    .time-slot-label--active .time-slot-label__dot {
+        background: #0b2d56;
+        transform: scale(1.2);
+        box-shadow: 0 2px 4px rgba(11, 45, 86, 0.2);
+    }
+    .time-slot-label--active .time-slot-label__text {
+        color: #0b2d56;
+    }
+    .time-slot-label:disabled {
         cursor: not-allowed;
         opacity: 0.55;
-    }
-
-    /* Time Slot Buttons - Chip/Tag Style */
-    .time-slot-btn {
-        padding: 0.65rem 1.2rem;
-        min-height: 44px;
-        border: 2px solid #0b2d56;
-        border-radius: 1.75rem;
-        font-weight: 600;
-        font-size: 0.85rem;
-        color: #0b2d56;
-        background: #ffffff;
-        cursor: pointer;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 1px 3px rgba(11, 45, 86, 0.1);
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-        position: relative;
-        overflow: hidden;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.6rem;
-    }
-    @media (min-width: 640px) {
-        .time-slot-btn {
-            padding: 0.7rem 1.3rem;
-            min-height: 42px;
-            font-size: 0.9rem;
-        }
-    }
-    @media (min-width: 768px) {
-        .time-slot-btn {
-            padding: 0.75rem 1.4rem;
-            font-size: 0.95rem;
-        }
-    }
-    .slot-content {
-        position: relative;
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-    }
-    .slot-checkmark {
-        width: 0.95rem;
-        height: 0.95rem;
-        min-width: 0.95rem;
-        flex-shrink: 0;
-        animation: checkBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    @media (min-width: 640px) {
-        .slot-checkmark {
-            width: 1.05rem;
-            height: 1.05rem;
-            min-width: 1.05rem;
-        }
-    }
-    @keyframes checkBounce {
-        0% {
-            transform: scale(0) rotate(-45deg);
-            opacity: 0;
-        }
-        50% {
-            transform: scale(1.2) rotate(0deg);
-        }
-        100% {
-            transform: scale(1) rotate(0deg);
-            opacity: 1;
-        }
-    }
-    .slot-bg {
-        position: absolute;
-        inset: 0;
-        background: transparent;
-        border-radius: 1.75rem;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: -1;
-    }
-    /* Unselected state - normal */
-    .time-slot-btn:not(.selected) {
-        border-color: #0b2d56;
-        background: #ffffff;
-        color: #0b2d56;
-    }
-    /* Unselected state - hover (shows what will happen on click) */
-    .time-slot-btn:not(.selected):hover:not(:disabled) {
-        background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);
-        border-color: #0b2d56;
-        color: #ffffff;
-        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.3);
-        transform: translateY(-1px);
-    }
-    /* Selected state - normal */
-    .time-slot-btn.selected {
-        background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);
-        border-color: #0b2d56;
-        color: #ffffff;
-        box-shadow: 0 2px 8px rgba(11, 45, 86, 0.2);
-    }
-    .time-slot-btn.selected .slot-checkmark {
-        color: #ffffff;
-    }
-    /* Selected state - hover (shows deselect preview) */
-    .time-slot-btn.selected:hover:not(:disabled) {
-        background: #ffffff;
-        border-color: #0b2d56;
-        color: #0b2d56;
-        box-shadow: 0 1px 3px rgba(11, 45, 86, 0.1);
-        transform: translateY(-1px);
-    }
-    .time-slot-btn.selected:hover:not(:disabled) .slot-checkmark {
-        color: #0b2d56;
-    }
-    /* Active/Click state */
-    .time-slot-btn:active:not(:disabled) {
-        transform: scale(0.98);
-    }
-    /* Disabled state */
-    .time-slot-btn:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
     }
     /* Section Styling */
     .morning-section {
