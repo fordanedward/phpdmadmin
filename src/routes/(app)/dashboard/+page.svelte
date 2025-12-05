@@ -1871,14 +1871,20 @@ function downloadExcelReportFromReport(
 
 	<!-- Main Content Area -->
 	<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white">
-		<div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+		<div class="container mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8 md:py-10">
 			<!-- Header Section -->
-			<div class="mb-4 sm:mb-8">
-				<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-					<div>
-						<h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-900 to-indigo-800 bg-clip-text text-transparent">Dashboard</h1>
-						<p class="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm">Welcome to the Permanente Health Plan's Dashboard for Admin Side.</p>
+			<div class="mb-6 sm:mb-8 md:mb-10">
+				<div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
+					<div class="p-2.5 sm:p-3 rounded-xl" style="background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 flex-shrink-0 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l9-9m0 0l9 9M5 10v10a1 1 0 001 1h3v-4a1 1 0 011-1h2a1 1 0 011 1v4h3a1 1 0 001-1V10" />
+						</svg>
 					</div>
+					<div>
+						<h1 class="text-3xl sm:text-4xl md:text-4xl font-bold" style="color: #0b2d56;">Dashboard</h1>
+						<p class="text-gray-600 text-sm sm:text-base md:text-base pl-0 font-medium">Welcome to the Permanente Health Plan's Dashboard for Admin Side.</p>
+					</div>
+				</div>
 					<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
 						<button
 							on:click={openReportsModal}
@@ -1891,7 +1897,6 @@ function downloadExcelReportFromReport(
 							<span>Reports</span>
 						</button>
 					</div>
-				</div>
 			</div>
 
 			<!-- Stats Cards -->
@@ -3205,5 +3210,6 @@ function downloadExcelReportFromReport(
 		}
 	}
 </style>
+
 
 
