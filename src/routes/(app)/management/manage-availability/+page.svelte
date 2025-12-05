@@ -454,48 +454,68 @@
                             </div>
                             
                             <!-- Morning Slots -->
-                            <div class="bg-gradient-to-r from-yellow-50 to-transparent p-5 sm:p-6 rounded-xl border border-yellow-100">
-                                <h4 class="text-sm sm:text-base font-semibold text-gray-800 mb-4 flex items-center gap-2.5">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                                    </svg>
-                                    Morning (8 AM - 11 AM)
+                            <div class="morning-section bg-gradient-to-br from-yellow-50 via-yellow-25 to-transparent p-4 sm:p-6 md:p-7 rounded-2xl border-2 border-yellow-200 hover:border-yellow-300 transition-all">
+                                <h4 class="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-5 sm:mb-6 flex items-center gap-3">
+                                    <div class="p-2.5 sm:p-3 rounded-full bg-yellow-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+                                        </svg>
+                                    </div>
+                                    <span>Morning (8 AM - 11 AM)</span>
                                 </h4>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2.5">
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-3.5 md:gap-4">
                                     {#each ALL_POSSIBLE_MORNING_SLOTS as slotOption (slotOption)}
                                         <button
                                             type="button"
-                                            class="slot-chip text-xs sm:text-sm"
+                                            class="time-slot-btn text-xs sm:text-sm font-bold relative overflow-hidden group"
                                             class:selected={currentSlots.includes(slotOption)}
                                             on:click={() => toggleSlot(slotOption)}
                                             disabled={isSavingSchedule}
                                             aria-pressed={currentSlots.includes(slotOption)}
                                         >
-                                            {slotOption}
+                                            <span class="slot-content flex items-center justify-center gap-2 relative z-10">
+                                                <span>{slotOption}</span>
+                                                {#if currentSlots.includes(slotOption)}
+                                                    <svg class="slot-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                {/if}
+                                            </span>
+                                            <span class="slot-bg absolute inset-0 -z-10"></span>
                                         </button>
                                     {/each}
                                 </div>
                             </div>
                             
                             <!-- Afternoon Slots -->
-                            <div class="bg-gradient-to-r from-orange-50 to-transparent p-5 sm:p-6 rounded-xl border border-orange-100">
-                                <h4 class="text-sm sm:text-base font-semibold text-gray-800 mb-4 flex items-center gap-2.5">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-orange-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                                    </svg>
-                                    Afternoon (12 PM - 4 PM)
+                            <div class="afternoon-section bg-gradient-to-br from-orange-50 via-orange-25 to-transparent p-4 sm:p-6 md:p-7 rounded-2xl border-2 border-orange-200 hover:border-orange-300 transition-all">
+                                <h4 class="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-5 sm:mb-6 flex items-center gap-3">
+                                    <div class="p-2.5 sm:p-3 rounded-full bg-orange-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 18C8.68 18 6 15.32 6 12s2.68-6 6-6 6 2.68 6 6-2.68 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zM13 2h-2v3h2V2zm0 15h-2v3h2v-3zM5 11H2v2h3v-2zm15 0h-3v2h3v-2zM6.22 4.22L3.81 1.81 2.4 3.22l2.41 2.41 1.41-1.41zM16.63 14.63l2.41 2.41 1.41-1.41-2.41-2.41-1.41 1.41zM19.78 4.22l1.41 1.41 2.41-2.41-1.41-1.41-2.41 2.41zM7.63 16.63l-1.41 1.41 2.41 2.41 1.41-1.41-2.41-2.41z" />
+                                        </svg>
+                                    </div>
+                                    <span>Afternoon (12 PM - 4 PM)</span>
                                 </h4>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2.5">
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-3.5 md:gap-4">
                                     {#each ALL_POSSIBLE_AFTERNOON_SLOTS as slotOption (slotOption)}
                                         <button
                                             type="button"
-                                            class="slot-chip text-xs sm:text-sm"
+                                            class="time-slot-btn text-xs sm:text-sm font-bold relative overflow-hidden group"
                                             class:selected={currentSlots.includes(slotOption)}
                                             on:click={() => toggleSlot(slotOption)}
                                             disabled={isSavingSchedule}
                                             aria-pressed={currentSlots.includes(slotOption)}
                                         >
-                                            {slotOption}
+                                            <span class="slot-content flex items-center justify-center gap-2 relative z-10">
+                                                <span>{slotOption}</span>
+                                                {#if currentSlots.includes(slotOption)}
+                                                    <svg class="slot-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                {/if}
+                                            </span>
+                                            <span class="slot-bg absolute inset-0 -z-10"></span>
                                         </button>
                                     {/each}
                                 </div>
@@ -671,18 +691,29 @@
         touch-action: manipulation;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         position: relative;
-        overflow: hidden;
+        overflow: visible;
+        gap: 0.35rem;
     }
-    .slot-chip::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, rgba(11, 45, 86, 0.1), transparent);
-        transition: left 0.3s ease;
-        pointer-events: none;
+    .slot-chip__text {
+        position: relative;
+        z-index: 1;
+    }
+    .slot-chip__check {
+        width: 1.1rem;
+        height: 1.1rem;
+        min-width: 1.1rem;
+        flex-shrink: 0;
+        animation: slideInCheck 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes slideInCheck {
+        from {
+            opacity: 0;
+            transform: scale(0.6);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
     @media (min-width: 640px) {
         .slot-chip {
@@ -690,37 +721,151 @@
             font-size: 0.9rem;
             min-height: 38px;
         }
-    }
-    .slot-chip:hover:not(:disabled) {
-        border-color: #0b2d56;
-        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.2);
-        transform: translateY(-2px);
-    }
-    .slot-chip:hover:not(:disabled):not(.selected) {
-        background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);
-        color: #fff;
-    }
-    .slot-chip:hover:not(:disabled).selected {
-        background: transparent;
-        color: #0b2d56;
-        border: 2px solid #0b2d56;
-        box-shadow: none;
-    }
-    .slot-chip:hover:not(:disabled)::before {
-        left: 100%;
-    }
-    .slot-chip:active:not(:disabled) {
-        transform: translateY(0) scale(0.97);
-    }
-    .slot-chip.selected {
-        background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);
-        border-color: #0b2d56;
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.3);
+        .slot-chip__check {
+            width: 1.2rem;
+            height: 1.2rem;
+            min-width: 1.2rem;
+        }
     }
     .slot-chip:disabled {
         cursor: not-allowed;
         opacity: 0.55;
+    }
+
+    /* Time Slot Buttons - Chip/Tag Style */
+    .time-slot-btn {
+        padding: 0.65rem 1.2rem;
+        min-height: 44px;
+        border: 2px solid #0b2d56;
+        border-radius: 1.75rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #0b2d56;
+        background: #ffffff;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 3px rgba(11, 45, 86, 0.1);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        position: relative;
+        overflow: hidden;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+    }
+    @media (min-width: 640px) {
+        .time-slot-btn {
+            padding: 0.7rem 1.3rem;
+            min-height: 42px;
+            font-size: 0.9rem;
+        }
+    }
+    @media (min-width: 768px) {
+        .time-slot-btn {
+            padding: 0.75rem 1.4rem;
+            font-size: 0.95rem;
+        }
+    }
+    .slot-content {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    .slot-checkmark {
+        width: 0.95rem;
+        height: 0.95rem;
+        min-width: 0.95rem;
+        flex-shrink: 0;
+        animation: checkBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @media (min-width: 640px) {
+        .slot-checkmark {
+            width: 1.05rem;
+            height: 1.05rem;
+            min-width: 1.05rem;
+        }
+    }
+    @keyframes checkBounce {
+        0% {
+            transform: scale(0) rotate(-45deg);
+            opacity: 0;
+        }
+        50% {
+            transform: scale(1.2) rotate(0deg);
+        }
+        100% {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+        }
+    }
+    .slot-bg {
+        position: absolute;
+        inset: 0;
+        background: transparent;
+        border-radius: 1.75rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: -1;
+    }
+    /* Unselected state - normal */
+    .time-slot-btn:not(.selected) {
+        border-color: #0b2d56;
+        background: #ffffff;
+        color: #0b2d56;
+    }
+    /* Unselected state - hover (shows what will happen on click) */
+    .time-slot-btn:not(.selected):hover:not(:disabled) {
+        background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);
+        border-color: #0b2d56;
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.3);
+        transform: translateY(-1px);
+    }
+    /* Selected state - normal */
+    .time-slot-btn.selected {
+        background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);
+        border-color: #0b2d56;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(11, 45, 86, 0.2);
+    }
+    .time-slot-btn.selected .slot-checkmark {
+        color: #ffffff;
+    }
+    /* Selected state - hover (shows deselect preview) */
+    .time-slot-btn.selected:hover:not(:disabled) {
+        background: #ffffff;
+        border-color: #0b2d56;
+        color: #0b2d56;
+        box-shadow: 0 1px 3px rgba(11, 45, 86, 0.1);
+        transform: translateY(-1px);
+    }
+    .time-slot-btn.selected:hover:not(:disabled) .slot-checkmark {
+        color: #0b2d56;
+    }
+    /* Active/Click state */
+    .time-slot-btn:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+    /* Disabled state */
+    .time-slot-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+    /* Section Styling */
+    .morning-section {
+        border-top-width: 3px;
+        border-top-color: #fbbf24;
+    }
+    .afternoon-section {
+        border-top-width: 3px;
+        border-top-color: #f97316;
+    }
+    .morning-section:hover,
+    .afternoon-section:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
     .slot-label {
