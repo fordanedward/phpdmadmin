@@ -351,7 +351,7 @@
                 </div>
             {:else}
                 <div class="space-y-5 sm:space-y-6">
-                    <div class="grid grid-cols-7 gap-2 sm:gap-2.5 bg-gradient-to-r from-blue-50 to-transparent p-4 sm:p-5 rounded-xl">
+                    <div class="grid grid-cols-7 gap-1.5 sm:gap-3 bg-gradient-to-r from-blue-50 to-transparent p-3 sm:p-5 rounded-xl">
                         {#each DAYS_OF_WEEK as day (day.value)}
                             <label class="day-toggle" class:day-toggle--active={defaultWorkingDays.includes(day.value)}>
                                 <input
@@ -609,19 +609,19 @@
     }
 
     .day-toggle {
-        display: inline-flex;
+        display: flex;
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        gap: 0.35rem;
-        padding: 0.65rem 0.75rem;
-        border-radius: 0.75rem;
+        gap: 0.25rem;
+        padding: 0.5rem 0.25rem;
+        border-radius: 0.5rem;
         border: 2px solid #e5e7eb;
         background: #fff;
         cursor: pointer;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        min-width: fit-content;
+        width: 100%;
         font-weight: 600;
     }
     @media (min-width: 640px) {
@@ -631,32 +631,41 @@
             justify-content: flex-start;
             min-width: 110px;
             padding: 0.6rem 1.1rem;
+            border-radius: 0.75rem;
+            width: auto;
         }
     }
     .day-toggle__dot {
-        width: 0.65rem;
-        height: 0.65rem;
-        min-width: 0.65rem;
-        min-height: 0.65rem;
+        width: 0.5rem;
+        height: 0.5rem;
+        min-width: 0.5rem;
+        min-height: 0.5rem;
         flex-shrink: 0;
         border-radius: 9999px;
         background: #d1d5db;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        margin-bottom: 0.1rem;
+        margin: 0;
     }
     @media (min-width: 640px) {
         .day-toggle__dot {
-            margin-bottom: 0;
+            width: 0.65rem;
+            height: 0.65rem;
+            min-width: 0.65rem;
+            min-height: 0.65rem;
             margin-right: 0.5rem;
         }
     }
     .day-toggle__label {
-        font-size: 0.75rem;
+        font-size: 0.625rem;
         font-weight: 700;
         color: #374151;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.01em;
         text-align: center;
-        line-height: 1.1;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
     @media (min-width: 640px) {
         .day-toggle__label {
