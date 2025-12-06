@@ -183,71 +183,86 @@
     /* Mobile Responsive Styles */
     @media (max-width: 768px) {
         header {
-            padding: 15px 10px;
+            padding: 12px 16px;
+            background-color: #ffbc22;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .nav-container {
-            flex-direction: column;
-            gap: 10px;
+            flex-direction: row;
+            gap: 0;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .navbar-logo {
-            height: 40px;
+            height: 50px;
             margin-left: 0;
         }
 
         nav {
             margin-right: 0;
-            gap: 15px;
+            gap: 0;
+            align-items: center;
         }
 
         nav a {
             font-size: 0.9rem;
-            padding: 6px 12px;
+            padding: 8px 14px;
+            color: #0b2d56;
+            border-radius: 6px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
         }
 
         main {
             flex-direction: column;
             height: auto;
             min-height: 100vh;
-            padding: 120px 20px 40px 20px;
+            padding: 100px 20px 40px 20px;
             overflow: visible;
         }
 
         .left-section {
             max-width: 100%;
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
         }
 
-                 .left-section h1 {
-             margin-top: 0;
-             margin-left: 0;
-             font-size: 2.5rem;
-             line-height: 1.2;
-             margin-bottom: 1rem;
-         }
+        .left-section h1 {
+            margin-top: 0;
+            margin-left: 0;
+            font-size: 2.2rem;
+            line-height: 1.3;
+            margin-bottom: 1rem;
+            color: #0b2d56;
+            font-weight: 700;
+        }
 
-         .left-section h2 {
-             margin-left: 0;
-             margin-top: 1rem;
-             font-size: 1.1rem;
-             max-width: 100%;
-         }
+        .left-section h2 {
+            margin-left: 0;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+            max-width: 100%;
+            color: #0b2d56;
+            line-height: 1.6;
+        }
 
-         .social-links {
-             margin-left: 0;
-             justify-content: center;
-             margin-top: 1.5rem;
-         }
+        .social-links {
+            margin-left: 0;
+            justify-content: center;
+            margin-top: 2rem;
+            gap: 1.2rem;
+        }
 
-         .social-links a {
-             width: 40px;
-             height: 40px;
-         }
+        .social-links a {
+            width: 44px;
+            height: 44px;
+            box-shadow: 0 2px 8px rgba(11, 45, 86, 0.15);
+        }
 
-         .social-links svg {
-             width: 18px;
+        .social-links svg {
+            width: 20px;
              height: 18px;
          }
 
@@ -268,39 +283,58 @@
          }
     }
 
-         @media (max-width: 480px) {
-         .left-section h1 {
-             font-size: 1.8rem;
-             margin-bottom: 0.5rem;
-         }
+        @media (max-width: 480px) {
+        header {
+            padding: 10px 12px;
+        }
 
-         .left-section h2 {
-             font-size: 0.95rem;
-             margin-top: 0.5rem;
-         }
+        .navbar-logo {
+            height: 42px;
+            margin-left: 8px;
+        }
 
-         .social-links {
-             gap: 0.75rem;
-             margin-top: 1rem;
-         }
+        nav {
+            gap: 8px;
+            margin-right: 8px;
+        }
 
-         .social-links a {
-             width: 35px;
-             height: 35px;
-         }
+        nav a {
+            font-size: 0.85rem;
+            padding: 6px 10px;
+        }
 
-         .social-links svg {
-             width: 16px;
-             height: 16px;
-         }
+        .left-section h1 {
+            font-size: 1.75rem;
+            margin-bottom: 0.8rem;
+        }
 
-                   .right-section img {
-              max-width: 90%;
-              max-height: 350px;
-              display: block;
-              margin: 0 auto;
-          }
-     }
+        .left-section h2 {
+            font-size: 0.95rem;
+            margin-top: 0.8rem;
+        }
+
+        .social-links {
+            gap: 0.8rem;
+            margin-top: 1.5rem;
+        }
+
+        .social-links a {
+            width: 40px;
+            height: 40px;
+        }
+
+        .social-links svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .right-section img {
+            max-width: 90%;
+            max-height: 350px;
+            display: block;
+            margin: 0 auto;
+        }
+    }
 </style>
 
 <script>
