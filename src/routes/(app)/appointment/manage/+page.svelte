@@ -29,6 +29,9 @@
     let uniqueServices: string[] = [];
   
     let isMobile = false;
+    let showCompletionModal = false;
+    let completionRemarks = '';
+    let pendingCompletionAppointment: any = null;
   
   interface PatientProfile {
     id: string;
@@ -265,33 +268,20 @@
       }
     }
 
-    async function handleMarkComplete(appointment: any) {
-      const { value: remarks } = await Swal.fire({
-        title: 'Mark as Completed?',
-        html: `
-          <p class="mb-3">Confirm that ${appointment.patientName || 'this patient'} has completed their appointment on ${appointment.date} at ${appointment.time}?</p>
-          <textarea id="completion-remarks" class="swal2-input" placeholder="Enter remarks (optional)..." style="height: 50px; resize: vertical;"></textarea>
-        `,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, Mark Complete',
-        confirmButtonColor: '#10B981',
-        cancelButtonColor: '#6B7280',
-        focusConfirm: false,
-        preConfirm: () => {
-          const textarea = document.getElementById('completion-remarks') as HTMLTextAreaElement;
-          return textarea.value.trim();
-        }
+    function openCompletionModal(appointment: any) {
+      pendingCompletionAppointment = appointment;
+      completionRemarks = '';
+      showCompletionModal = true;
+    }
+
+    async function confirmCompletion() {
+      const now = new Date().toISOString();
+      await updateStatus(pendingCompletionAppointment.id, { 
+        status: 'Completed',
+        completionTime: now,
+        completionRemarks: completionRemarks.trim()
       });
-      
-      if (remarks !== undefined) { // User clicked confirm (remarks can be empty string)
-        const now = new Date().toISOString();
-        await updateStatus(appointment.id, { 
-          status: 'Completed',
-          completionTime: now,
-          completionRemarks: remarks || ''
-        });
-      }
+      showCompletionModal = false;
     }
 
     async function handleDelete(appointment: any) {
@@ -557,8 +547,8 @@
             a.status === 'Completed' || 
             a.status === 'Rescheduled'
           ))}
-          <section class="w-full bg-white bg-opacity-50 py-6 sm:py-8 px-4 sm:px-6 mt-6 sm:mt-8 -mx-4 sm:-mx-6">
-            <div class="max-w-full mx-auto">
+          <section class="mt-6 sm:mt-8">
+            <div>
                 <h2 class="text-lg sm:text-xl font-bold mb-4 text-green-700 flex items-center gap-2">
                   <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-green-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>
                   Appointment History ({completedAppointments.length})
@@ -621,7 +611,7 @@
                   {/if}
                   <div class="flex gap-2 mt-3 justify-between">
                     {#if appointment.status === 'Accepted' && !appointment.completionTime}
-                      <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition flex items-center gap-1" title="Mark as Completed" on:click={() => handleMarkComplete(appointment)}>
+                      <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition flex items-center gap-1" title="Mark as Completed" on:click={() => openCompletionModal(appointment)}>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Mark Complete
                       </button>
@@ -661,33 +651,168 @@
       {/if}
   
       {#if showReasonModal}
-        <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4 transition-opacity duration-300 ease-out" 
-             style="opacity: 1;">
-          <div class="bg-white rounded-lg p-5 sm:p-6 w-full max-w-md shadow-xl transform transition-all duration-300 ease-out scale-100">
-            <h2 class="text-lg font-semibold mb-4 text-gray-800">Reason for Decline</h2>
-            
-            <!-- Information/Warning Banner -->
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-3 mb-4 rounded">
-              <div class="flex gap-2">
-                <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+        <div 
+          role="button"
+          tabindex="0"
+          class="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50 p-4 animate-fadeIn" 
+          on:click|self={() => (showReasonModal = false)}
+          on:keydown={e => e.key === 'Escape' && (showReasonModal = false)}>
+          <div 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="decline-modal-title"
+            class="bg-white rounded-xl p-6 sm:p-8 w-full max-w-md shadow-2xl transform transition-all duration-300 ease-out scale-100 animate-slideUp">
+            <!-- Header Section -->
+            <div class="flex items-start justify-between mb-6">
+              <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-lg bg-red-100">
+                  <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 id="decline-modal-title" class="text-xl font-bold text-gray-900">Decline Appointment</h2>
+                  <p class="text-xs text-gray-500 mt-1">Provide a reason for declining</p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                aria-label="Close decline appointment dialog"
+                class="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
+                on:click={() => (showReasonModal = false)}>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
-                <div class="text-sm text-blue-800">
-                  <p class="font-semibold mb-1">Important Notice</p>
-                  <p>Please provide a clear reason explaining why this appointment is being declined. This message will be sent to the member, so make sure it clearly explains why the selected date appointment will be cancelled.</p>
+              </button>
+            </div>
+            
+            <!-- Information Alert -->
+            <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-4 mb-6" role="note">
+              <div class="flex gap-3">
+                <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <div class="text-sm text-amber-800">
+                  <p class="font-semibold mb-1">This message will be sent to the patient</p>
+                  <p class="text-xs opacity-90">Be clear and professional. The patient will receive this reason for their declined appointment.</p>
                 </div>
               </div>
             </div>
             
-            <textarea
-              class="w-full border border-gray-300 rounded p-2 mb-4 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              rows="4"
-              bind:value={rejectionReason}
-              placeholder="Example: 'The doctor is unavailable on this date. Please select an alternative date from our available slots.'"
-            ></textarea>
-            <div class="flex justify-end space-x-3">
-              <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm font-medium transition-colors" on:click={() => (showReasonModal = false)}>Cancel</button>
-              <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors" on:click={confirmRejection}>Submit</button>
+            <!-- Textarea -->
+            <div class="mb-6">
+              <label for="decline-reason-textarea" class="block text-sm font-semibold text-gray-700 mb-2">Reason for Decline</label>
+              <textarea
+                id="decline-reason-textarea"
+                class="w-full border-2 border-gray-200 rounded-lg p-3 mb-2 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all text-sm resize-none"
+                rows="5"
+                bind:value={rejectionReason}
+                placeholder="Example: 'The doctor is unavailable on this date. Please select an alternative date from our available slots.'"
+                aria-describedby="decline-char-count"
+              ></textarea>
+              <p id="decline-char-count" class="text-xs text-gray-500">{rejectionReason.length}/250 characters</p>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex gap-3 justify-end">
+              <button 
+                type="button" 
+                class="px-5 py-2.5 text-gray-700 font-medium rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200 text-sm"
+                on:click={() => (showReasonModal = false)}>
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                class="px-5 py-2.5 text-white font-medium rounded-lg bg-red-500 hover:bg-red-600 transition-all duration-200 text-sm shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!rejectionReason.trim()}
+                on:click={confirmRejection}>
+                Submit Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      {#if showCompletionModal && pendingCompletionAppointment}
+        <div 
+          role="button"
+          tabindex="0"
+          class="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50 p-4 animate-fadeIn" 
+          on:click|self={() => (showCompletionModal = false)}
+          on:keydown={e => e.key === 'Escape' && (showCompletionModal = false)}>
+          <div 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="completion-modal-title"
+            class="bg-white rounded-xl p-6 sm:p-8 w-full max-w-md shadow-2xl transform transition-all duration-300 ease-out scale-100 animate-slideUp">
+            <!-- Header Section -->
+            <div class="flex items-start justify-between mb-6">
+              <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-lg bg-green-100">
+                  <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 id="completion-modal-title" class="text-xl font-bold text-gray-900">Mark as Completed</h2>
+                  <p class="text-xs text-gray-500 mt-1">Confirm appointment completion</p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                aria-label="Close mark as completed dialog"
+                class="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
+                on:click={() => (showCompletionModal = false)}>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            
+            <!-- Confirmation Message -->
+            <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-6" role="note">
+              <div class="flex gap-3">
+                <svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <div class="text-sm text-green-800">
+                  <p class="font-semibold mb-1">Confirm that the appointment is complete</p>
+                  <p class="text-xs opacity-90">
+                    Patient: <span class="font-medium">{pendingCompletionAppointment.patientName || 'Unknown'}</span><br/>
+                    Date & Time: <span class="font-medium">{pendingCompletionAppointment.date} at {pendingCompletionAppointment.time}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Textarea -->
+            <div class="mb-6">
+              <label for="completion-remarks-textarea" class="block text-sm font-semibold text-gray-700 mb-2">Remarks (Optional)</label>
+              <textarea
+                id="completion-remarks-textarea"
+                class="w-full border-2 border-gray-200 rounded-lg p-3 mb-2 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100 transition-all text-sm resize-none"
+                rows="4"
+                bind:value={completionRemarks}
+                placeholder="Add any notes or remarks about the appointment completion..."
+                aria-describedby="completion-char-count"
+              ></textarea>
+              <p id="completion-char-count" class="text-xs text-gray-500">{completionRemarks.length}/250 characters</p>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex gap-3 justify-end">
+              <button 
+                type="button" 
+                class="px-5 py-2.5 text-gray-700 font-medium rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200 text-sm"
+                on:click={() => (showCompletionModal = false)}>
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                class="px-5 py-2.5 text-white font-medium rounded-lg bg-green-500 hover:bg-green-600 transition-all duration-200 text-sm shadow-lg hover:shadow-xl"
+                on:click={confirmCompletion}>
+                Mark Complete
+              </button>
             </div>
           </div>
         </div>
@@ -706,5 +831,33 @@
       position: -webkit-sticky; 
       position: sticky; 
       top: 0; 
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    :global(.animate-fadeIn) {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    :global(.animate-slideUp) {
+      animation: slideUp 0.3s ease-out;
     }
   </style>
