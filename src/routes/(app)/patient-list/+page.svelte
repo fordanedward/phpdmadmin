@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { firebaseConfig } from '$lib/firebaseConfig';
 	import { initializeApp } from 'firebase/app';
-	import { getFirestore, collection, getDocs, deleteDoc, doc, getDoc } from 'firebase/firestore';
+	import { getFirestore, collection, getDocs, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 	import { EditSolid, EyeOutline, TrashBinSolid,  } from 'flowbite-svelte-icons'; // Added SearchOutline
 	import { Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, Select, Input } from 'flowbite-svelte'; // Added Input
 
@@ -48,6 +48,7 @@
 	let selectedSortOption: string = 'name_asc'; // State for the sorting dropdown
 	let selectedPatient: Patient | null = null;
 	let showDetailsModal = false;
+	let updatingStatusId: string | null = null;
 
 	const sortOptions = [
 		{ value: 'name_asc', name: 'Sort by Name: A-Z' },
@@ -210,6 +211,37 @@
 		} catch (err) {
 			console.error("Error deleting patient:", err);
 			error = `Failed to delete patient: ${(err as Error).message}`;
+		}
+	}
+
+	async function updatePatientStatus(id: string, newStatus: boolean) {
+		if (updatingStatusId) return; // Prevent concurrent updates
+		
+		updatingStatusId = id;
+		try {
+			const userRef = doc(db, 'users', id);
+			await updateDoc(userRef, {
+				isArchived: newStatus
+			});
+			
+			// Update local state
+			const patientIndex = patients.findIndex(p => p.id === id);
+			if (patientIndex !== -1) {
+				patients[patientIndex].isArchived = newStatus;
+				patients = patients; // Trigger reactivity
+			}
+			
+			// Update selected patient if viewing modal
+			if (selectedPatient && selectedPatient.id === id) {
+				selectedPatient.isArchived = newStatus;
+			}
+			
+			console.log(`Patient ${id} status updated to ${newStatus ? 'Inactive' : 'Active'}`);
+		} catch (err) {
+			console.error('Error updating patient status:', err);
+			error = `Failed to update status: ${(err as Error).message}`;
+		} finally {
+			updatingStatusId = null;
 		}
 	}
 
@@ -594,6 +626,49 @@
 		border: 1px solid #dc2626;
 	}
 
+	/* Status Select Dropdown Styling */
+	.status-select {
+		padding: 8px 12px;
+		border-radius: 20px;
+		border: 2px solid;
+		font-size: 0.9rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		background-color: white;
+		min-width: 100px;
+	}
+
+	.status-select.active {
+		border-color: #16a34a;
+		color: #16a34a;
+	}
+
+	.status-select.active:hover {
+		background-color: rgba(34, 197, 94, 0.1);
+		box-shadow: 0 2px 8px rgba(22, 163, 74, 0.15);
+	}
+
+	.status-select.inactive {
+		border-color: #dc2626;
+		color: #dc2626;
+	}
+
+	.status-select.inactive:hover {
+		background-color: rgba(239, 68, 68, 0.1);
+		box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
+	}
+
+	.status-select:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.status-select:focus {
+		outline: none;
+		box-shadow: 0 0 0 3px rgba(8, 184, 243, 0.2);
+	}
+
 	.info-section {
 		margin-bottom: 28px;
 	}
@@ -742,6 +817,7 @@
 						<TableHeadCell>Address</TableHeadCell>
 						<TableHeadCell>Phone</TableHeadCell>
 						<TableHeadCell style="text-align: center;">Age</TableHeadCell>
+						<TableHeadCell style="text-align: center;">Status</TableHeadCell>
 						<TableHeadCell style="text-align: center;">Actions</TableHeadCell>
 					</TableHead>
 					<TableBody tableBodyClass="divide-y">
@@ -751,6 +827,17 @@
 							<TableBodyCell>{patient.address}</TableBodyCell>
 							<TableBodyCell>{patient.phone}</TableBodyCell>
 							<TableBodyCell style="text-align: center;">{patient.age}</TableBodyCell>
+							<TableBodyCell style="text-align: center;">
+								<select 
+									class="status-select {patient.isArchived ? 'inactive' : 'active'}"
+									value={patient.isArchived ? 'inactive' : 'active'}
+									on:change={(e) => updatePatientStatus(patient.id, e.currentTarget.value === 'inactive')}
+									disabled={updatingStatusId === patient.id}
+								>
+									<option value="active">Active</option>
+									<option value="inactive">Inactive</option>
+								</select>
+							</TableBodyCell>
 							<TableBodyCell>
 								<div class="action-buttons">
 									 <button title="View Details" class="view" on:click={() => viewPatient(patient.id)}>
@@ -767,7 +854,7 @@
 						</TableBodyRow>
 						 {:else}
 						 <TableBodyRow>
-							 <TableBodyCell colspan={5} style="text-align: center; padding: 20px;">
+							 <TableBodyCell colspan={6} style="text-align: center; padding: 20px;">
 								 No patients found{searchTerm || selectedSortOption !== 'name_asc' ? ' matching the criteria.' : '.'}
 							 </TableBodyCell>
 						 </TableBodyRow>
