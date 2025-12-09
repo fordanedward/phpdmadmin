@@ -478,8 +478,8 @@
                             <div class="morning-section bg-gradient-to-br from-yellow-50 via-yellow-25 to-transparent p-4 sm:p-6 md:p-7 rounded-2xl border-2 border-yellow-200 hover:border-yellow-300 transition-all">
                                 <h4 class="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-5 sm:mb-6 flex items-center gap-3">
                                     <div class="p-2.5 sm:p-3 rounded-full bg-yellow-100">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                                         </svg>
                                     </div>
                                     <span>Morning (8 AM - 11 AM)</span>
@@ -505,8 +505,8 @@
                             <div class="afternoon-section bg-gradient-to-br from-orange-50 via-orange-25 to-transparent p-4 sm:p-6 md:p-7 rounded-2xl border-2 border-orange-200 hover:border-orange-300 transition-all">
                                 <h4 class="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-5 sm:mb-6 flex items-center gap-3">
                                     <div class="p-2.5 sm:p-3 rounded-full bg-orange-100">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M12 18C8.68 18 6 15.32 6 12s2.68-6 6-6 6 2.68 6 6-2.68 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zM13 2h-2v3h2V2zm0 15h-2v3h2v-3zM5 11H2v2h3v-2zm15 0h-3v2h3v-2zM6.22 4.22L3.81 1.81 2.4 3.22l2.41 2.41 1.41-1.41zM16.63 14.63l2.41 2.41 1.41-1.41-2.41-2.41-1.41 1.41zM19.78 4.22l1.41 1.41 2.41-2.41-1.41-1.41-2.41 2.41zM7.63 16.63l-1.41 1.41 2.41 2.41 1.41-1.41-2.41-2.41z" />
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                                         </svg>
                                     </div>
                                     <span>Afternoon (12 PM - 4 PM)</span>

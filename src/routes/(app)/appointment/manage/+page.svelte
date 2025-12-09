@@ -754,7 +754,7 @@
                   </svg>
                 </div>
                 <div>
-                  <h2 id="completion-modal-title" class="text-xl font-bold text-gray-900">Mark as Completed</h2>
+                  <h2 id="completion-modal-title" class="text-xl font-bold text-gray-900">Mark as Completed?</h2>
                   <p class="text-xs text-gray-500 mt-1">Confirm appointment completion</p>
                 </div>
               </div>
@@ -794,9 +794,7 @@
                 rows="4"
                 bind:value={completionRemarks}
                 placeholder="Add any notes or remarks about the appointment completion..."
-                aria-describedby="completion-char-count"
               ></textarea>
-              <p id="completion-char-count" class="text-xs text-gray-500">{completionRemarks.length}/250 characters</p>
             </div>
             
             <!-- Action Buttons -->
