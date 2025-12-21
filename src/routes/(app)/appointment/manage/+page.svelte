@@ -3,7 +3,7 @@
     import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
     import { initializeApp } from 'firebase/app';
     import { firebaseConfig } from '$lib/firebaseConfig'; // Make sure this path is correct
-    import { addPopupNotification } from '$lib/popupNotificationStore.js';
+    import { addPopupNotification } from '$lib/popupNotificationStore';
     import Swal from 'sweetalert2';
   
     let db: ReturnType<typeof getFirestore>;
