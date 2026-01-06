@@ -1,6 +1,6 @@
 {
   "framework": "sveltekit",
-  "buildCommand": "npm run build",
+  "buildCommand": "npx svelte-kit sync && npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install"
 }
