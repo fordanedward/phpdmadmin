@@ -18,7 +18,7 @@
 	} from 'firebase/firestore';
 	import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 	import { firebaseConfig } from '$lib/firebaseConfig';
-	import * as XLSX from 'xlsx';
+	import ExcelJS from 'exceljs';
 	import { jsPDF } from 'jspdf';
 	import 'jspdf-autotable';
 	import type { UserOptions } from 'jspdf-autotable';
@@ -728,16 +728,17 @@ $: filteredPatients = (() => {
 		}, 600);
 	}
 
-	function exportAppointmentReport(): void {
+	async function exportAppointmentReport(): Promise<void> {
 		if (!reportData) {
 			alert('Please generate a report first');
 			return;
 		}
 
-		const workbook = XLSX.utils.book_new();
+		const workbook = new ExcelJS.Workbook();
 		const reportDate = getTodayString();
 
 		// Summary Sheet
+		const summarySheet = workbook.addWorksheet('Summary');
 		const summaryData = [
 			['Appointment Report'],
 			['Report Generated Date', reportDate],
@@ -761,11 +762,10 @@ $: filteredPatients = (() => {
 			['SERVICE BREAKDOWN'],
 			...Object.entries(reportData.serviceBreakdown).map(([service, count]) => [service, count])
 		];
-
-		const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-		XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+		summarySheet.addRows(summaryData);
 
 		// Detailed Appointments Sheet
+		const appointmentsSheet = workbook.addWorksheet('Appointments');
 		const appointmentData = reportData.appointments.map((apt: any) => ({
 			'Appointment Date': apt.date,
 			'Time': apt.time || 'N/A',
@@ -775,21 +775,36 @@ $: filteredPatients = (() => {
 			'Created On': apt.createdAt ? new Date(apt.createdAt).toLocaleString() : 'N/A',
 			'Completed On': apt.completionTime ? new Date(apt.completionTime).toLocaleString() : 'N/A'
 		}));
-
-		const detailSheet = XLSX.utils.json_to_sheet(appointmentData);
-		XLSX.utils.book_append_sheet(workbook, detailSheet, 'Appointments');
+		
+		if (appointmentData.length > 0) {
+			appointmentsSheet.columns = Object.keys(appointmentData[0]).map(key => ({ header: key, key, width: 20 }));
+			appointmentsSheet.addRows(appointmentData);
+		}
 
 		// Daily Breakdown Sheet
+		const dailySheet = workbook.addWorksheet('Daily Breakdown');
 		const dailyData = Object.entries(reportData.dailyBreakdown)
 			.sort((a, b) => a[0].localeCompare(b[0]))
 			.map(([date, count]) => ({ 'Date': date, 'Appointments': count }));
-
-		const dailySheet = XLSX.utils.json_to_sheet(dailyData);
-		XLSX.utils.book_append_sheet(workbook, dailySheet, 'Daily Breakdown');
+		
+		if (dailyData.length > 0) {
+			dailySheet.columns = [
+				{ header: 'Date', key: 'Date', width: 15 },
+				{ header: 'Appointments', key: 'Appointments', width: 15 }
+			];
+			dailySheet.addRows(dailyData);
+		}
 
 		// Save file
 		const filename = `Appointment_Report_${reportData.dateRange.start}_to_${reportData.dateRange.end}.xlsx`;
-		XLSX.writeFile(workbook, filename);
+		const buffer = await workbook.xlsx.writeBuffer();
+		const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+		const url = window.URL.createObjectURL(blob);
+		const anchor = document.createElement('a');
+		anchor.href = url;
+		anchor.download = filename;
+		anchor.click();
+		window.URL.revokeObjectURL(url);
 	}
 
 	// --- Data Fetching Functions ---
@@ -1586,34 +1601,35 @@ function downloadPdfReportWithBreakdown(appointmentsData: Appointment[], patient
     console.log(`PDF Report Saved as ${filename}`);
 }
 
-function downloadExcelReport(
+async function downloadExcelReport(
 	appointmentsData: Appointment[],
 	patientsData: Patient[]
-): void {
+): Promise<void> {
   console.log('Generating Excel Report with Monthly Sectioning...');
-  const workbook = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
   const reportDate = getTodayString(); // Get today's date
-  const metadataSheetData = [
+  
+  // Create Report Info sheet
+  const metadataSheet = workbook.addWorksheet('Report Info');
+  metadataSheet.addRows([
     ['Metric', 'Value'],
     [REPORT_DATE_LABEL, reportDate],
     ['Date Description', REPORT_DATE_DESCRIPTION],
-  ];
-  const metadataSheet = XLSX.utils.aoa_to_sheet(metadataSheetData);
-  metadataSheet['!cols'] = [
-    { wch: 20 },
-    { wch: Math.max(25, REPORT_DATE_DESCRIPTION.length) },
-  ];
-  XLSX.utils.book_append_sheet(workbook, metadataSheet, 'Report Info');
+  ]);
+  metadataSheet.getColumn(1).width = 20;
+  metadataSheet.getColumn(2).width = Math.max(25, REPORT_DATE_DESCRIPTION.length);
 
-    // Helper function to calculate column widths
-  const calculateColumnWidths = (data: any[]) => {
-    const keys = Object.keys(data[0] || {});
-    return keys.map(key => ({
-      wch: Math.max(
-        key.length, // Header length
-        ...data.map(row => (row[key] ? row[key].toString().length : 0)) // Max cell length
-      ),
-    }));
+    // Helper function to set column widths
+  const setColumnWidths = (worksheet: ExcelJS.Worksheet, data: any[]) => {
+    if (data.length === 0) return;
+    const keys = Object.keys(data[0]);
+    keys.forEach((key, index) => {
+      const maxLength = Math.max(
+        key.length,
+        ...data.map(row => (row[key] ? row[key].toString().length : 0))
+      );
+      worksheet.getColumn(index + 1).width = maxLength + 2;
+    });
   };
 
   // Group appointments by month
@@ -1640,9 +1656,12 @@ function downloadExcelReport(
 			'Status': appt.status || 'N/A',
 		}));
 
-    const ws = XLSX.utils.json_to_sheet(sheetData);
-    ws['!cols'] = calculateColumnWidths(sheetData); // Set column widths
-    XLSX.utils.book_append_sheet(workbook, ws, `Appointments_${monthYear}`);
+    const ws = workbook.addWorksheet(`Appointments_${monthYear}`);
+    if (sheetData.length > 0) {
+      ws.columns = Object.keys(sheetData[0]).map(key => ({ header: key, key, width: 15 }));
+      ws.addRows(sheetData);
+      setColumnWidths(ws, sheetData);
+    }
   });
 
 
@@ -1673,17 +1692,27 @@ function downloadExcelReport(
       'Registration Date': p.registrationDate || 'N/A',
       'Patient ID': p.id,
     }));
-    const ws = XLSX.utils.json_to_sheet(sheetData);
-    ws['!cols'] = calculateColumnWidths(sheetData); // Set column widths
-    XLSX.utils.book_append_sheet(workbook, ws, `Patients_${monthYear}`);
+    const ws = workbook.addWorksheet(`Patients_${monthYear}`);
+    if (sheetData.length > 0) {
+      ws.columns = Object.keys(sheetData[0]).map(key => ({ header: key, key, width: 15 }));
+      ws.addRows(sheetData);
+      setColumnWidths(ws, sheetData);
+    }
   });
 
 	// Prescriptions removed from Excel report - focusing on Appointments and Patients only
 
   // Save the Excel Workbook
-   if (workbook.SheetNames.length > 0) {
+   if (workbook.worksheets.length > 0) {
     const filename = `Data_Report_${reportDate}.xlsx`;
-    XLSX.writeFile(workbook, filename);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
     console.log(`Excel Report Saved as ${filename}`);
   } else {
     console.log('No data available to generate Excel report.');
@@ -1692,35 +1721,36 @@ function downloadExcelReport(
 }
 
 // Export filtered report data to Excel
-function downloadExcelReportFromReport(
+async function downloadExcelReportFromReport(
 	appointmentsData: Appointment[],
 	patientsData: Patient[],
 	statusBreakdown?: Record<string, number>,
 	serviceBreakdown?: Record<string, number>
-): void {
+): Promise<void> {
   console.log('Generating Excel Report from Appointment Reports...');
-  const workbook = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
   const reportDate = getTodayString();
-  const metadataSheetData = [
+  
+  // Create Report Info sheet
+  const metadataSheet = workbook.addWorksheet('Report Info');
+  metadataSheet.addRows([
     ['Metric', 'Value'],
     [REPORT_DATE_LABEL, reportDate],
     ['Date Description', REPORT_DATE_DESCRIPTION],
-  ];
-  const metadataSheet = XLSX.utils.aoa_to_sheet(metadataSheetData);
-  metadataSheet['!cols'] = [
-    { wch: 20 },
-    { wch: Math.max(25, REPORT_DATE_DESCRIPTION.length) },
-  ];
-  XLSX.utils.book_append_sheet(workbook, metadataSheet, 'Report Info');
+  ]);
+  metadataSheet.getColumn(1).width = 20;
+  metadataSheet.getColumn(2).width = Math.max(25, REPORT_DATE_DESCRIPTION.length);
 
-  const calculateColumnWidths = (data: any[]) => {
-    const keys = Object.keys(data[0] || {});
-    return keys.map(key => ({
-      wch: Math.max(
+  const setColumnWidths = (worksheet: ExcelJS.Worksheet, data: any[]) => {
+    if (data.length === 0) return;
+    const keys = Object.keys(data[0]);
+    keys.forEach((key, index) => {
+      const maxLength = Math.max(
         key.length,
         ...data.map(row => (row[key] ? row[key].toString().length : 0))
-      ),
-    }));
+      );
+      worksheet.getColumn(index + 1).width = maxLength + 2;
+    });
   };
 
   // Status Breakdown sheet
@@ -1729,9 +1759,10 @@ function downloadExcelReportFromReport(
       'Status': status.charAt(0).toUpperCase() + status.slice(1),
       'Count': count
     }));
-    const ws = XLSX.utils.json_to_sheet(statusData);
-    ws['!cols'] = calculateColumnWidths(statusData);
-    XLSX.utils.book_append_sheet(workbook, ws, 'Status Breakdown');
+    const ws = workbook.addWorksheet('Status Breakdown');
+    ws.columns = [{ header: 'Status', key: 'Status', width: 15 }, { header: 'Count', key: 'Count', width: 10 }];
+    ws.addRows(statusData);
+    setColumnWidths(ws, statusData);
   }
 
   // Service Breakdown sheet
@@ -1740,9 +1771,10 @@ function downloadExcelReportFromReport(
       'Service': service,
       'Count': count
     }));
-    const ws = XLSX.utils.json_to_sheet(serviceData);
-    ws['!cols'] = calculateColumnWidths(serviceData);
-    XLSX.utils.book_append_sheet(workbook, ws, 'Service Breakdown');
+    const ws = workbook.addWorksheet('Service Breakdown');
+    ws.columns = [{ header: 'Service', key: 'Service', width: 20 }, { header: 'Count', key: 'Count', width: 10 }];
+    ws.addRows(serviceData);
+    setColumnWidths(ws, serviceData);
   }
 
   // Appointments sheet
@@ -1755,9 +1787,10 @@ function downloadExcelReportFromReport(
       'Subservice': appt.subServices?.join(', ') || 'N/A',
       'Status': appt.status || 'N/A',
     }));
-    const ws = XLSX.utils.json_to_sheet(appointmentSheetData);
-    ws['!cols'] = calculateColumnWidths(appointmentSheetData);
-    XLSX.utils.book_append_sheet(workbook, ws, 'Appointments');
+    const ws = workbook.addWorksheet('Appointments');
+    ws.columns = Object.keys(appointmentSheetData[0]).map(key => ({ header: key, key, width: 15 }));
+    ws.addRows(appointmentSheetData);
+    setColumnWidths(ws, appointmentSheetData);
   }
 
   // Patients sheet
@@ -1773,14 +1806,22 @@ function downloadExcelReportFromReport(
       'Registration Date': p.registrationDate || 'N/A',
       'Patient ID': p.id,
     }));
-    const ws = XLSX.utils.json_to_sheet(patientSheetData);
-    ws['!cols'] = calculateColumnWidths(patientSheetData);
-    XLSX.utils.book_append_sheet(workbook, ws, 'Patients');
+    const ws = workbook.addWorksheet('Patients');
+    ws.columns = Object.keys(patientSheetData[0]).map(key => ({ header: key, key, width: 15 }));
+    ws.addRows(patientSheetData);
+    setColumnWidths(ws, patientSheetData);
   }
 
-  if (workbook.SheetNames.length > 1) {
+  if (workbook.worksheets.length > 1) {
     const filename = `Appointment_Report_${reportDate}.xlsx`;
-    XLSX.writeFile(workbook, filename);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
     console.log(`Excel Report Saved as ${filename}`);
   } else {
     alert('No data available to export.');
