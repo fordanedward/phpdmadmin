@@ -3,7 +3,7 @@
     import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
     import { initializeApp } from 'firebase/app';
     import { firebaseConfig } from '$lib/firebaseConfig'; // Make sure this path is correct
-    import { addPopupNotification } from '$lib/popupNotificationStore';
+    import { addPopupNotification } from '$lib/popupNotificationStore.js';
     import Swal from 'sweetalert2';
   
     let db: ReturnType<typeof getFirestore>;
@@ -794,7 +794,9 @@
                 rows="4"
                 bind:value={completionRemarks}
                 placeholder="Add any notes or remarks about the appointment completion..."
+                aria-describedby="completion-char-count"
               ></textarea>
+              <p id="completion-char-count" class="text-xs text-gray-500">{completionRemarks.length}/250 characters</p>
             </div>
             
             <!-- Action Buttons -->

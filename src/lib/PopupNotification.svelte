@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { slide } from 'svelte/transition';
+	import { fly, scale } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
 	import { popupNotifications, removeNotification } from './popupNotificationStore.js';
 
 	interface NotificationItem {
@@ -33,8 +34,8 @@
 	{#each activeNotifications as notification (notification.id)}
 		<div
 			class="popup-notification {notification.type}"
-			in:slide={{ duration: 300, axis: 'x' }}
-			out:slide={{ duration: 300, axis: 'x' }}
+			in:fly={{ duration: 400, x: 100, opacity: 0, easing: cubicOut }}
+			out:fly={{ duration: 300, x: 100, opacity: 0, easing: cubicOut }}
 			role="button"
 			tabindex="0"
 			aria-live="polite"
@@ -85,18 +86,30 @@
 		gap: 1rem;
 		z-index: 9999;
 		pointer-events: none;
+		max-width: 450px;
 	}
 
 	.popup-notification {
-		min-width: 300px;
+		min-width: 320px;
 		max-width: 450px;
-		border-radius: 0.5rem;
-		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+		border-radius: 12px;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
 		overflow: hidden;
 		pointer-events: auto;
 		cursor: pointer;
-		animation: slideIn 0.3s ease-out;
 		outline: none;
+		backdrop-filter: blur(10px);
+		transition: transform 0.2s ease, box-shadow 0.2s ease;
+		will-change: transform, opacity;
+	}
+
+	.popup-notification:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+	}
+
+	.popup-notification:active {
+		transform: scale(0.98);
 	}
 
 	.popup-notification:focus {
@@ -104,32 +117,24 @@
 		outline-offset: 2px;
 	}
 
-	@keyframes slideIn {
-		from {
-			transform: translateX(100%);
-			opacity: 0;
-		}
-		to {
-			transform: translateX(0);
-			opacity: 1;
-		}
-	}
-
 	.notification-content {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
-		padding: 1rem;
+		gap: 0.875rem;
+		padding: 1rem 1.25rem;
 		background-color: white;
+		position: relative;
 	}
 
 	.notification-icon {
 		flex-shrink: 0;
-		width: 24px;
-		height: 24px;
+		width: 28px;
+		height: 28px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		border-radius: 50%;
+		padding: 4px;
 	}
 
 	.notification-icon svg {
@@ -139,33 +144,38 @@
 
 	.popup-notification.success .notification-icon {
 		color: #10b981;
+		background-color: rgba(16, 185, 129, 0.1);
 	}
 
 	.popup-notification.error .notification-icon {
 		color: #ef4444;
+		background-color: rgba(239, 68, 68, 0.1);
 	}
 
 	.popup-notification.warning .notification-icon {
 		color: #f59e0b;
+		background-color: rgba(245, 158, 11, 0.1);
 	}
 
 	.popup-notification.info .notification-icon {
 		color: #3b82f6;
+		background-color: rgba(59, 130, 246, 0.1);
 	}
 
 	.notification-message {
 		flex-grow: 1;
 		color: #1f2937;
-		font-size: 0.95rem;
-		line-height: 1.4;
+		font-size: 0.9375rem;
+		line-height: 1.5;
+		font-weight: 500;
 		word-break: break-word;
 	}
 
 	.notification-close {
 		flex-shrink: 0;
-		width: 24px;
-		height: 24px;
-		padding: 0;
+		width: 32px;
+		height: 32px;
+		padding: 6px;
 		background: none;
 		border: none;
 		cursor: pointer;
@@ -173,11 +183,18 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: color 0.2s ease;
+		transition: all 0.2s ease;
+		border-radius: 6px;
+		margin: -4px -4px -4px 0;
 	}
 
 	.notification-close:hover {
 		color: #4b5563;
+		background-color: rgba(0, 0, 0, 0.05);
+	}
+
+	.notification-close:active {
+		transform: scale(0.9);
 	}
 
 	.notification-close svg {
@@ -186,9 +203,11 @@
 	}
 
 	.notification-progress {
-		height: 3px;
-		background: linear-gradient(90deg, currentColor 0%, transparent 100%);
+		height: 4px;
+		background: currentColor;
+		transform-origin: left;
 		animation: progressBar var(--duration, 5s) linear forwards;
+		opacity: 0.3;
 	}
 
 	.popup-notification.success .notification-progress {
@@ -209,10 +228,10 @@
 
 	@keyframes progressBar {
 		from {
-			width: 100%;
+			transform: scaleX(1);
 		}
 		to {
-			width: 0%;
+			transform: scaleX(0);
 		}
 	}
 
@@ -221,11 +240,25 @@
 			bottom: 1rem;
 			right: 1rem;
 			left: 1rem;
+			max-width: calc(100% - 2rem);
 		}
 
 		.popup-notification {
 			min-width: auto;
 			max-width: 100%;
+		}
+
+		.notification-content {
+			padding: 0.875rem 1rem;
+		}
+
+		.notification-icon {
+			width: 24px;
+			height: 24px;
+		}
+
+		.notification-message {
+			font-size: 0.875rem;
 		}
 	}
 </style>
