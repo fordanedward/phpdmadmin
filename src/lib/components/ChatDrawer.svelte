@@ -225,18 +225,29 @@
         on:submit|preventDefault={handleSendMessage}
         aria-label="Send chat message"
       >
-        <textarea
-          placeholder="Type a reminder or follow-up message…"
-          bind:value={messageInput}
-          rows="2"
-          on:keydown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              handleSendMessage();
-            }
-          }}
-        ></textarea>
-        <button type="submit" disabled={!messageInput.trim()}>Send</button>
+        <div class="input-wrapper">
+          <textarea
+            placeholder="Type your message"
+            bind:value={messageInput}
+            rows="1"
+            on:keydown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            on:input={(e) => {
+              e.target.style.height = 'auto';
+              e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+            }}
+          ></textarea>
+          <button type="submit" disabled={!messageInput.trim()} aria-label="Send message">
+            <svg xmlns="http://www.w3.org/2000/svg" class="send-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+            </svg>
+          </button>
+        </div>
+        <p class="helper-text">Enter to send • Shift+Enter for new line</p>
       </form>
     </div>
   </div>
@@ -253,7 +264,7 @@
   }
 
   .chat-panel {
-    width: min(420px, 90vw);
+    width: min(650px, 95vw);
     background: #fff;
     height: 100%;
     display: flex;
@@ -266,14 +277,14 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 1.25rem 1.5rem;
+    padding: 1.5rem 2rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     background: linear-gradient(135deg, #1e3a66 0%, #1e3a66 100%);
     color: white;
   }
 
   header h2 {
-    font-size: 1.15rem;
+    font-size: 1.35rem;
     font-weight: 700;
     color: white;
     margin: 0.15rem 0 0 0;
@@ -316,11 +327,11 @@
   .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 1.25rem;
+    padding: 1.5rem 2rem;
     background: #f8fafc;
     display: flex;
     flex-direction: column;
-    gap: 0.875rem;
+    gap: 1rem;
   }
 
   .messages::-webkit-scrollbar {
@@ -348,8 +359,8 @@
   .bubble {
     display: flex;
     flex-direction: column;
-    max-width: 80%;
-    padding: 0.85rem 1rem;
+    max-width: 75%;
+    padding: 1rem 1.25rem;
     background: white;
     border-radius: 1rem;
     align-self: flex-start;
@@ -380,32 +391,45 @@
 
   .bubble p {
     margin: 0;
-    line-height: 1.4;
+    font-size: 0.95rem;
+    line-height: 1.6;
     word-break: break-word;
   }
 
   .composer {
-    padding: 1rem 1.25rem;
+    padding: 1rem 1.5rem;
     border-top: 1px solid #e2e8f0;
     background: white;
     display: flex;
-    gap: 0.75rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .input-wrapper {
+    display: flex;
     align-items: flex-end;
-    flex-wrap: wrap;
+    gap: 0.75rem;
+    width: 100%;
   }
 
   textarea {
     flex: 1;
-    min-width: 200px;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.75rem;
+    width: 100%;
+    min-height: 48px;
+    max-height: 120px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 1.5rem;
     padding: 0.75rem 1rem;
     resize: none;
-    font-size: 0.95rem;
+    font-size: 0.9375rem;
     font-family: inherit;
-    background: #f8fafc;
+    background: white;
     color: #0f172a;
     transition: all 0.2s ease;
+    line-height: 1.5;
+    overflow-y: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   textarea:focus {
@@ -424,29 +448,59 @@
     color: white;
     border: none;
     border-radius: 0.75rem;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    font-size: 0.9rem;
+    padding: 0;
     cursor: pointer;
     transition: all 0.2s ease;
-    white-space: nowrap;
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    box-shadow: 0 2px 4px rgba(30, 58, 102, 0.15);
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(30, 58, 102, 0.2);
+    width: 48px;
+    height: 48px;
+  }
+
+  .send-icon {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.2s ease;
+  }
+
+  .helper-text {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin: 0;
+    padding-left: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .helper-text::before {
+    content: 'ⓘ';
+    font-size: 0.875rem;
+    opacity: 0.8;
   }
 
   button[type='submit']:hover:not(:disabled) {
     background: linear-gradient(135deg, #142a47 0%, #142a47 100%);
-    box-shadow: 0 4px 8px rgba(30, 58, 102, 0.25);
-    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(30, 58, 102, 0.3);
+    transform: scale(1.05);
+  }
+
+  button[type='submit']:hover:not(:disabled) .send-icon {
+    transform: translateX(2px);
   }
 
   button[type='submit']:disabled {
     background: #cbd5e1;
     cursor: not-allowed;
     box-shadow: none;
+    opacity: 0.6;
+  }
+
+  button[type='submit']:active:not(:disabled) {
+    transform: scale(0.95);
   }
 
   @keyframes slideIn {
@@ -482,20 +536,25 @@
     }
 
     .composer {
-      flex-direction: column;
       padding: 0.875rem 1rem;
-      gap: 0.5rem;
-      align-items: stretch;
     }
 
-    textarea {
-      min-width: unset;
-      width: 100%;
+    .input-wrapper {
+      gap: 0.5rem;
+    }
+
+    .helper-text {
+      font-size: 0.7rem;
     }
 
     button[type='submit'] {
-      width: 100%;
-      justify-content: center;
+      width: 44px;
+      height: 44px;
+    }
+
+    .send-icon {
+      width: 18px;
+      height: 18px;
     }
   }
 </style>

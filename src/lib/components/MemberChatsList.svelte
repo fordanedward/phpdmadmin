@@ -308,15 +308,15 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: 600px;
-    max-height: 70vh;
+    height: 750px;
+    max-height: 80vh;
   }
 
   .header {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1.25rem 1.5rem;
+    padding: 1.5rem 2rem;
     background: linear-gradient(135deg, #1e3a66 0%, #1e3a66 100%);
     color: white;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -343,7 +343,7 @@
   }
 
   .header h2 {
-    font-size: 1.25rem;
+    font-size: 1.35rem;
     font-weight: 700;
     margin: 0;
     color: white;
@@ -357,28 +357,28 @@
 
   .search-bar {
     position: relative;
-    padding: 1rem 1.5rem;
+    padding: 1.25rem 2rem;
     background: #f9fafb;
     border-bottom: 1px solid #e5e7eb;
   }
 
   .search-icon {
     position: absolute;
-    left: 2rem;
+    left: 2.5rem;
     top: 50%;
     transform: translateY(-50%);
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 1.25rem;
+    height: 1.25rem;
     color: #9ca3af;
     pointer-events: none;
   }
 
   .search-input {
     width: 100%;
-    padding: 0.625rem 0.875rem 0.625rem 2.5rem;
+    padding: 0.75rem 1rem 0.75rem 2.75rem;
     border: 1px solid #d1d5db;
     border-radius: 1.5rem;
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     background: white;
     transition: all 0.2s;
   }
@@ -465,8 +465,8 @@
   .chat-item {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem 1.5rem;
+    gap: 1.25rem;
+    padding: 1.25rem 2rem;
     border: none;
     border-bottom: 1px solid #f3f4f6;
     background: white;
@@ -518,15 +518,15 @@
   }
 
   .avatar-circle {
-    width: 3rem;
-    height: 3rem;
+    width: 3.25rem;
+    height: 3.25rem;
     border-radius: 50%;
     background: linear-gradient(135deg, #1e3a66 0%, #1e3a66 100%);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 1.35rem;
     font-weight: 600;
     text-transform: uppercase;
   }
@@ -569,7 +569,7 @@
   }
 
   .member-name {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     font-weight: 600;
     color: #111827;
     margin: 0;
@@ -611,13 +611,14 @@
   }
 
   .last-message {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: #6b7280;
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     flex: 1;
+    line-height: 1.4;
   }
 
   .last-message.unread-message {
