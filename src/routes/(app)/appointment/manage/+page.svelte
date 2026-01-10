@@ -708,9 +708,7 @@
                 rows="5"
                 bind:value={rejectionReason}
                 placeholder="Example: 'The doctor is unavailable on this date. Please select an alternative date from our available slots.'"
-                aria-describedby="decline-char-count"
               ></textarea>
-              <p id="decline-char-count" class="text-xs text-gray-500">{rejectionReason.length}/250 characters</p>
             </div>
             
             <!-- Action Buttons -->
@@ -794,9 +792,7 @@
                 rows="4"
                 bind:value={completionRemarks}
                 placeholder="Add any notes or remarks about the appointment completion..."
-                aria-describedby="completion-char-count"
               ></textarea>
-              <p id="completion-char-count" class="text-xs text-gray-500">{completionRemarks.length}/250 characters</p>
             </div>
             
             <!-- Action Buttons -->

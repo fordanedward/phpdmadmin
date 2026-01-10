@@ -198,6 +198,8 @@ let appointmentFilterEndDate = '';
 let appointmentFilterError = '';
 let filteredAppointments: Appointment[] = [];
 let todaysAppointmentsFiltered: Appointment[] = [];
+let selectedAppointmentDetails: Appointment | null = null;
+let showAppointmentDetailsModal = false;
 let filteredMonthlyAppointments: Appointment[] = [];
 
 	function viewPatientDetails(patientId: string) {
@@ -214,6 +216,24 @@ let filteredMonthlyAppointments: Appointment[] = [];
 	function closePatientDetailsModal() {
 		showPatientDetailsModal = false;
 		selectedPatient = null;
+		// Re-enable body scroll when modal closes
+		if (typeof document !== 'undefined') {
+			document.body.style.overflow = '';
+		}
+	}
+
+	function viewAppointmentDetails(appointment: Appointment) {
+		selectedAppointmentDetails = appointment;
+		showAppointmentDetailsModal = true;
+		// Disable body scroll when modal opens
+		if (typeof document !== 'undefined') {
+			document.body.style.overflow = 'hidden';
+		}
+	}
+
+	function closeAppointmentDetailsModal() {
+		showAppointmentDetailsModal = false;
+		selectedAppointmentDetails = null;
 		// Re-enable body scroll when modal closes
 		if (typeof document !== 'undefined') {
 			document.body.style.overflow = '';
@@ -2355,6 +2375,7 @@ async function downloadExcelReportFromReport(
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
@@ -2379,11 +2400,23 @@ async function downloadExcelReportFromReport(
                                             {appointment.status}
                                         </span>
                                     </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button
+                                            class="inline-flex items-center justify-center p-1.5 rounded-full hover:bg-blue-100 transition-colors duration-150"
+                                            on:click={() => viewAppointmentDetails(appointment)}
+                                            title="View Details"
+                                            aria-label="View appointment details"
+                                        >
+                                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </button>
+                                    </td>
                                 </tr>
                             {/each}
                             {:else}
                                 <tr>
-                                    <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No appointments match the current filters.</td>
+                                    <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No appointments match the current filters.</td>
                                 </tr>
                             {/if}
                         </tbody>
@@ -2545,6 +2578,7 @@ async function downloadExcelReportFromReport(
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
@@ -2570,11 +2604,23 @@ async function downloadExcelReportFromReport(
                                             {appointment.status}
                                         </span>
                                     </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button
+                                            class="inline-flex items-center justify-center p-1.5 rounded-full hover:bg-blue-100 transition-colors duration-150"
+                                            on:click={() => viewAppointmentDetails(appointment)}
+                                            title="View Details"
+                                            aria-label="View appointment details"
+                                        >
+                                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </button>
+                                    </td>
                                 </tr>
                             {/each}
                             {:else}
                                 <tr>
-                                    <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No appointments match the current filters.</td>
+                                    <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No appointments match the current filters.</td>
                                 </tr>
                             {/if}
                         </tbody>
@@ -2789,6 +2835,104 @@ async function downloadExcelReportFromReport(
 					<button 
 						class="px-5 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
 						on:click={closePatientDetailsModal}
+					>
+						Close
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Appointment Details Modal -->
+{#if showAppointmentDetailsModal && selectedAppointmentDetails}
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4" transition:fade={{ duration: 200 }} on:click={closeAppointmentDetailsModal}>
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
+		<div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" transition:scale={{ duration: 200, start: 0.95 }} on:click|stopPropagation>
+			<!-- Modal Header -->
+			<div class="sticky top-0 bg-[#172f85] text-white px-6 py-4 rounded-t-2xl flex justify-between items-center z-10">
+				<div class="flex items-center gap-3">
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+					</svg>
+					<h2 class="text-xl font-bold">Appointment Details</h2>
+				</div>
+				<button
+					on:click={closeAppointmentDetailsModal}
+					class="text-white hover:text-gray-200 transition-colors"
+					aria-label="Close appointment details modal"
+				>
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+
+			<!-- Modal Content -->
+			<div class="p-6">
+				<!-- Basic Information -->
+				<div class="bg-white rounded-xl p-5 mb-6 border border-gray-200">
+					<h3 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+						<svg class="w-5 h-5 text-[#172f85]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						General Information
+					</h3>
+					<div class="space-y-3">
+						<div class="info-item-dash">
+							<span class="info-label-dash text-sm">Patient:</span>
+							<span class="info-value-dash font-semibold text-[#172f85] text-sm">{selectedAppointmentDetails.patientName || 'N/A'}</span>
+						</div>
+						<div class="info-item-dash">
+							<span class="info-label-dash text-sm">Date:</span>
+							<span class="info-value-dash text-sm">{selectedAppointmentDetails.date ? formatDateDisplay(selectedAppointmentDetails.date) : 'N/A'}</span>
+						</div>
+						<div class="info-item-dash">
+							<span class="info-label-dash text-sm">Time:</span>
+							<span class="info-value-dash text-sm">{selectedAppointmentDetails.time || 'N/A'}</span>
+						</div>
+						<div class="info-item-dash">
+							<span class="info-label-dash text-sm">Service:</span>
+							<span class="info-value-dash text-sm">{selectedAppointmentDetails.service || 'N/A'}</span>
+						</div>
+						{#if selectedAppointmentDetails.subServices && selectedAppointmentDetails.subServices.length > 0}
+							<div class="info-item-dash">
+								<span class="info-label-dash text-sm">Sub-Services:</span>
+								<div class="flex flex-wrap gap-2 mt-1">
+									{#each selectedAppointmentDetails.subServices as subService}
+										<span class="px-3 py-1 bg-[#172f85] bg-opacity-10 text-[#172f85] rounded-full text-sm font-medium">
+											{subService}
+										</span>
+									{/each}
+								</div>
+							</div>
+						{/if}
+						<div class="info-item-dash">
+							<span class="info-label-dash text-sm">Status:</span>
+							<div>
+								<span class="px-3 py-1 text-sm font-medium rounded-full inline-block
+									{selectedAppointmentDetails.status && selectedAppointmentDetails.status.toLowerCase().includes('completed') ? 'bg-green-100 text-green-800' :
+									selectedAppointmentDetails.status && selectedAppointmentDetails.status.toLowerCase().includes('pending') ? 'bg-yellow-100 text-yellow-800' :
+									selectedAppointmentDetails.status && selectedAppointmentDetails.status.toLowerCase().includes('accepted') ? 'bg-blue-100 text-blue-800' :
+									selectedAppointmentDetails.status && selectedAppointmentDetails.status.toLowerCase().includes('missed') ? 'bg-red-100 text-red-800' :
+									selectedAppointmentDetails.status && selectedAppointmentDetails.status.toLowerCase().includes('declined') ? 'bg-gray-200 text-gray-800' :
+									selectedAppointmentDetails.status && selectedAppointmentDetails.status.toLowerCase().includes('cancellation') ? 'bg-orange-100 text-orange-800' :
+									'bg-gray-300 text-gray-700'}">
+									{selectedAppointmentDetails.status || 'N/A'}
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="flex justify-end gap-3 pt-4 border-t-2 border-gray-100">
+					<button 
+						class="px-5 py-2 rounded-lg bg-[#172f85] text-white text-sm font-semibold hover:bg-[#0f1f5a] transition-colors"
+						on:click={closeAppointmentDetailsModal}
 					>
 						Close
 					</button>

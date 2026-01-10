@@ -237,8 +237,9 @@
               }
             }}
             on:input={(e) => {
-              e.target.style.height = 'auto';
-              e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = Math.min(target.scrollHeight, 120) + 'px';
             }}
           ></textarea>
           <button type="submit" disabled={!messageInput.trim()} aria-label="Send message">
