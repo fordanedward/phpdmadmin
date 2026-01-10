@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { fade, scale, fly } from 'svelte/transition';
 	import { goto } from '$app/navigation';
+	import Swal from 'sweetalert2';
 
 	import {
 		Timestamp,
@@ -293,25 +294,111 @@ function getPatientInitials(patient?: Patient | null): string {
 	return (first + last || first || last || 'U').slice(0, 2);
 }
 
-async function updateMemberStatus(patientId: string, newStatus: MemberStatus): Promise<void> {
-	if (!db) return;
+async function updateMemberStatus(patientId:  string, newStatus: MemberStatus): Promise<void> {
+	if (!db) {
+		console.error('Database not initialized');
+		await Swal.fire({
+			title: 'Database Error',
+			text: 'Database connection error. Please refresh the page.',
+			icon: 'error'
+		});
+		return;
+	}
+
 	try {
+		console.log(`Updating status for patient ${patientId} to ${newStatus}`);
+		
+		const isInactive = newStatus === 'inactive';
+		
+		// ✅ Reference BOTH collections
+		const userRef = doc(db, 'users', patientId);
 		const patientRef = doc(db, FIRESTORE_COLLECTIONS.PATIENTS, patientId);
-		await updateDoc(patientRef, { status: newStatus });
-		allPatients = allPatients.map(patient => patient.id === patientId ? { ...patient, status: newStatus } : patient);
+		
+		// ✅ Validate documents exist
+		const userSnap = await getDoc(userRef);
+		const patientSnap = await getDoc(patientRef);
+		
+		if (!userSnap.exists()) {
+			console.warn(`User document not found for ${patientId}`);
+			await Swal.fire({
+				title: 'User Not Found',
+				text: 'User account not found. The user may need to complete registration.',
+				icon: 'warning'
+			});
+			return;
+		}
+		
+		if (!patientSnap.exists()) {
+			console.warn(`Patient profile not found for ${patientId}`);
+			await Swal.fire({
+				title: 'Profile Not Found',
+				text: 'Patient profile not found. The user may need to complete registration.',
+				icon: 'warning'
+			});
+			return;
+		}
+		
+		// ✅ Update users collection (THIS IS THE KEY FIX!)
+		await updateDoc(userRef, {
+			status: isInactive ? 'Inactive' : 'Active',
+			isArchived: isInactive,      // ✅ Patient side checks this
+			archived: isInactive,          // ✅ Patient side checks this
+			lastModified: new Date().toISOString(),
+			modifiedBy: 'admin'
+		});
+		
+		console.log(`✅ Updated users collection for ${patientId}`);
+		
+		// ✅ Update patientProfiles collection
+		await updateDoc(patientRef, {
+			status: newStatus,
+			lastModified: new Date().toISOString()
+		});
+		
+		console.log(`✅ Updated patientProfiles collection for ${patientId}`);
+		
+		// Update local state
+		allPatients = allPatients.map(patient => 
+			patient.id === patientId ?  { ...patient, status: newStatus } : patient
+		);
+		
 		const existingPatient = patientMap.get(patientId);
 		if (existingPatient) {
 			patientMap.set(patientId, { ...existingPatient, status: newStatus });
 		}
-		stats = {
-			...stats,
-								};
+		
 		if (selectedPatient?.id === patientId) {
 			selectedPatient = { ...selectedPatient, status: newStatus };
 		}
+		
+		// ✅ Success message
+		const actionText = isInactive ? 'DEACTIVATED' : 'ACTIVATED';
+		const accessText = isInactive 
+			? 'They will be automatically signed out and cannot log in.' 
+			: 'They can now log in to their account.';
+		
+		await Swal.fire({
+			title: `Member ${actionText}!`,
+			text: accessText,
+			icon: 'success'
+		});
+		
+		console.log(`✅ Status update complete for ${patientId}`);
+		
 	} catch (error) {
 		console.error('Failed to update member status:', error);
-		alert('Unable to update member status. Please try again.');
+		
+		let errorText = 'Unable to update member status.\n\n';
+		if (error instanceof Error) {
+			errorText += `Error: ${error.message}\n\n`;
+		}
+		errorText += 'Please try again or contact support if the problem persists.';
+		
+		await Swal.fire({
+			title: 'Update Failed',
+			text: errorText,
+			icon: 'error'
+		});
 	}
 }
 
