@@ -372,15 +372,32 @@ async function updateMemberStatus(patientId:  string, newStatus: MemberStatus): 
 		}
 		
 		// ✅ Success message
+		const patient = patientMap.get(patientId);
+		const memberName = patient ? `${patient.name} ${patient.lastName}`.trim() : 'Member';
 		const actionText = isInactive ? 'DEACTIVATED' : 'ACTIVATED';
+		const actionColor = isInactive ? '#ff6b6b' : '#51cf66';
 		const accessText = isInactive 
 			? 'They will be automatically signed out and cannot log in.' 
 			: 'They can now log in to their account.';
 		
 		await Swal.fire({
-			title: `Member ${actionText}!`,
-			text: accessText,
-			icon: 'success'
+			title: `${memberName}`,
+			html: `
+				<div style="text-align: center; padding: 10px;">
+					<p style="font-size: 18px; font-weight: bold; color: ${actionColor}; margin: 10px 0;">
+						${actionText} Successfully!
+					</p>
+					<p style="font-size: 14px; color: #666; margin: 15px 0;">
+						${accessText}
+					</p>
+					<div style="background: #f5f5f5; padding: 10px; border-radius: 5px; margin-top: 15px;">
+						<small style="color: #999;">Status updated: ${new Date().toLocaleString()}</small>
+					</div>
+				</div>
+			`,
+			icon: 'success',
+			confirmButtonColor: actionColor,
+			confirmButtonText: 'Close'
 		});
 		
 		console.log(`✅ Status update complete for ${patientId}`);
