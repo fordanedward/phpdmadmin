@@ -399,21 +399,24 @@
 	}
 </script>
 
-<div class="page-container">
-	<!-- Header Section -->
-	<div class="page-header">
-		<div class="header-icon">
-			<UserAddOutline class="w-8 h-8 text-white" />
-		</div>
-		<div class="header-content">
-			<h1 class="header-title">Register New Patient</h1>
-			<p class="header-subtitle">
-				Create a new patient account with personal and medical information
-			</p>
-		</div>
-	</div>
+<div class="min-h-screen" style="background-color: #eef3ff;">
+	<div class="min-h-screen" style="background-color: #eef3ff;">
+		<div class="max-w-6xl mx-auto px-3 sm:p-4 md:p-8 py-6 sm:py-8 md:py-10">
+			<div class="mb-6 sm:mb-8 md:mb-10">
+				<div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
+					<div class="p-2.5 sm:p-3 rounded-xl" style="background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);">
+						<UserAddOutline class="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 flex-shrink-0 text-white" />
+					</div>
+					<div>
+						<h1 class="text-3xl sm:text-4xl md:text-4xl font-bold" style="color: #0b2d56;">Register New Member</h1>
+						<p class="text-gray-600 text-sm sm:text-base md:text-base pl-0 font-medium">Create a new member account with personal and medical information</p>
+					</div>
+				</div>
+			</div>
 
-	<form on:submit|preventDefault={handlePatientRegistration} class="form-content">
+			<div class="page-container">
+
+			<form on:submit|preventDefault={handlePatientRegistration} class="form-content">
 		<!-- Account Credentials Section -->
 		<div class="form-section">
 			<h2 class="section-title">Account Credentials</h2>
@@ -667,10 +670,12 @@
 		<!-- Action Buttons -->
 		<div class="form-actions">
 			<button type="submit" class="btn-submit" disabled={isSubmitting}>
-				{isSubmitting ? 'Creating Account...' : 'Create Patient Account'}
+				{isSubmitting ? 'Creating Account...' : 'Create Member Account'}
 			</button>
 		</div>
-	</form>
+			</form>
+		</div>
+	</div>
 </div>
 
 <!-- Toast Notification -->
@@ -746,57 +751,15 @@
 		</div>
 	</div>
 {/if}
+</div>
 
 <style>
 	.page-container {
-		max-width: 1300px;
-		margin: 0 auto;
-		padding: 2rem 2.5rem;
-		background-color: transparent;
-		min-height: 100vh;
-	}
-
-	.page-header {
-		background: transparent;
-		padding: 0;
-		margin-bottom: 2.5rem;
 		display: flex;
-		align-items: center;
-		gap: 1rem;
+		flex-direction: column;
+		gap: 1.5rem;
 	}
 
-	.header-icon {
-		background-color: #1e3a66;
-		border-radius: 8px;
-		padding: 0.75rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 52px;
-		height: 52px;
-		flex-shrink: 0;
-	}
-
-	.header-content {
-		flex: 1;
-	}
-
-	.header-title {
-		font-size: 1.75rem;
-		font-weight: 700;
-		color: #1e3a66;
-		margin: 0;
-		margin-bottom: 0.25rem;
-		letter-spacing: -0.01em;
-	}
-
-	.header-subtitle {
-		font-size: 0.9375rem;
-		color: #6b7280;
-		margin: 0;
-		line-height: 1.5;
-		font-weight: 400;
-	}
 
 	.form-content {
 		display: flex;
@@ -914,6 +877,7 @@
 		display: flex;
 		justify-content: flex-end;
 		padding-top: 1rem;
+		margin-top: 1rem;
 	}
 
 	.password-input-wrapper {
@@ -1166,6 +1130,7 @@
 	@media (max-width: 768px) {
 		.page-container {
 			padding: 1rem;
+			padding-bottom: 6rem;
 		}
 
 		.page-header {
@@ -1190,6 +1155,18 @@
 
 		.checkbox-grid {
 			grid-template-columns: 1fr;
+		}
+
+		.form-actions {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			background: white;
+			border-top: 1px solid #e5e7eb;
+			padding: 1rem;
+			box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+			z-index: 40;
 		}
 
 		.btn-submit {

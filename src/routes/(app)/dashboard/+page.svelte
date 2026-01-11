@@ -2035,7 +2035,7 @@ async function downloadExcelReportFromReport(
 
 
 	<!-- Main Content Area -->
-	<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white">
+	<div class="min-h-screen" style="background-color: #eef3ff;">
 		<div class="container mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8 md:py-10">
 			<!-- Header Section -->
 			<div class="mb-6 sm:mb-8 md:mb-10">

@@ -322,7 +322,7 @@
   </script>
   
   <!-- HTML Part remains the same -->
-  <div class="bg-gradient-to-br from-blue-50 via-white to-gray-100 min-h-screen">
+  <div class="min-h-screen" style="background-color: #eef3ff;">
     <div class="p-4 sm:p-6 md:p-8">
       <div class="max-w-6xl mx-auto">
         <div class="mb-8 sm:mb-10 md:mb-12">

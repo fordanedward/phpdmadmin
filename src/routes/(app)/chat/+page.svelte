@@ -36,7 +36,7 @@
   });
 </script>
 
-<div class="bg-gradient-to-br from-blue-50 via-white to-gray-100 min-h-screen">
+<div class="min-h-screen" style="background-color: #eef3ff;">
   <div class="max-w-6xl mx-auto px-3 sm:p-4 md:p-8 py-6 sm:py-8 md:py-10">
     <div class="mb-6 sm:mb-8 md:mb-10">
       <div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
