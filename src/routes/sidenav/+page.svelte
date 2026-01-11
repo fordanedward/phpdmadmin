@@ -43,6 +43,7 @@
         { href: '/appointment', icon: '/images/appointment.png', alt: 'Appointment', text: 'Appointment', roles: ['userDentist'] }, // Dentist only
         { href: '/appointment/manage', icon: '/images/appointment-manage.png', alt: 'Manage Appointments', text: 'Manage Appointments', roles: ['userSecretary'] }, // Secretary only
         { href: '/patient-list', icon: '/images/icon-patient.png', alt: 'Patient List', text: 'Patient List', roles: ['userDentist'] }, // Dentist only
+        { href: '/management/register-patient', icon: '/images/icon-patient.png', alt: 'Register Patient', text: 'Register Patient', roles: ['userSecretary', 'userDentist'] }, // Admin can register patients
         { href: '/prescription', icon: '/images/prescription1.png', alt: 'Prescriptions', text: 'Prescriptions', roles: ['userDentist'] },
         { href: '/medicine-list', icon: '/images/medicinelist.png', alt: 'Medicines List', text: 'Medicines List', roles: ['userDentist'] },
         // Secretary specific routes:
