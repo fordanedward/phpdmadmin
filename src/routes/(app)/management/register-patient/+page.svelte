@@ -231,6 +231,7 @@
 		try {
 			// Use email or generate a unique one if not provided
 			const accountEmail = email || `patient${Date.now()}@phpdmadmin.local`;
+			const displayEmail = email || 'n/a';
 			
 			// Create Firebase Auth account using secondary auth instance (won't log out admin)
 			const userCredential = await createUserWithEmailAndPassword(secondaryAuth, accountEmail, password);
@@ -292,7 +293,7 @@
 				gender: gender,
 				phone: phone,
 				address: address,
-				email: user.email,
+				email: displayEmail,
 				bloodType: bloodType || '',
 				allergies: allergies || '',
 				currentMedications: currentMedications || '',
