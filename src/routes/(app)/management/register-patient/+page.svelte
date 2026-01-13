@@ -66,9 +66,10 @@
 	let currentMedications: string = '';
 	let medicalConditions: string[] = [];
 	let otherMedicalConditions: string = '';
-	let familyHistory: string[] = [];
-	let otherFamilyHistory: string = '';
-	let surgicalHistory: string = '';
+	let surgicalHistoryItems: string[] = [];
+	let otherSurgicalHistory: string = '';
+	let familyHistoryTable: { [member: string]: string[] } = {};
+	let otherRelativeSpecify: string = '';
 	let bloodTransfusionHistory: string = '';
 	let bloodTransfusionDate: string = '';
 
@@ -92,24 +93,68 @@
 	];
 
 	const medicalConditionOptions = [
-		'Diabetes',
-		'Hypertension',
-		'Heart Disease',
+		'Anemia',
+		'Anxiety',
+		'Arthritis',
 		'Asthma',
-		'Allergies',
+		'Blood transfusion',
 		'Cancer',
-		'Kidney Disease',
-		'Liver Disease'
+		'Clotting disorder',
+		'Congestive Heart Failure',
+		'Depression',
+		'Diabetes Mellitus',
+		'Emphysema/COPD',
+		'Gastro esophageal reflux (GERD)',
+		'Glaucoma',
+		'Heart murmur',
+		'HIV/AIDS',
+		'High Cholesterol',
+		'Hypertension/high blood pressure'
 	];
 
-	const familyHistoryOptions = [
+	const surgicalHistoryOptions = [
+		'Appendectomy',
+		'Brain surgery',
+		'Breast surgery',
+		'CABG',
+		'Cholecystectomy',
+		'Colon surgery',
+		'Tonsillectomy',
+		'Thyroid surgery',
+		'Lung surgery',
+		'C-section',
+		'Eye surgery',
+		'Fracture surgery',
+		'Hernia repair',
+		'Hysterectomy',
+		'Joint surgery',
+		'Pancreatomy',
+		'Varicose vein surgery',
+		'Prostate surgery',
+		'Weight reduction surgery'
+	];
+
+	const familyHistoryConditions = [
+		'Alcohol abuse',
+		'Breast cancer',
+		'Ovarian cancer',
+		'Prostate cancer',
+		'Other cancer',
 		'Diabetes',
-		'Hypertension',
 		'Heart Disease',
-		'Cancer',
-		'Stroke',
-		'Alzheimer\'s',
-		'Mental Health Disorders'
+		'High cholesterol',
+		'Hypertension',
+		'Mental illness'
+	];
+
+	const familyMembers = [
+		'Mother',
+		'Father',
+		'Sister',
+		'Brother',
+		'Daughter',
+		'Son',
+		'Other relative (specify)'
 	];
 
 	type ToastType = 'info' | 'success' | 'warning' | 'error';
@@ -160,10 +205,10 @@
 				return potentialId;
 			}
 			console.warn(
-				`Custom Patient ID ${potentialId} is already taken. Retrying... (${i + 1}/${maxRetries})`
+				`Custom Member ID ${potentialId} is already taken. Retrying... (${i + 1}/${maxRetries})`
 			);
 		}
-		console.error('Failed to generate a unique custom Patient ID after several retries.');
+		console.error('Failed to generate a unique custom Member ID after several retries.');
 		return null;
 	}
 
@@ -188,12 +233,24 @@
 		}
 	}
 
-	function toggleFamilyHistory(condition: string) {
-		if (familyHistory.includes(condition)) {
-			familyHistory = familyHistory.filter((c) => c !== condition);
+	function toggleSurgicalHistory(surgery: string) {
+		if (surgicalHistoryItems.includes(surgery)) {
+			surgicalHistoryItems = surgicalHistoryItems.filter((s) => s !== surgery);
 		} else {
-			familyHistory = [...familyHistory, condition];
+			surgicalHistoryItems = [...surgicalHistoryItems, surgery];
 		}
+	}
+
+	function toggleFamilyHistoryCondition(member: string, condition: string) {
+		if (!familyHistoryTable[member]) {
+			familyHistoryTable[member] = [];
+		}
+		if (familyHistoryTable[member].includes(condition)) {
+			familyHistoryTable[member] = familyHistoryTable[member].filter((c) => c !== condition);
+		} else {
+			familyHistoryTable[member] = [...familyHistoryTable[member], condition];
+		}
+		familyHistoryTable = { ...familyHistoryTable };
 	}
 
 	function handlePhoneInput(event: Event) {
@@ -243,7 +300,7 @@
 
 			if (!customPatientId) {
 				showToast(
-					'Failed to generate a unique Patient ID. Please try again later.',
+					'Failed to generate a unique Member ID. Please try again later.',
 					'error',
 					6000
 				);
@@ -299,9 +356,10 @@
 				currentMedications: currentMedications || '',
 				medicalConditions: medicalConditions,
 				otherMedicalConditions: otherMedicalConditions || '',
-				familyHistory: familyHistory,
-				otherFamilyHistory: otherFamilyHistory || '',
-				surgicalHistory: surgicalHistory || '',
+				surgicalHistoryItems: surgicalHistoryItems,
+				otherSurgicalHistory: otherSurgicalHistory || '',
+				familyHistoryTable: familyHistoryTable,
+				otherRelativeSpecify: otherRelativeSpecify || '',
 				bloodTransfusionHistory: bloodTransfusionHistory || '',
 				bloodTransfusionDate: bloodTransfusionDate || '',
 				registeredDate: currentDate,
@@ -386,9 +444,10 @@
 		currentMedications = '';
 		medicalConditions = [];
 		otherMedicalConditions = '';
-		familyHistory = [];
-		otherFamilyHistory = '';
-		surgicalHistory = '';
+		surgicalHistoryItems = [];
+		otherSurgicalHistory = '';
+		familyHistoryTable = {};
+		otherRelativeSpecify = '';
 		bloodTransfusionHistory = '';
 		bloodTransfusionDate = '';
 	}
@@ -590,7 +649,7 @@
 			</div>
 
 			<div class="form-group mt-4">
-				<Label class="form-label">Medical Conditions</Label>
+				<Label class="form-label">Your Medical Conditions (check all that apply)</Label>
 				<div class="checkbox-grid">
 					{#each medicalConditionOptions as condition}
 						<label class="checkbox-label">
@@ -615,39 +674,69 @@
 			</div>
 
 			<div class="form-group mt-4">
-				<Label class="form-label">Family Medical History</Label>
+				<Label class="form-label">Surgical History (check all that apply)</Label>
 				<div class="checkbox-grid">
-					{#each familyHistoryOptions as condition}
+					{#each surgicalHistoryOptions as surgery}
 						<label class="checkbox-label">
 							<input
 								type="checkbox"
-								checked={familyHistory.includes(condition)}
-								on:change={() => toggleFamilyHistory(condition)}
+								checked={surgicalHistoryItems.includes(surgery)}
+								on:change={() => toggleSurgicalHistory(surgery)}
 								class="checkbox-input"
 							/>
-							<span class="checkbox-text">{condition}</span>
+							<span class="checkbox-text">{surgery}</span>
 						</label>
 					{/each}
 				</div>
 				<div class="mt-3">
-					<Input
-						type="text"
-						bind:value={otherFamilyHistory}
-						placeholder="Other family history (specify)"
+					<Textarea
+						bind:value={otherSurgicalHistory}
+						placeholder="Other surgeries (specify with dates)"
+						rows="2"
 						class="form-input"
 					/>
 				</div>
 			</div>
 
 			<div class="form-group mt-4">
-				<Label for="surgicalHistory" class="form-label">Surgical History</Label>
-				<Textarea
-					id="surgicalHistory"
-					bind:value={surgicalHistory}
-					placeholder="Previous surgeries and dates"
-					rows="2"
-					class="form-input"
-				/>
+				<Label class="form-label">Family History (check all that apply)</Label>
+				<div class="overflow-x-auto">
+					<table class="w-full border-collapse border border-gray-300">
+						<thead>
+							<tr class="bg-gray-100">
+								<th class="border border-gray-300 px-3 py-2 text-left font-semibold text-sm"></th>
+								{#each familyHistoryConditions as condition}
+									<th class="border border-gray-300 px-3 py-2 text-center font-medium text-xs">{condition}</th>
+								{/each}
+							</tr>
+						</thead>
+						<tbody>
+							{#each familyMembers as member}
+								<tr>
+									<td class="border border-gray-300 px-3 py-2 font-semibold text-sm">{member}</td>
+									{#each familyHistoryConditions as condition}
+										<td class="border border-gray-300 px-3 py-2 text-center">
+											<input
+												type="checkbox"
+												checked={familyHistoryTable[member]?.includes(condition) || false}
+												on:change={() => toggleFamilyHistoryCondition(member, condition)}
+												class="checkbox-input"
+											/>
+										</td>
+									{/each}
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+				<div class="mt-3">
+					<Input
+						type="text"
+						bind:value={otherRelativeSpecify}
+						placeholder="Specify other relative and conditions"
+						class="form-input"
+					/>
+				</div>
 			</div>
 
 			<div class="form-grid mt-4">
@@ -719,19 +808,19 @@
 						<CheckOutline class="w-12 h-12 text-white" />
 					</div>
 				</div>
-				<h2 class="modal-title">Patient Registration Successful!</h2>
-				<p class="modal-subtitle">New patient account has been created</p>
+				<h2 class="modal-title">Member Registration Successful!</h2>
+				<p class="modal-subtitle">New Member account has been created</p>
 			</div>
 
 			<div class="modal-content">
 				<div class="patient-info-card">
 					<div class="info-row">
-						<span class="info-label">Patient Name:</span>
+						<span class="info-label">Member Name:</span>
 						<span class="info-value">{registeredPatientName}</span>
 					</div>
 					<div class="divider"></div>
 					<div class="info-row patient-id-row">
-						<span class="info-label">Patient ID:</span>
+						<span class="info-label">Member ID:</span>
 						<div class="patient-id-badge">
 							{registeredPatientId}
 						</div>
@@ -740,7 +829,7 @@
 
 				<div class="note-box">
 					<InfoCircleOutline class="w-5 h-5 text-blue-600" />
-					<p>Please note this Patient ID for future reference and patient records.</p>
+					<p>Please note this Member ID is used for future reference and patient records.</p>
 				</div>
 			</div>
 
@@ -831,36 +920,43 @@
 
 	.checkbox-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-		gap: 0.875rem;
-		padding: 1rem;
-		background-color: #f9fafb;
-		border-radius: 8px;
-		border: 1px solid #e5e7eb;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 0.5rem 1rem;
+		padding: 1.25rem 1rem;
+		background-color: #ffffff;
+		border-radius: 6px;
+		border: 1px solid #d1d5db;
 	}
 
 	.checkbox-label {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.625rem;
 		cursor: pointer;
-		padding: 0.25rem;
-		transition: background-color 0.2s;
+		padding: 0.5rem 0.375rem;
+		transition: background-color 0.15s;
 		border-radius: 4px;
+		min-height: 2.5rem;
 	}
 
 	.checkbox-label:hover {
-		background-color: rgba(30, 58, 102, 0.05);
+		background-color: rgba(30, 58, 102, 0.04);
 	}
 
 	.checkbox-input {
-		width: 1rem;
-		height: 1rem;
-		border-radius: 4px;
-		border: 1.5px solid #d1d5db;
+		width: 1.125rem;
+		height: 1.125rem;
+		border-radius: 3px;
+		border: 2px solid #6b7280;
 		cursor: pointer;
-		transition: all 0.2s;
+		transition: all 0.15s ease;
 		accent-color: #1e3a66;
+		flex-shrink: 0;
+		margin: 0;
+	}
+
+	.checkbox-input:hover {
+		border-color: #1e3a66;
 	}
 
 	.checkbox-input:checked {
@@ -868,10 +964,16 @@
 		border-color: #1e3a66;
 	}
 
+	.checkbox-input:focus {
+		outline: 2px solid #93c5fd;
+		outline-offset: 2px;
+	}
+
 	.checkbox-text {
-		font-size: 0.875rem;
-		color: #4b5563;
+		font-size: 0.9375rem;
+		color: #374151;
 		user-select: none;
+		line-height: 1.4;
 	}
 
 	.form-actions {
@@ -1155,7 +1257,7 @@
 		}
 
 		.checkbox-grid {
-			grid-template-columns: 1fr;
+			grid-template-columns: repeat(2, 1fr);
 		}
 
 		.form-actions {
