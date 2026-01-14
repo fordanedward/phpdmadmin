@@ -333,75 +333,20 @@
             </div>
         </div>
 
-        <!-- Section for Default Working Days -->
-        <div class="bg-white rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 p-5 sm:p-6 md:p-7 mb-5 sm:mb-6 md:mb-7 border border-gray-100">
-            <div class="flex items-center justify-between mb-5 sm:mb-6">
-                <div>
-                    <h2 class="text-lg sm:text-xl md:text-2xl font-bold" style="color: #0b2d56;">Default Working Days</h2>
-                    <p class="text-xs sm:text-sm text-gray-500 mt-1">Select days available for appointment by default.</p>
+        <!-- Availability Hours Card -->
+        <div class="bg-white rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden">
+            <!-- Header with solid blue background -->
+            <div class="px-5 sm:px-6 md:px-7 py-4 sm:py-5" style="background: linear-gradient(135deg, #2c5282 0%, #1e3a5f 100%);">
+                <div class="flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <h2 class="text-lg sm:text-xl md:text-2xl font-bold text-white">Availability Hours</h2>
                 </div>
             </div>
-
-            {#if isLoadingDefaults}
-                <div class="text-center py-8 sm:py-10">
-                    <div class="inline-flex items-center justify-center">
-                        <div class="inline-block animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10" style="border: 3px solid #e9ecf1; border-top: 3px solid #0b2d56;"></div>
-                    </div>
-                    <p class="mt-3 text-gray-600 text-sm sm:text-base font-medium">Loading your preferences...</p>
-                </div>
-            {:else}
-                <div class="space-y-5 sm:space-y-6">
-                    <div class="grid grid-cols-7 gap-1.5 sm:gap-3 bg-gradient-to-r from-blue-50 to-transparent p-3 sm:p-5 rounded-xl">
-                        {#each DAYS_OF_WEEK as day (day.value)}
-                            <label class="day-toggle" class:day-toggle--active={defaultWorkingDays.includes(day.value)}>
-                                <input
-                                    type="checkbox"
-                                    value={day.value}
-                                    bind:group={defaultWorkingDays}
-                                    on:change={handleDefaultDaysChange}
-                                    class="sr-only"
-                                    disabled={isSavingDefaults}
-                                />
-                                <span class="day-toggle__dot" aria-hidden="true"></span>
-                                <span class="day-toggle__label">{day.label.slice(0, 3)}</span>
-                            </label>
-                        {/each}
-                    </div>
-                    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center sm:justify-between pt-2">
-                        <div class="flex-1 flex items-center gap-2">
-                            {#if isSavingDefaults}
-                                <div class="inline-block animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5" style="border: 2px solid #e9ecf1; border-top: 2px solid #0b2d56;"></div>
-                                <p class="text-xs sm:text-sm font-medium" style="color: #0b2d56;">Saving your changes...</p>
-                            {:else if !hasDefaultChanges && !isSavingDefaults}
-                                <p class="text-xs sm:text-sm text-gray-500">All changes saved</p>
-                            {:else if hasDefaultChanges && !isSavingDefaults}
-                                <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 rounded-lg border border-orange-200">
-                                    <div class="h-2 w-2 rounded-full" style="background-color: #ff8c00;"></div>
-                                    <p class="text-xs sm:text-sm text-orange-700 font-medium">Unsaved changes</p>
-                                </div>
-                            {/if}
-                        </div>
-                        <button
-                            on:click={() => saveDefaultSettings(false)}
-                            disabled={isSavingDefaults || !hasDefaultChanges}
-                            class="text-white px-5 sm:px-6 py-2.5 sm:py-2 text-xs sm:text-sm rounded-lg font-semibold whitespace-nowrap min-h-[44px] sm:min-h-[40px] flex items-center justify-center transition-all duration-200 active:scale-95 disabled:active:scale-100 shadow-sm hover:shadow-md disabled:shadow-none"
-                            style="background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%); opacity: {isSavingDefaults || !hasDefaultChanges ? '0.65' : '1'};"
-                            title={isSavingDefaults ? 'Saving... please wait' : (!hasDefaultChanges ? 'No changes to save' : 'Click to save changes')}
-                        >
-                            {#if isSavingDefaults}
-                                <span>Saving...</span>
-                            {:else}
-                                <span>Save Settings</span>
-                            {/if}
-                        </button>
-                    </div>
-                </div>
-            {/if}
-        </div>
-
-        <!-- Section for Specific Date Availability/Availability Hours -->
-        <div class="bg-white rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 p-5 sm:p-6 md:p-7 border border-gray-100">
-            <h2 class="text-lg sm:text-xl md:text-2xl font-bold mb-5 sm:mb-6" style="color: #0b2d56;">Availability Hours</h2>
+            
+            <!-- Content area -->
+            <div class="p-5 sm:p-6 md:p-7">
             
             <!-- Purpose & How It Works -->
             <div class="mb-6 sm:mb-7 md:mb-8 p-4 sm:p-5 rounded-xl border-l-4" style="background: linear-gradient(to right, #f0f4f8, transparent); border-color: #0b2d56;">
@@ -592,105 +537,13 @@
                     <p class="text-gray-600 text-base font-medium">Please select a date to get started</p>
                 </div>
             {/if}
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-    .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        border: 0;
-    }
-
-    .day-toggle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: 0.25rem;
-        padding: 0.5rem 0.25rem;
-        border-radius: 0.5rem;
-        border: 2px solid #e5e7eb;
-        background: #fff;
-        cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        width: 100%;
-        font-weight: 600;
-    }
-    @media (min-width: 640px) {
-        .day-toggle {
-            flex-direction: row;
-            gap: 0.7rem;
-            justify-content: flex-start;
-            min-width: 110px;
-            padding: 0.6rem 1.1rem;
-            border-radius: 0.75rem;
-            width: auto;
-        }
-    }
-    .day-toggle__dot {
-        width: 0.5rem;
-        height: 0.5rem;
-        min-width: 0.5rem;
-        min-height: 0.5rem;
-        flex-shrink: 0;
-        border-radius: 9999px;
-        background: #d1d5db;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        margin: 0;
-    }
-    @media (min-width: 640px) {
-        .day-toggle__dot {
-            width: 0.65rem;
-            height: 0.65rem;
-            min-width: 0.65rem;
-            min-height: 0.65rem;
-            margin-right: 0.5rem;
-        }
-    }
-    .day-toggle__label {
-        font-size: 0.625rem;
-        font-weight: 700;
-        color: #374151;
-        letter-spacing: 0.01em;
-        text-align: center;
-        line-height: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100%;
-    }
-    @media (min-width: 640px) {
-        .day-toggle__label {
-            font-size: 0.95rem;
-            text-align: left;
-        }
-    }
-    .day-toggle:hover {
-        border-color: #93c5fd;
-        box-shadow: 0 4px 12px rgba(11, 45, 86, 0.08);
-    }
-    .day-toggle--active {
-        border-color: #0b2d56;
-        background: linear-gradient(135deg, rgba(11,45,86,0.08), rgba(11,45,86,0.04));
-    }
-    .day-toggle--active .day-toggle__dot {
-        background: #0b2d56;
-        transform: scale(1.2);
-        box-shadow: 0 2px 4px rgba(11, 45, 86, 0.2);
-    }
-    .day-toggle--active .day-toggle__label {
-        color: #0b2d56;
-    }
-
-    /* Time Slot Buttons - Label Style (matching day-toggle) */
+    /* Time Slot Buttons - Label Style */
     .time-slot-label {
         display: inline-flex;
         align-items: center;

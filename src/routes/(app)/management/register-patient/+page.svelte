@@ -259,6 +259,22 @@
 		phone = input.value.replace(/[^0-9]/g, '').slice(0, 11);
 	}
 
+	function handleBirthdayInput(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const value = input.value;
+		
+		// If user is typing the year part, limit to 4 digits
+		if (value.length > 10) {
+			// Extract year part and limit to 4 digits
+			const parts = value.split('-');
+			if (parts[0] && parts[0].length > 4) {
+				parts[0] = parts[0].slice(0, 4);
+				birthday = parts.join('-');
+				input.value = birthday;
+			}
+		}
+	}
+
 	async function handlePatientRegistration() {
 		// Validation
 		if (!password || !confirmPassword) {
@@ -282,20 +298,13 @@
 		}
 
 		isSubmitting = true;
-		showToast('Creating patient account...', 'info', 0);
-		let createdAuthUser = null;
+	showToast('Creating Member account...', 'info', 5000);
+	let createdAuthUser = null;
 
-		try {
-			// Use email or generate a unique one if not provided
-			const accountEmail = email || `patient${Date.now()}@phpdmadmin.local`;
-			const displayEmail = email || 'n/a';
-			
-			// Create Firebase Auth account using secondary auth instance (won't log out admin)
-			const userCredential = await createUserWithEmailAndPassword(secondaryAuth, accountEmail, password);
-			const user = userCredential.user;
-			createdAuthUser = user;
-
-			// Generate unique patient ID
+	try {
+		// Use email or generate a unique one if not provided
+		const accountEmail = email || `patient${Date.now()}@phpdmadmin.local`;
+		const displayEmail = email || 'n/a';
 			const customPatientId = await generateUniqueCustomId();
 
 			if (!customPatientId) {
@@ -589,6 +598,8 @@
 						id="birthday"
 						bind:value={birthday}
 						on:change={calculateAge}
+						on:input={handleBirthdayInput}
+						max="9999-12-31"
 						required
 						class="form-input"
 					/>
@@ -770,7 +781,7 @@
 
 <!-- Toast Notification -->
 {#if toastVisible}
-	<div class="fixed top-4 right-4 z-50">
+	<div class="fixed top-4 right-4 z-50 toast-slide-in">
 		<Toast
 			color={toastType === 'success'
 				? 'green'
@@ -800,8 +811,8 @@
 
 <!-- Success Modal -->
 {#if showSuccessModal}
-	<div class="modal-overlay" on:click={closeSuccessModal}>
-		<div class="success-modal" on:click|stopPropagation>
+	<div class="modal-overlay" on:click={closeSuccessModal} on:keydown={(e) => e.key === 'Escape' && closeSuccessModal()} role="button" tabindex="-1">
+		<div class="success-modal" on:click|stopPropagation on:keydown|stopPropagation role="button" tabindex="0">
 			<div class="modal-header">
 				<div class="success-icon-wrapper">
 					<div class="success-icon-circle">
@@ -897,12 +908,7 @@
 		flex-direction: column;
 	}
 
-	.form-label {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: #374151;
-		margin-bottom: 0.5rem;
-	}
+
 
 	:global(.form-input) {
 		border: 1px solid #d1d5db;
@@ -921,7 +927,7 @@
 	.checkbox-grid {
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
-		gap: 0.5rem 1rem;
+		gap: 0.75rem 1rem;
 		padding: 1.25rem 1rem;
 		background-color: #ffffff;
 		border-radius: 6px;
@@ -930,7 +936,7 @@
 
 	.checkbox-label {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		gap: 0.625rem;
 		cursor: pointer;
 		padding: 0.5rem 0.375rem;
@@ -974,6 +980,8 @@
 		color: #374151;
 		user-select: none;
 		line-height: 1.4;
+		word-wrap: break-word;
+		flex: 1;
 	}
 
 	.form-actions {
@@ -1230,21 +1238,28 @@
 		}
 	}
 
+	.toast-slide-in {
+		animation: slideInRight 0.3s ease-out;
+	}
+
+	@keyframes slideInRight {
+		from {
+			transform: translateX(100%);
+			opacity: 0;
+		}
+		to {
+			transform: translateX(0);
+			opacity: 1;
+		}
+	}
+
 	@media (max-width: 768px) {
 		.page-container {
 			padding: 1rem;
 			padding-bottom: 6rem;
 		}
 
-		.page-header {
-			flex-direction: column;
-			text-align: center;
-			padding: 1.5rem;
-		}
 
-		.header-title {
-			font-size: 1.5rem;
-		}
 
 		.form-section {
 			padding: 1.25rem;
@@ -1257,7 +1272,17 @@
 		}
 
 		.checkbox-grid {
-			grid-template-columns: repeat(2, 1fr);
+			grid-template-columns: 1fr;
+			gap: 0.5rem;
+			padding: 1rem 0.75rem;
+		}
+
+		.checkbox-label {
+			padding: 0.625rem 0.5rem;
+		}
+
+		.checkbox-text {
+			font-size: 0.875rem;
 		}
 
 		.form-actions {
@@ -1303,6 +1328,13 @@
 
 		.btn-modal-close {
 			padding: 0.875rem 2rem;
+		}
+
+		.toast-slide-in {
+			top: 1rem;
+			right: 1rem;
+			left: 1rem;
+			max-width: calc(100% - 2rem);
 		}
 	}
 </style>
