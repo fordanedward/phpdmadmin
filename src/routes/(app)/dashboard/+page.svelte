@@ -429,44 +429,45 @@ async function isDisplayIdTaken(displayId: string, currentPatientId: string): Pr
 	return snapshot.docs.some((entry) => entry.id !== currentPatientId);
 }
 
-async function editMemberIdentifiers(patient: Patient): Promise<void> {
+function syncPatientState(patientId: string, updatedFields: Partial<Patient>): void {
+	allPatients = allPatients.map((entry) =>
+		entry.id === patientId ? { ...entry, ...updatedFields } : entry
+	);
+
+	const existingPatient = patientMap.get(patientId);
+	if (existingPatient) {
+		patientMap.set(patientId, { ...existingPatient, ...updatedFields });
+	}
+
+	if (selectedPatient?.id === patientId) {
+		selectedPatient = { ...selectedPatient, ...updatedFields };
+	}
+}
+
+async function editMemberId(patient: Patient): Promise<void> {
 	const initialDisplayId = (patient.displayId || patient.id || '').trim();
 
 	const promptResult = await Swal.fire({
 		title: 'Edit Member ID',
 		html: `
 			<div style="text-align:left; margin-top:8px; width:100%; box-sizing:border-box;">
-				<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
-					<div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:10px;">
-						<div style="font-size:11px; color:#6b7280; text-transform:uppercase; letter-spacing:.04em;">Member</div>
-						<div style="font-size:13px; color:#111827; font-weight:600; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${(patient.name || '')} ${(patient.lastName || '')}</div>
-					</div>
-					<div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:10px;">
-						<div style="font-size:11px; color:#6b7280; text-transform:uppercase; letter-spacing:.04em;">Current ID</div>
-						<div style="font-size:13px; color:#111827; font-weight:600; margin-top:2px;">${initialDisplayId}</div>
-					</div>
-				</div>
-				<div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; color:#1e3a66;">
-					<span style="display:inline-flex; width:24px; height:24px; border-radius:9999px; background:#e8f0ff; align-items:center; justify-content:center;">
-						<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5'/><path d='m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z'/></svg>
-					</span>
-					<strong style="font-size:14px;">Update member identifier</strong>
+				<div style="margin-bottom:12px; color:#374151; font-size:13px;">
+					<strong>Member:</strong> ${(patient.name || '')} ${(patient.lastName || '')}
 				</div>
 				<label for="swal-member-id" style="display:block; font-size:12px; color:#4b5563; margin-bottom:6px; font-weight:600;">Member ID</label>
 				<input id="swal-member-id" class="swal2-input" style="margin:0; width:100%; height:44px; border-radius:10px; box-sizing:border-box;" value="${initialDisplayId}" placeholder="Enter member ID" />
 				<p style="font-size:12px; color:#6b7280; margin:8px 2px 0;">This value is used as the login identifier for this member.</p>
 			</div>
 		`,
-		width: '540px',
+		width: '500px',
 		padding: '1.4rem',
 		showCancelButton: true,
-		confirmButtonText: 'Save Changes',
+		confirmButtonText: 'Save ID',
 		cancelButtonText: 'Cancel',
 		confirmButtonColor: '#1e3a66',
 		focusConfirm: false,
 		preConfirm: async () => {
 			const memberIdInput = document.getElementById('swal-member-id') as HTMLInputElement | null;
-
 			const nextDisplayId = memberIdInput?.value?.trim() || '';
 
 			if (!nextDisplayId) {
@@ -485,9 +486,7 @@ async function editMemberIdentifiers(patient: Patient): Promise<void> {
 				return;
 			}
 
-			return {
-				nextDisplayId
-			};
+			return { nextDisplayId };
 		}
 	});
 
@@ -502,29 +501,14 @@ async function editMemberIdentifiers(patient: Patient): Promise<void> {
 			modifiedBy: 'admin'
 		});
 
-		allPatients = allPatients.map((entry) =>
-			entry.id === patient.id
-				? { ...entry, displayId: nextDisplayId }
-				: entry
-		);
-
-		const existingPatient = patientMap.get(patient.id);
-		if (existingPatient) {
-			patientMap.set(patient.id, { ...existingPatient, displayId: nextDisplayId });
-		}
-
-		if (selectedPatient?.id === patient.id) {
-			selectedPatient = { ...selectedPatient, displayId: nextDisplayId };
-		}
+		syncPatientState(patient.id, { displayId: nextDisplayId });
 
 		await Swal.fire({
-			title: 'Member Details Updated',
+			title: 'Member ID Updated',
 			html: `
 				<div style="text-align:left; line-height:1.7;">
 					<p><strong>Name:</strong> ${(patient.name || '')} ${(patient.lastName || '')}</p>
 					<p><strong>Member ID:</strong> ${nextDisplayId}</p>
-					<p><strong>Email:</strong> ${patient.email || 'N/A'}</p>
-					<p><strong>Phone:</strong> ${patient.phone || 'N/A'}</p>
 					<p style="margin-top:10px; color:#6b7280; font-size:12px;">Saved: ${new Date().toLocaleString()}</p>
 				</div>
 			`,
@@ -536,7 +520,77 @@ async function editMemberIdentifiers(patient: Patient): Promise<void> {
 		console.error('Failed to update member ID:', error);
 		await Swal.fire({
 			title: 'Update Failed',
-			text: error instanceof Error ? error.message : 'Unable to save member details. Please try again.',
+			text: error instanceof Error ? error.message : 'Unable to save member ID. Please try again.',
+			icon: 'error'
+		});
+	}
+}
+
+async function editMemberRegistrationDate(patient: Patient): Promise<void> {
+	const initialRegDate = patient.registrationDate || '';
+
+	const promptResult = await Swal.fire({
+		title: 'Edit Registration Date',
+		html: `
+			<div style="text-align:left; margin-top:8px; width:100%; box-sizing:border-box;">
+				<div style="margin-bottom:12px; color:#374151; font-size:13px;">
+					<strong>Member:</strong> ${(patient.name || '')} ${(patient.lastName || '')}
+				</div>
+				<label for="swal-reg-date" style="display:block; font-size:12px; color:#4b5563; margin-bottom:6px; font-weight:600;">Registration Date</label>
+				<input id="swal-reg-date" type="date" class="swal2-input" style="margin:0; width:100%; height:44px; border-radius:10px; box-sizing:border-box;" value="${initialRegDate}" />
+				<p style="font-size:12px; color:#6b7280; margin:8px 2px 0;">Set the date this member was registered.</p>
+			</div>
+		`,
+		width: '500px',
+		padding: '1.4rem',
+		showCancelButton: true,
+		confirmButtonText: 'Save Date',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#1e3a66',
+		focusConfirm: false,
+		preConfirm: () => {
+			const regDateInput = document.getElementById('swal-reg-date') as HTMLInputElement | null;
+			const nextRegDate = regDateInput?.value?.trim() || '';
+
+			if (!nextRegDate) {
+				Swal.showValidationMessage('Registration Date is required.');
+				return;
+			}
+
+			return { nextRegDate };
+		}
+	});
+
+	if (!promptResult.isConfirmed || !promptResult.value) return;
+
+	const { nextRegDate } = promptResult.value as { nextRegDate: string };
+
+	try {
+		await updateDoc(doc(db, FIRESTORE_COLLECTIONS.PATIENTS, patient.id), {
+			registrationDate: nextRegDate,
+			lastModified: new Date().toISOString()
+		});
+
+		syncPatientState(patient.id, { registrationDate: nextRegDate });
+
+		await Swal.fire({
+			title: 'Registration Date Updated',
+			html: `
+				<div style="text-align:left; line-height:1.7;">
+					<p><strong>Name:</strong> ${(patient.name || '')} ${(patient.lastName || '')}</p>
+					<p><strong>Registration Date:</strong> ${new Date(nextRegDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+					<p style="margin-top:10px; color:#6b7280; font-size:12px;">Saved: ${new Date().toLocaleString()}</p>
+				</div>
+			`,
+			icon: 'success',
+			confirmButtonText: 'Close',
+			confirmButtonColor: '#1e3a66'
+		});
+	} catch (error) {
+		console.error('Failed to update registration date:', error);
+		await Swal.fire({
+			title: 'Update Failed',
+			text: error instanceof Error ? error.message : 'Unable to save registration date. Please try again.',
 			icon: 'error'
 		});
 	}
@@ -2717,7 +2771,7 @@ async function downloadExcelReportFromReport(
 											<span>{patient.displayId || patient.id}</span>
 											<button
 												type="button"
-												on:click={() => editMemberIdentifiers(patient)}
+												on:click={() => editMemberId(patient)}
 												class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-blue-200 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
 												title="Edit Member ID"
 												aria-label="Edit Member ID"
@@ -2731,7 +2785,22 @@ async function downloadExcelReportFromReport(
                                     <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
                                     <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
                                     <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.phone}</td>
-                                    <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{formatDateDisplay(patient.registrationDate)}</td>
+		                                    <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">
+												<div class="flex items-center gap-2">
+													<span>{formatDateDisplay(patient.registrationDate)}</span>
+													<button
+														type="button"
+														on:click={() => editMemberRegistrationDate(patient)}
+														class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-blue-200 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+														title="Edit Registration Date"
+														aria-label="Edit Registration Date"
+													>
+														<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16.586 3.586a2 2 0 112.828 2.828L12 13.828 8 15l1.172-4 7.414-7.414z" />
+														</svg>
+													</button>
+												</div>
+											</td>
 									<td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">
 										<select
 											class="status-select text-xs border border-gray-300 rounded px-1 py-1 bg-white w-16 sm:w-24"
