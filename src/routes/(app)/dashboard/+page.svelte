@@ -59,6 +59,7 @@ type MemberStatus = 'active' | 'inactive';
 interface Patient {
 	id: string;
 	displayId?: string;
+	mrn?: string;
 	name: string;
 	middleName?: string;
 	lastName: string;
@@ -419,6 +420,128 @@ async function updateMemberStatus(patientId:  string, newStatus: MemberStatus): 
 	}
 }
 
+async function isDisplayIdTaken(displayId: string, currentPatientId: string): Promise<boolean> {
+	const usersRef = collection(db, 'users');
+	const displayIdQuery = query(usersRef, where('customUserId', '==', displayId));
+	const snapshot = await getDocs(displayIdQuery);
+
+	if (snapshot.empty) return false;
+	return snapshot.docs.some((entry) => entry.id !== currentPatientId);
+}
+
+async function editMemberIdentifiers(patient: Patient): Promise<void> {
+	const initialDisplayId = (patient.displayId || patient.id || '').trim();
+
+	const promptResult = await Swal.fire({
+		title: 'Edit Member ID',
+		html: `
+			<div style="text-align:left; margin-top:8px; width:100%; box-sizing:border-box;">
+				<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+					<div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:10px;">
+						<div style="font-size:11px; color:#6b7280; text-transform:uppercase; letter-spacing:.04em;">Member</div>
+						<div style="font-size:13px; color:#111827; font-weight:600; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${(patient.name || '')} ${(patient.lastName || '')}</div>
+					</div>
+					<div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:10px;">
+						<div style="font-size:11px; color:#6b7280; text-transform:uppercase; letter-spacing:.04em;">Current ID</div>
+						<div style="font-size:13px; color:#111827; font-weight:600; margin-top:2px;">${initialDisplayId}</div>
+					</div>
+				</div>
+				<div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; color:#1e3a66;">
+					<span style="display:inline-flex; width:24px; height:24px; border-radius:9999px; background:#e8f0ff; align-items:center; justify-content:center;">
+						<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5'/><path d='m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z'/></svg>
+					</span>
+					<strong style="font-size:14px;">Update member identifier</strong>
+				</div>
+				<label for="swal-member-id" style="display:block; font-size:12px; color:#4b5563; margin-bottom:6px; font-weight:600;">Member ID</label>
+				<input id="swal-member-id" class="swal2-input" style="margin:0; width:100%; height:44px; border-radius:10px; box-sizing:border-box;" value="${initialDisplayId}" placeholder="Enter member ID" />
+				<p style="font-size:12px; color:#6b7280; margin:8px 2px 0;">This value is used as the login identifier for this member.</p>
+			</div>
+		`,
+		width: '540px',
+		padding: '1.4rem',
+		showCancelButton: true,
+		confirmButtonText: 'Save Changes',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#1e3a66',
+		focusConfirm: false,
+		preConfirm: async () => {
+			const memberIdInput = document.getElementById('swal-member-id') as HTMLInputElement | null;
+
+			const nextDisplayId = memberIdInput?.value?.trim() || '';
+
+			if (!nextDisplayId) {
+				Swal.showValidationMessage('Member ID is required.');
+				return;
+			}
+
+			try {
+				const taken = await isDisplayIdTaken(nextDisplayId, patient.id);
+				if (taken) {
+					Swal.showValidationMessage('This Member ID is already in use.');
+					return;
+				}
+			} catch (error) {
+				Swal.showValidationMessage('Unable to validate Member ID. Please try again.');
+				return;
+			}
+
+			return {
+				nextDisplayId
+			};
+		}
+	});
+
+	if (!promptResult.isConfirmed || !promptResult.value) return;
+
+	const { nextDisplayId } = promptResult.value as { nextDisplayId: string };
+
+	try {
+		await updateDoc(doc(db, 'users', patient.id), {
+			customUserId: nextDisplayId,
+			lastModified: new Date().toISOString(),
+			modifiedBy: 'admin'
+		});
+
+		allPatients = allPatients.map((entry) =>
+			entry.id === patient.id
+				? { ...entry, displayId: nextDisplayId }
+				: entry
+		);
+
+		const existingPatient = patientMap.get(patient.id);
+		if (existingPatient) {
+			patientMap.set(patient.id, { ...existingPatient, displayId: nextDisplayId });
+		}
+
+		if (selectedPatient?.id === patient.id) {
+			selectedPatient = { ...selectedPatient, displayId: nextDisplayId };
+		}
+
+		await Swal.fire({
+			title: 'Member Details Updated',
+			html: `
+				<div style="text-align:left; line-height:1.7;">
+					<p><strong>Name:</strong> ${(patient.name || '')} ${(patient.lastName || '')}</p>
+					<p><strong>Member ID:</strong> ${nextDisplayId}</p>
+					<p><strong>Email:</strong> ${patient.email || 'N/A'}</p>
+					<p><strong>Phone:</strong> ${patient.phone || 'N/A'}</p>
+					<p style="margin-top:10px; color:#6b7280; font-size:12px;">Saved: ${new Date().toLocaleString()}</p>
+				</div>
+			`,
+			icon: 'success',
+			confirmButtonText: 'Close',
+			confirmButtonColor: '#1e3a66'
+		});
+	} catch (error) {
+		console.error('Failed to update member ID:', error);
+		await Swal.fire({
+			title: 'Update Failed',
+			text: error instanceof Error ? error.message : 'Unable to save member details. Please try again.',
+			icon: 'error'
+		});
+	}
+}
+
 	// --- Utility Functions ---
 	function getTodayString(): string {
 		const today = new Date();
@@ -554,7 +677,7 @@ function getFilteredAppointmentList(source: Appointment[]): Appointment[] {
 		
 		appointmentFilterError = '';
 		
-		list = list.filter(appt => {
+		list = list.filter((appt: Appointment) => {
 			try {
 				const apptDate = new Date(appt.date);
 				
@@ -581,7 +704,7 @@ function getFilteredAppointmentList(source: Appointment[]): Appointment[] {
 		const normalizedTerm = normalizeForSearch(appointmentSearchTerm.trim());
 		const tokens = normalizedTerm.split(/\s+/).filter(Boolean);
 
-		list = list.filter((appointment) => {
+		list = list.filter((appointment: Appointment) => {
 			const patientName = normalizeForSearch(appointment.patientName || '');
 			const service = normalizeForSearch(appointment.service || '');
 			const subservice = normalizeForSearch((appointment.subServices?.join(' ') ?? ''));
@@ -656,7 +779,7 @@ function getFilteredAppointmentList(source: Appointment[]): Appointment[] {
 
 	// apply status filter after search
 	const debug = typeof window !== 'undefined' && localStorage.getItem('apptFilterDebug') === '1';
-	list = list.filter((appointment) => {
+	list = list.filter((appointment: Appointment) => {
 		const statusMatch = matchesAppointmentStatus(appointment, appointmentStatusFilter);
 		if (debug) {
 			console.log('apptFilterDebug: dashboard status', { id: appointment.id, status: appointment.status, statusMatch });
@@ -666,16 +789,16 @@ function getFilteredAppointmentList(source: Appointment[]): Appointment[] {
 
 	switch (appointmentSortOption) {
 		case 'date-asc':
-			list.sort((a, b) => compareAppointmentsByDate(a, b, 'asc'));
+			list.sort((a: Appointment, b: Appointment) => compareAppointmentsByDate(a, b, 'asc'));
 			break;
 		case 'name-asc':
 			list.sort(compareAppointmentsByName);
 			break;
 		case 'name-desc':
-			list.sort((a, b) => compareAppointmentsByName(b, a));
+			list.sort((a: Appointment, b: Appointment) => compareAppointmentsByName(b, a));
 			break;
 		default:
-			list.sort((a, b) => compareAppointmentsByDate(a, b, 'desc'));
+			list.sort((a: Appointment, b: Appointment) => compareAppointmentsByDate(a, b, 'desc'));
 			break;
 	}
 
@@ -687,7 +810,7 @@ $: filteredPatients = (() => {
 
 	if (patientSearchTerm.trim()) {
 		const search = patientSearchTerm.trim().toLowerCase();
-		patients = patients.filter((patient) => {
+		patients = patients.filter((patient: Patient) => {
 			const fullName = normalizePatientName(patient);
 			const displayId = patient.displayId?.toLowerCase() ?? '';
 			return fullName.includes(search) || displayId.includes(search);
@@ -695,30 +818,30 @@ $: filteredPatients = (() => {
 	}
 
 	if (patientStatusFilter !== 'all') {
-		patients = patients.filter((patient) => (patient.status ?? 'active') === patientStatusFilter);
+		patients = patients.filter((patient: Patient) => (patient.status ?? 'active') === patientStatusFilter);
 	}
 
 	switch (patientSortOption) {
 		case 'name-desc':
-			patients.sort((a, b) => comparePatientsByName(b, a));
+			patients.sort((a: Patient, b: Patient) => comparePatientsByName(b, a));
 			break;
 		case 'age-asc':
-			patients.sort((a, b) => comparePatientsByAge(a, b, 'asc'));
+			patients.sort((a: Patient, b: Patient) => comparePatientsByAge(a, b, 'asc'));
 			break;
 		case 'age-desc':
-			patients.sort((a, b) => comparePatientsByAge(a, b, 'desc'));
+			patients.sort((a: Patient, b: Patient) => comparePatientsByAge(a, b, 'desc'));
 			break;
 		case 'date-asc':
-			patients.sort((a, b) => (a.registrationDate || '').localeCompare(b.registrationDate || ''));
+			patients.sort((a: Patient, b: Patient) => (a.registrationDate || '').localeCompare(b.registrationDate || ''));
 			break;
 		case 'date-desc':
-			patients.sort((a, b) => (b.registrationDate || '').localeCompare(a.registrationDate || ''));
+			patients.sort((a: Patient, b: Patient) => (b.registrationDate || '').localeCompare(a.registrationDate || ''));
 			break;
 		case 'id-asc':
-			patients.sort((a, b) => (a.displayId || a.id || '').localeCompare(b.displayId || b.id || ''));
+			patients.sort((a: Patient, b: Patient) => (a.displayId || a.id || '').localeCompare(b.displayId || b.id || ''));
 			break;
 		case 'id-desc':
-			patients.sort((a, b) => (b.displayId || b.id || '').localeCompare(a.displayId || a.id || ''));
+			patients.sort((a: Patient, b: Patient) => (b.displayId || b.id || '').localeCompare(a.displayId || a.id || ''));
 			break;
 		default:
 			patients.sort(comparePatientsByName);
@@ -736,7 +859,7 @@ $: filteredPatients = (() => {
 
 	$: todaysAppointmentsFiltered = (() => {
 		const today = getTodayString();
-		const todaysAppts = allAppointments.filter(a => a.date === today);
+		const todaysAppts = allAppointments.filter((a: Appointment) => a.date === today);
 		return getFilteredAppointmentList(todaysAppts);
 	})();
 
@@ -958,6 +1081,7 @@ async function fetchAllPatients(): Promise<Patient[]> {
 					registrationDate: users[doc.id]?.registrationDate ? 
 						new Date(users[doc.id].registrationDate).toISOString().split('T')[0] : 
 						'N/A', // Use registration date from users
+					mrn: data.mrn || data.MRN || '',
 					status: users[doc.id]?.isArchived || users[doc.id]?.archived ? 'inactive' : ((data.status as MemberStatus) ?? 'active'),
 					profileImage: data.profileImage || '',
 					// Medical Information
@@ -2588,7 +2712,22 @@ async function downloadExcelReportFromReport(
 									<td class="px-2 py-2 text-xs text-gray-900 whitespace-nowrap">
 										<button class="text-left text-blue-600 hover:underline member-name-clickable text-xs" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
 									</td>
-                                    <td class="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">{patient.displayId || patient.id}</td>
+									<td class="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">
+										<div class="flex items-center gap-2">
+											<span>{patient.displayId || patient.id}</span>
+											<button
+												type="button"
+												on:click={() => editMemberIdentifiers(patient)}
+												class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-blue-200 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+												title="Edit Member ID"
+												aria-label="Edit Member ID"
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16.586 3.586a2 2 0 112.828 2.828L12 13.828 8 15l1.172-4 7.414-7.414z" />
+												</svg>
+											</button>
+										</div>
+									</td>
                                     <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
                                     <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
                                     <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.phone}</td>

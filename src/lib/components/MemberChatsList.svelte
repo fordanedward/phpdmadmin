@@ -190,9 +190,10 @@
     return date.toLocaleDateString();
   }
 
+  let filteredMembers: MemberDisplay[] = [];
   $: filteredMembers = searchTerm.trim()
     ? allMembers.filter(
-        (member) =>
+        (member: MemberDisplay) =>
           member.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           member.memberEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
           member.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())

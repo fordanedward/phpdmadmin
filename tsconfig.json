@@ -8,14 +8,14 @@
 	  "resolveJsonModule": true,
 	  "skipLibCheck": true,
 	  "sourceMap": true,
-	  "strict": true,
+	  "strict": false,
 	  "moduleResolution": "bundler",
 	  "module": "ESNext",
 	  "target": "ESNext",
 	  "lib": ["ESNext", "DOM", "DOM.Iterable"],
 	  "moduleDetection": "force",
 	  "isolatedModules": true,
-	  "verbatimModuleSyntax": true,
+	  "verbatimModuleSyntax": false,
 	  "noEmit": true
 	}
   }

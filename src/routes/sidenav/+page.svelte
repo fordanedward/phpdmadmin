@@ -51,7 +51,13 @@
         { href: '/payment', icon: '/images/payment.png', alt: 'Payments', text: 'Payments', roles: ['userSecretary'] },
     ];
 
-    $: visibleMenuItems = allMenuItems.filter(item => item.roles.includes(userRole));
+    function getVisibleItems(role: typeof userRole): MenuItem[] {
+        if (!role) return allMenuItems;
+        return allMenuItems.filter((item: MenuItem) => item.roles.includes(role));
+    }
+
+    let visibleMenuItems: MenuItem[] = [];
+    $: visibleMenuItems = getVisibleItems(userRole) satisfies MenuItem[];
 
     // Determine user name display
     let displayFirstName = '';

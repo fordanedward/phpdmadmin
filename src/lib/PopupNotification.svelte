@@ -2,19 +2,12 @@
 	import { onMount } from 'svelte';
 	import { fly, scale } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import { popupNotifications, removeNotification } from './popupNotificationStore.js';
+	import { popupNotifications, removeNotification, type PopupNotification } from './popupNotificationStore.js';
 
-	interface NotificationItem {
-		id: string;
-		message: string;
-		type: 'success' | 'error' | 'info' | 'warning';
-		duration?: number;
-	}
-
-	let activeNotifications: NotificationItem[] = [];
+	let activeNotifications: PopupNotification[] = [];
 
 	onMount(() => {
-		const unsubscribe = popupNotifications.subscribe((notifications: NotificationItem[]) => {
+		const unsubscribe = popupNotifications.subscribe((notifications: PopupNotification[]) => {
 			activeNotifications = notifications;
 		});
 

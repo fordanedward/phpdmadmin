@@ -92,7 +92,7 @@
     const chatType = thread.chatType ?? context?.chatType ?? 'appointment';
     messagesUnsubscribe = subscribeToMessages(db, thread.id, async (list: ChatMessage[]) => {
       // Normalize messages to have both text and message fields
-      messages = list.map((msg) => ({
+      messages = list.map((msg: ChatMessage) => ({
         ...msg,
         text: msg.text || msg.message || '',
         message: msg.message || msg.text || ''

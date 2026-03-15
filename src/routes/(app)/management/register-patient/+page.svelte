@@ -275,6 +275,36 @@
 		}
 	}
 
+	function getPatientRegistrationErrorMessage(error: any): string {
+		const code = error?.code as string | undefined;
+
+		switch (code) {
+			case 'auth/email-already-in-use':
+				return 'This email is already registered. Please use a different email.';
+			case 'auth/invalid-email':
+				return 'The email address is not valid.';
+			case 'auth/operation-not-allowed':
+				return 'Email/password sign-up is disabled in Firebase Authentication for this project.';
+			case 'auth/weak-password':
+				return 'The password is too weak (minimum 6 characters).';
+			case 'auth/invalid-api-key':
+			case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
+				return 'Firebase configuration is invalid on this deployment. Check VITE_FIREBASE_* environment variables.';
+			case 'auth/unauthorized-domain':
+				return 'This deployed domain is not authorized in Firebase Authentication. Add it under Authorized domains.';
+			case 'auth/network-request-failed':
+				return 'Network request failed while contacting Firebase. Please retry.';
+			case 'permission-denied':
+				return 'Firestore denied writing patient data. Check your Firestore rules for admin-created patient accounts.';
+			case 'unavailable':
+				return 'Firebase is temporarily unavailable. Please try again shortly.';
+			default:
+				return code
+					? `Patient registration failed (${code}). Please verify Firebase deployment settings.`
+					: 'An unexpected error occurred during patient registration. Please try again.';
+		}
+	}
+
 	async function handlePatientRegistration() {
 		// Validation
 		if (!password || !confirmPassword) {
@@ -305,135 +335,118 @@
 		// Use email or generate a unique one if not provided
 		const accountEmail = email || `patient${Date.now()}@phpdmadmin.local`;
 		const displayEmail = email || 'n/a';
-			const customPatientId = await generateUniqueCustomId();
+		
+		// Create Firebase Authentication user using secondary auth
+		const userCredential = await createUserWithEmailAndPassword(
+			secondaryAuth,
+			accountEmail,
+			password
+		);
+		createdAuthUser = userCredential.user;
+		
+		const customPatientId = await generateUniqueCustomId();
 
-			if (!customPatientId) {
-				showToast(
-					'Failed to generate a unique Member ID. Please try again later.',
-					'error',
-					6000
-				);
-				if (createdAuthUser) {
-					await deleteUser(createdAuthUser).catch((delErr) => {
-						console.error(
-							'Failed to delete auth user after custom ID generation failure:',
-							delErr
-						);
-						showToast(
-							'Critical error: Patient account might be orphaned. Contact support.',
-							'error',
-							10000
-						);
-					});
-				}
-				isSubmitting = false;
-				if (toastMessage === 'Creating patient account...') toastVisible = false;
-				return;
+		if (!customPatientId) {
+			showToast(
+				'Failed to generate a unique Member ID. Please try again later.',
+				'error',
+				6000
+			);
+			if (createdAuthUser) {
+				await deleteUser(createdAuthUser).catch((delErr) => {
+					console.error(
+						'Failed to delete auth user after custom ID generation failure:',
+						delErr
+					);
+					showToast(
+						'Critical error: Patient account might be orphaned. Contact support.',
+						'error',
+						10000
+					);
+				});
 			}
-
-			const currentDate = new Date().toISOString();
-
-			// Create user document in 'users' collection
-			await setDoc(doc(db, 'users', user.uid), {
-				firebaseUid: user.uid,
-				customUserId: customPatientId,
-				email: user.email,
-				role: 'userPatient',
-				displayName: `${firstName} ${lastName}`,
-				photoURL: null,
-				providerId: 'password',
-				registeredAt: currentDate,
-				registrationDate: currentDate,
-				createdAt: currentDate,
-				isArchived: false
-			});
-
-			// Create patient profile document
-			const patientProfileData = {
-				name: firstName,
-				middleName: middleName || '',
-				lastName: lastName,
-				suffix: suffix || '',
-				birthday: birthday,
-				age: age,
-				gender: gender,
-				phone: phone,
-				address: address,
-				email: displayEmail,
-				bloodType: bloodType || '',
-				allergies: allergies || '',
-				currentMedications: currentMedications || '',
-				medicalConditions: medicalConditions,
-				otherMedicalConditions: otherMedicalConditions || '',
-				surgicalHistoryItems: surgicalHistoryItems,
-				otherSurgicalHistory: otherSurgicalHistory || '',
-				familyHistoryTable: familyHistoryTable,
-				otherRelativeSpecify: otherRelativeSpecify || '',
-				bloodTransfusionHistory: bloodTransfusionHistory || '',
-				bloodTransfusionDate: bloodTransfusionDate || '',
-				registeredDate: currentDate,
-				registrationDate: currentDate
-			};
-
-			await setDoc(doc(db, 'patientProfiles', user.uid), patientProfileData);
-
-			// Sign out the newly created patient from secondary auth to ensure clean state
-			await secondaryAuth.signOut();
-
-			// Show success modal with patient details
-			registeredPatientName = `${firstName} ${lastName}`;
-			registeredPatientId = customPatientId;
-			showSuccessModal = true;
-			
-			// Reset form after modal is shown
-			setTimeout(() => {
-				resetForm();
-			}, 1000);
-		} catch (error) {
-			console.error('Patient Registration Error:', error);
-			let userFriendlyMessage =
-				'An unexpected error occurred during patient registration. Please try again.';
-
-			if (error instanceof Error) {
-				const firebaseError = error as any;
-				if (firebaseError.code) {
-					switch (firebaseError.code) {
-						case 'auth/email-already-in-use':
-							userFriendlyMessage =
-								'This email is already registered. Please use a different email.';
-							break;
-						case 'auth/invalid-email':
-							userFriendlyMessage = 'The email address is not valid.';
-							break;
-						case 'auth/operation-not-allowed':
-							userFriendlyMessage = 'Patient registration is currently not allowed.';
-							break;
-						case 'auth/weak-password':
-							userFriendlyMessage = 'The password is too weak (minimum 6 characters).';
-							break;
-						default:
-							userFriendlyMessage =
-								'Patient registration failed. Please check your details and try again.';
-							break;
-					}
-				}
-			}
-
-			if (createdAuthUser && !(error as any).code?.startsWith('auth/')) {
-				// If user was created but Firestore failed, clean up
-				try {
-					await deleteUser(createdAuthUser);
-					console.log('Cleaned up orphaned auth user');
-				} catch (deleteError) {
-					console.error('Failed to delete orphaned user:', deleteError);
-				}
-			}
-
-			showToast(userFriendlyMessage, 'error', 6000);
-		} finally {
 			isSubmitting = false;
+			if (toastMessage === 'Creating patient account...') toastVisible = false;
+			return;
 		}
+
+		const currentDate = new Date().toISOString();
+
+		// Create user document in 'users' collection
+		await setDoc(doc(db, 'users', createdAuthUser.uid), {
+			firebaseUid: createdAuthUser.uid,
+			customUserId: customPatientId,
+			email: createdAuthUser.email,
+			role: 'userPatient',
+			displayName: `${firstName} ${lastName}`,
+			photoURL: null,
+			providerId: 'password',
+			registeredAt: currentDate,
+			registrationDate: currentDate,
+			createdAt: currentDate,
+		isArchived: false
+	});
+
+	// Create patient profile document
+	const patientProfileData = {
+		name: firstName,
+		middleName: middleName || '',
+		lastName: lastName,
+		suffix: suffix || '',
+		birthday: birthday,
+		age: age,
+		gender: gender,
+		phone: phone,
+		address: address,
+		email: displayEmail,
+		bloodType: bloodType || '',
+		allergies: allergies || '',
+		currentMedications: currentMedications || '',
+		medicalConditions: medicalConditions,
+		otherMedicalConditions: otherMedicalConditions || '',
+		surgicalHistoryItems: surgicalHistoryItems,
+		otherSurgicalHistory: otherSurgicalHistory || '',
+		familyHistoryTable: familyHistoryTable,
+		otherRelativeSpecify: otherRelativeSpecify || '',
+		bloodTransfusionHistory: bloodTransfusionHistory || '',
+		bloodTransfusionDate: bloodTransfusionDate || '',
+		registeredDate: currentDate,
+		registrationDate: currentDate
+	};
+
+	await setDoc(doc(db, 'patientProfiles', createdAuthUser.uid), patientProfileData);
+
+	// Sign out the newly created patient from secondary auth to ensure clean state
+	await secondaryAuth.signOut();
+
+	// Show success modal with patient details
+	registeredPatientName = `${firstName} ${lastName}`;
+	registeredPatientId = customPatientId;
+	showSuccessModal = true;
+	
+	// Reset form after modal is shown
+	setTimeout(() => {
+		resetForm();
+	}, 1000);
+	} catch (error) {
+		console.error('Patient Registration Error:', error);
+		const userFriendlyMessage = getPatientRegistrationErrorMessage(error);
+
+		if (createdAuthUser && !(error as any).code?.startsWith('auth/')) {
+			// If user was created but Firestore failed, clean up
+			try {
+				await deleteUser(createdAuthUser);
+				console.log('Cleaned up orphaned auth user');
+			} catch (deleteError) {
+				console.error('Failed to delete orphaned user:', deleteError);
+			}
+		}
+
+		showToast(userFriendlyMessage, 'error', 7000);
+	} finally {
+		isSubmitting = false;
 	}
+}
 
 	function resetForm() {
 		email = '';

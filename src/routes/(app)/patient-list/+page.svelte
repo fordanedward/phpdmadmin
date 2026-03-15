@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { firebaseConfig } from '$lib/firebaseConfig';
 	import { initializeApp } from 'firebase/app';
-	import { getFirestore, collection, getDocs, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+	import { getFirestore, collection, getDocs, deleteDoc, doc, getDoc, updateDoc, query, where } from 'firebase/firestore';
 	import { EditSolid, EyeOutline, TrashBinSolid,  } from 'flowbite-svelte-icons'; // Added SearchOutline
 	import { Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, Select, Input } from 'flowbite-svelte'; // Added Input
 
@@ -25,6 +25,7 @@
 		gender?: string;
 		email?: string;
 		customUserId?: string;
+		mrn?: string;
 		isArchived?: boolean;
 		profileImage?: string;
 		// Medical Information
@@ -49,6 +50,20 @@
 	let selectedPatient: Patient | null = null;
 	let showDetailsModal = false;
 	let updatingStatusId: string | null = null;
+	let showEditIdModal = false;
+	let editTargetPatient: Patient | null = null;
+	let editMemberId = '';
+	let editMrn = '';
+	let editError: string | null = null;
+	let isSavingIdentifiers = false;
+	let showSavedSummaryModal = false;
+	let savedSummary: {
+		name: string;
+		email: string;
+		phone: string;
+		memberId: string;
+		mrn: string;
+	} | null = null;
 
 	const sortOptions = [
 		{ value: 'name_asc', name: 'Sort by Name: A-Z' },
@@ -97,6 +112,7 @@
 						gender: data.gender || 'N/A',
 						email: data.email || 'N/A',
 						customUserId,
+						mrn: data.mrn || data.MRN || '',
 						isArchived,
 						registeredDate,
 						profileImage: data.profileImage || '',
@@ -182,9 +198,104 @@
 	}
 
 	async function editPatient(id: string) {
-		console.log(`Editing patient with ID: ${id}`);
-		// Implement navigation or modal logic here
-        // Example: await goto(`/admin/patients/edit/${id}`);
+		const patient = patients.find((p) => p.id === id);
+		if (!patient) return;
+
+		editTargetPatient = patient;
+		editMemberId = patient.customUserId && patient.customUserId !== 'N/A' ? patient.customUserId : '';
+		editMrn = patient.mrn || '';
+		editError = null;
+		showEditIdModal = true;
+	}
+
+	function closeEditIdModal() {
+		showEditIdModal = false;
+		editTargetPatient = null;
+		editMemberId = '';
+		editMrn = '';
+		editError = null;
+	}
+
+	async function isMemberIdTaken(customIdToCheck: string, currentUserId: string): Promise<boolean> {
+		const usersRef = collection(db, 'users');
+		const q = query(usersRef, where('customUserId', '==', customIdToCheck));
+		const snapshot = await getDocs(q);
+
+		if (snapshot.empty) return false;
+		return snapshot.docs.some((foundDoc) => foundDoc.id !== currentUserId);
+	}
+
+	async function saveMemberIdentifiers() {
+		if (!editTargetPatient || isSavingIdentifiers) return;
+
+		const trimmedMemberId = editMemberId.trim();
+		const trimmedMrn = editMrn.trim();
+
+		if (!trimmedMemberId) {
+			editError = 'Member ID is required.';
+			return;
+		}
+
+		isSavingIdentifiers = true;
+		editError = null;
+
+		try {
+			const memberIdChanged = trimmedMemberId !== (editTargetPatient.customUserId || '').trim();
+
+			if (memberIdChanged) {
+				const taken = await isMemberIdTaken(trimmedMemberId, editTargetPatient.id);
+				if (taken) {
+					editError = 'This Member ID is already in use. Please choose another one.';
+					isSavingIdentifiers = false;
+					return;
+				}
+			}
+
+			await updateDoc(doc(db, 'users', editTargetPatient.id), {
+				customUserId: trimmedMemberId,
+				updatedAt: new Date().toISOString()
+			});
+
+			await updateDoc(doc(db, 'patientProfiles', editTargetPatient.id), {
+				mrn: trimmedMrn,
+				updatedAt: new Date().toISOString()
+			});
+
+			patients = patients.map((patient) =>
+				patient.id === editTargetPatient?.id
+					? { ...patient, customUserId: trimmedMemberId, mrn: trimmedMrn }
+					: patient
+			);
+
+			if (selectedPatient && selectedPatient.id === editTargetPatient.id) {
+				selectedPatient = {
+					...selectedPatient,
+					customUserId: trimmedMemberId,
+					mrn: trimmedMrn
+				};
+			}
+
+			savedSummary = {
+				name: `${editTargetPatient.name} ${editTargetPatient.lastName}`.trim(),
+				email: editTargetPatient.email || 'N/A',
+				phone: editTargetPatient.phone || 'N/A',
+				memberId: trimmedMemberId,
+				mrn: trimmedMrn || 'N/A'
+			};
+
+			closeEditIdModal();
+			showSavedSummaryModal = true;
+		} catch (err) {
+			console.error('Error updating member identifiers:', err);
+			editError = `Failed to save changes: ${(err as Error).message}`;
+		} finally {
+			isSavingIdentifiers = false;
+		}
+	}
+
+	function closeSavedSummaryModal() {
+		showSavedSummaryModal = false;
+		savedSummary = null;
 	}
 
 	async function deletePatient(id: string) {
@@ -950,6 +1061,10 @@
 							<span class="info-value">{selectedPatient.customUserId || 'N/A'}</span>
 						</div>
 						<div class="info-item">
+							<span class="info-label">MRN:</span>
+							<span class="info-value">{selectedPatient.mrn || 'N/A'}</span>
+						</div>
+						<div class="info-item">
 							<span class="info-label">Age:</span>
 							<span class="info-value">{selectedPatient.age || 'N/A'}</span>
 						</div>
@@ -1078,6 +1193,101 @@
 						{/if}
 					</div>
 				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
+
+{#if showEditIdModal && editTargetPatient}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="modal-overlay" on:click={closeEditIdModal}>
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="modal-container" on:click|stopPropagation>
+			<div class="modal-header">
+				<h2>Edit Member ID / MRN</h2>
+				<button class="close-btn" on:click={closeEditIdModal} title="Close" aria-label="Close modal">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+
+			<div class="modal-content">
+				<div class="info-grid">
+					<div class="info-item full-width">
+						<span class="info-label">Member Name</span>
+						<span class="info-value">{editTargetPatient.name} {editTargetPatient.lastName}</span>
+					</div>
+					<div class="info-item">
+						<span class="info-label">Member ID</span>
+						<Input bind:value={editMemberId} placeholder="Enter member ID" />
+					</div>
+					<div class="info-item">
+						<span class="info-label">MRN</span>
+						<Input bind:value={editMrn} placeholder="Enter MRN (optional)" />
+					</div>
+				</div>
+
+				{#if editError}
+					<p style="color: #dc2626; margin-top: 12px; font-size: 0.9rem;">{editError}</p>
+				{/if}
+
+				<div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+					<button type="button" on:click={closeEditIdModal} style="padding: 10px 16px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; color: #374151;">Cancel</button>
+					<button type="button" on:click={saveMemberIdentifiers} disabled={isSavingIdentifiers} style="padding: 10px 16px; border-radius: 8px; border: none; background: #1e3a66; color: #fff; font-weight: 600;">
+						{isSavingIdentifiers ? 'Saving...' : 'Save Changes'}
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+{#if showSavedSummaryModal && savedSummary}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="modal-overlay" on:click={closeSavedSummaryModal}>
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="modal-container" on:click|stopPropagation>
+			<div class="modal-header">
+				<h2>Member ID Updated</h2>
+				<button class="close-btn" on:click={closeSavedSummaryModal} title="Close" aria-label="Close modal">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+
+			<div class="modal-content">
+				<div class="info-grid">
+					<div class="info-item full-width">
+						<span class="info-label">Member Name</span>
+						<span class="info-value">{savedSummary.name}</span>
+					</div>
+					<div class="info-item">
+						<span class="info-label">Updated Member ID</span>
+						<span class="info-value">{savedSummary.memberId}</span>
+					</div>
+					<div class="info-item">
+						<span class="info-label">Updated MRN</span>
+						<span class="info-value">{savedSummary.mrn}</span>
+					</div>
+					<div class="info-item">
+						<span class="info-label">Email</span>
+						<span class="info-value">{savedSummary.email}</span>
+					</div>
+					<div class="info-item">
+						<span class="info-label">Phone</span>
+						<span class="info-value">{savedSummary.phone}</span>
+					</div>
+				</div>
+
+				<div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+					<button type="button" on:click={closeSavedSummaryModal} style="padding: 10px 16px; border-radius: 8px; border: none; background: #1e3a66; color: #fff; font-weight: 600;">Close</button>
+				</div>
 			</div>
 		</div>
 	</div>

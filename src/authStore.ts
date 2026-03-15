@@ -1,14 +1,10 @@
 import { writable } from "svelte/store";
 import type { User } from "firebase/auth"; // Type-only import
 import { onAuthStateChanged } from "firebase/auth";
-import { getAuth } from "firebase/auth";
-import { firebaseConfig } from "$lib/firebaseConfig";
-import { initializeApp } from "firebase/app";
+import { auth } from "$lib/firebaseConfig.js";
 
-// Initialize Firebase app
-const app = initializeApp(firebaseConfig);
 export const currentUser = writable<User | null>(null);
 
-onAuthStateChanged(getAuth(app), (user) => {
+onAuthStateChanged(auth, (user) => {
   currentUser.set(user);
 });

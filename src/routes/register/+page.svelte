@@ -9,16 +9,12 @@
         GoogleSolid
     } from "flowbite-svelte-icons";
     import {
-        getAuth,
         createUserWithEmailAndPassword,
         GoogleAuthProvider,     
         signInWithPopup,       
         deleteUser
     } from 'firebase/auth';
-    import { firebaseConfig } from "$lib/firebaseConfig";
-    import { initializeApp, getApps, getApp } from "firebase/app";
     import {
-        getFirestore,
         doc,
         setDoc,
         getDoc, 
@@ -27,12 +23,39 @@
         where,
         getDocs
     } from "firebase/firestore";
+    import { auth, db } from '$lib/firebaseConfig';
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
 
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    function getRegistrationErrorMessage(error: any): string {
+        const code = error?.code as string | undefined;
+
+        switch (code) {
+            case 'auth/email-already-in-use':
+                return 'This email is already registered. Try logging in or use a different email.';
+            case 'auth/invalid-email':
+                return 'The email address is not valid.';
+            case 'auth/operation-not-allowed':
+                return 'Email/password sign-up is disabled in Firebase Authentication for this project.';
+            case 'auth/weak-password':
+                return 'The password is too weak (minimum 6 characters).';
+            case 'auth/invalid-api-key':
+            case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
+                return 'Firebase configuration is invalid on this deployment. Check VITE_FIREBASE_* environment variables.';
+            case 'auth/unauthorized-domain':
+                return 'This deployed domain is not authorized in Firebase Authentication. Add it under Authorized domains.';
+            case 'auth/network-request-failed':
+                return 'Network request failed while contacting Firebase. Please retry.';
+            case 'permission-denied':
+                return 'Firebase Firestore denied the write. Check your Firestore security rules for user registration.';
+            case 'unavailable':
+                return 'Firebase is temporarily unavailable. Please try again shortly.';
+            default:
+                return code
+                    ? `Registration failed (${code}). Please verify Firebase deployment settings.`
+                    : 'An unexpected error occurred during registration. Please try again.';
+        }
+    }
 
     let email: string = '';
     let password: string = '';
@@ -135,24 +158,11 @@
             }, 2500);
 
         } catch (error) {
-            console.error("Admin Registration Error:", error);
-            let userFriendlyMessage = "An unexpected error occurred during registration. Please try again.";
-            if (error instanceof Error) {
-                const firebaseError = error as any;
-                if (firebaseError.code) {
-                    switch (firebaseError.code) {
-                        case 'auth/email-already-in-use': userFriendlyMessage = "This email is already registered. Try logging in or use a different email."; break;
-                        case 'auth/invalid-email': userFriendlyMessage = "The email address is not valid."; break;
-                        case 'auth/operation-not-allowed': userFriendlyMessage = "Admin registration is currently not allowed."; break;
-                        case 'auth/weak-password': userFriendlyMessage = "The password is too weak (minimum 6 characters)."; break;
-                        default: userFriendlyMessage = "Admin registration failed. Please check your details and try again."; break;
-                    }
-                } else { userFriendlyMessage = "Registration error. Please check your input and try again."; }
-            } else if (typeof error === 'string') { userFriendlyMessage = "Registration failed: " + error; }
-
+            console.error('Admin Registration Error:', error);
+            const userFriendlyMessage = getRegistrationErrorMessage(error);
             if (createdAuthUser && !(error as any).code?.startsWith('auth/')) {
             }
-            showToast(userFriendlyMessage, "error", 6000);
+            showToast(userFriendlyMessage, 'error', 7000);
         }
     }
 
