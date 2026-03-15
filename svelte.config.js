@@ -14,6 +14,13 @@ const config = {
         adapter: adapter(),
         alias: {
             '$lib': 'src/lib'
+        },
+        prerender: {
+            handleHttpError: ({ path, message }) => {
+                // Ignore 404s for static assets during prerendering
+                if (path.startsWith('/images/')) return;
+                throw new Error(message);
+            }
         }
     },
 };

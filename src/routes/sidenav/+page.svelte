@@ -41,14 +41,14 @@
     const allMenuItems: MenuItem[] = [
         { href: '/dashboard', icon: '/images/icon-dashboard.png', alt: 'Dashboard', text: 'Dashboard', roles: ['userDentist', 'userSecretary'] },
         { href: '/appointment', icon: '/images/appointment.png', alt: 'Appointment', text: 'Appointment', roles: ['userDentist'] }, // Dentist only
-        { href: '/appointment/manage', icon: '/images/appointment-manage.png', alt: 'Manage Appointments', text: 'Manage Appointments', roles: ['userSecretary'] }, // Secretary only
+        { href: '/appointment/manage', icon: '/images/appointment.png', alt: 'Manage Appointments', text: 'Manage Appointments', roles: ['userSecretary'] }, // Secretary only
         { href: '/patient-list', icon: '/images/icon-patient.png', alt: 'Patient List', text: 'Patient List', roles: ['userDentist'] }, // Dentist only
         { href: '/management/register-patient', icon: '/images/icon-patient.png', alt: 'Register Patient', text: 'Register Patient', roles: ['userSecretary', 'userDentist'] }, // Admin can register patients
         { href: '/prescription', icon: '/images/prescription1.png', alt: 'Prescriptions', text: 'Prescriptions', roles: ['userDentist'] },
         { href: '/medicine-list', icon: '/images/medicinelist.png', alt: 'Medicines List', text: 'Medicines List', roles: ['userDentist'] },
         // Secretary specific routes:
-        { href: '/manage-availability', icon: '/images/availability.png', alt: 'Manage Availability', text: 'Manage Availability', roles: ['userSecretary', 'userDentist'] }, // Also for dentist?
-        { href: '/payment', icon: '/images/payment.png', alt: 'Payments', text: 'Payments', roles: ['userSecretary'] },
+        { href: '/management/manage-availability', icon: '/images/calendar.png', alt: 'Manage Availability', text: 'Manage Availability', roles: ['userSecretary', 'userDentist'] }, // Also for dentist?
+        { href: '/management/payment', icon: '/images/wallet.png', alt: 'Payments', text: 'Payments', roles: ['userSecretary'] },
     ];
 
     function getVisibleItems(role: typeof userRole): MenuItem[] {
