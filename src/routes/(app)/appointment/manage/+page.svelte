@@ -35,6 +35,7 @@
   
   interface PatientProfile {
     id: string;
+    displayId?: string;
     name: string;
     lastName: string;
     age: number;
@@ -82,12 +83,29 @@
     }
   
   async function fetchPatientProfiles() {
+    // Fetch from both patientProfiles and users collections
     const profilesRef = collection(db, 'patientProfiles');
-    const querySnapshot = await getDocs(profilesRef);
-    patientProfiles = querySnapshot.docs.map(doc => {
+    const usersRef = collection(db, 'users');
+    
+    const [profilesSnapshot, usersSnapshot] = await Promise.all([
+      getDocs(profilesRef),
+      getDocs(usersRef)
+    ]);
+    
+    // Create a map of users with their customUserId
+    const usersMap = new Map();
+    usersSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.customUserId) {
+        usersMap.set(doc.id, data.customUserId);
+      }
+    });
+    
+    patientProfiles = profilesSnapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
+        displayId: usersMap.get(doc.id) || '',
         name: data.name || '',
         lastName: data.lastName || '',
         age: data.age || 0,
@@ -107,7 +125,8 @@
         patientName: patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient',
         patientAge: patient?.age && patient.age > 0 ? patient.age : 'N/A',
         patientGender: patient?.gender && patient.gender.trim() ? patient.gender : 'N/A',
-        patientEmail: patient?.email || ''
+        patientEmail: patient?.email || '',
+        patientDisplayId: patient?.displayId || 'N/A'
       };
     });
     updateUniqueServices();
@@ -371,25 +390,30 @@
       {#if loading && appointments.length === 0} 
         <p class="text-center text-lg text-gray-500 py-10">Loading appointments...</p>
       {:else}
-        <div class="mb-6 sm:mb-8 flex flex-wrap md:flex-nowrap gap-1 sm:gap-2 border-b border-gray-300">
+        <div class="mb-6 sm:mb-8 flex gap-1.5 sm:gap-2 border-b border-gray-300 overflow-x-auto md:overflow-x-visible whitespace-nowrap md:whitespace-normal pb-1 sm:pb-0">
           <button 
-            class="py-2 px-2 text-sm sm:text-base sm:px-3 md:px-6 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 flex-grow md:flex-grow-0 text-center whitespace-nowrap {currentTab === 0 ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
+            class="py-2.5 px-3 text-sm sm:text-base sm:px-4 md:px-3 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 shrink-0 md:shrink md:flex-1 text-center rounded-t-md {currentTab === 0 ? 'border-blue-500 text-blue-700 bg-blue-50 shadow-sm' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
             on:click={() => currentTab = 0}>
             {isMobile ? 'Pending' : 'Pending Appointments'}
           </button>
           <button 
-            class="py-2 px-2 text-sm sm:text-base sm:px-3 md:px-6 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 flex-grow md:flex-grow-0 text-center whitespace-nowrap {currentTab === 1 ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
+            class="py-2.5 px-3 text-sm sm:text-base sm:px-4 md:px-3 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 shrink-0 md:shrink md:flex-1 text-center rounded-t-md {currentTab === 1 ? 'border-blue-500 text-blue-700 bg-blue-50 shadow-sm' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
             on:click={() => currentTab = 1}>
             {isMobile ? 'Reschedule' : 'Pending Reschedule'}
           </button>
           <button 
-            class="py-2 px-2 text-sm sm:text-base sm:px-3 md:px-6 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 flex-grow md:flex-grow-0 text-center whitespace-nowrap {currentTab === 2 ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
+            class="py-2.5 px-3 text-sm sm:text-base sm:px-4 md:px-3 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 shrink-0 md:shrink md:flex-1 text-center rounded-t-md {currentTab === 2 ? 'border-blue-500 text-blue-700 bg-blue-50 shadow-sm' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
             on:click={() => currentTab = 2}>
             {isMobile ? 'Cancellation' : 'Pending Cancellation'}
           </button>
           <button 
-            class="py-2 px-2 text-sm sm:text-base sm:px-3 md:px-6 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 flex-grow md:flex-grow-0 text-center whitespace-nowrap {currentTab === 3 ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
+            class="py-2.5 px-3 text-sm sm:text-base sm:px-4 md:px-3 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 shrink-0 md:shrink md:flex-1 text-center rounded-t-md {currentTab === 3 ? 'border-blue-500 text-blue-700 bg-blue-50 shadow-sm' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
             on:click={() => currentTab = 3}>
+            {isMobile ? 'Accepted' : 'Accepted / Ongoing'}
+          </button>
+          <button 
+            class="py-2.5 px-3 text-sm sm:text-base sm:px-4 md:px-3 -mb-px border-b-2 font-semibold focus:outline-none transition-colors duration-150 shrink-0 md:shrink md:flex-1 text-center rounded-t-md {currentTab === 4 ? 'border-blue-500 text-blue-700 bg-blue-50 shadow-sm' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100'}" 
+            on:click={() => currentTab = 4}>
             {isMobile ? 'History' : 'Appointment History'}
           </button>
         </div>
@@ -401,6 +425,7 @@
               <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-blue-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/></svg>
               Pending Appointments ({pendingAppointments.length})
             </h2>
+            <p class="text-xs sm:text-sm text-gray-500 mb-4">Review each request and choose <span class="font-semibold text-blue-700">Approve</span> to proceed or <span class="font-semibold text-red-600">Decline</span> to reject.</p>
             {#if pendingAppointments.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {#each pendingAppointments as appointment (appointment.id)}
@@ -410,9 +435,7 @@
                       <span>{appointment.patientName}</span>
                       <span class="text-xs font-normal text-gray-500">({appointment.patientAge !== 'N/A' ? `${appointment.patientAge} yrs` : 'Age: N/A'}, {appointment.patientGender})</span>
                     </div>
-                    {#if appointment.patientEmail}
-                      <div class="text-xs text-gray-500 break-all">{appointment.patientEmail}</div>
-                    {/if}
+                    <div class="text-xs text-gray-500 break-all">Member ID: {appointment.patientDisplayId || 'N/A'}</div>
                   {:else}
                     <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
                   {/if}
@@ -425,11 +448,11 @@
                       <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
                     {/if}
                   </div>
-                  <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
-                    <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Appointment" on:click={() => handleAccept(appointment)}>
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Accept
+                  <div class="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4">
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-xs sm:text-sm rounded-md shadow-sm transition w-full sm:flex-1 font-semibold" title="Accept Appointment" on:click={() => handleAccept(appointment)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Approve
                     </button>
-                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Decline Appointment" on:click={() => openReasonModal(appointment.id)}>
+                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 text-xs sm:text-sm rounded-md shadow-sm transition w-full sm:flex-1 font-semibold" title="Decline Appointment" on:click={() => openReasonModal(appointment.id)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Decline
                     </button>
                   </div>
@@ -448,6 +471,7 @@
               <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-yellow-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/></svg>
               Pending Reschedule Requests ({rescheduleRequests.length})
             </h2>
+            <p class="text-xs sm:text-sm text-gray-500 mb-4">Approve to apply the new schedule, or decline to keep the current approved schedule.</p>
             {#if rescheduleRequests.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {#each rescheduleRequests as appointment (appointment.id)}
@@ -457,9 +481,7 @@
                       <span>{appointment.patientName}</span>
                       <span class="text-xs font-normal text-gray-500">({appointment.patientAge !== 'N/A' ? `${appointment.patientAge} yrs` : 'Age: N/A'}, {appointment.patientGender})</span>
                     </div>
-                    {#if appointment.patientEmail}
-                      <div class="text-xs text-gray-500 break-all">{appointment.patientEmail}</div>
-                    {/if}
+                    <div class="text-xs text-gray-500 break-all">Member ID: {appointment.patientDisplayId || 'N/A'}</div>
                   {:else}
                     <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
                   {/if}
@@ -475,12 +497,12 @@
                       <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
                     {/if}
                   </div>
-                  <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
-                    <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Accept Reschedule" on:click={() => handleRescheduleAccept(appointment)}>
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Accept
+                  <div class="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4">
+                    <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-xs sm:text-sm rounded-md shadow-sm transition w-full sm:flex-1 font-semibold" title="Approve Reschedule" on:click={() => handleRescheduleAccept(appointment)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Approve New Time
                     </button>
-                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Decline Reschedule" on:click={() => handleRescheduleReject(appointment)}>
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Decline
+                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 text-xs sm:text-sm rounded-md shadow-sm transition w-full sm:flex-1 font-semibold" title="Decline Reschedule" on:click={() => handleRescheduleReject(appointment)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Keep Original Time
                     </button>
                   </div>
                 </div>
@@ -498,6 +520,7 @@
               <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-red-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/></svg>
               Pending Cancellation Requests ({cancellationRequests.length})
             </h2>
+            <p class="text-xs sm:text-sm text-gray-500 mb-4">Approve to cancel the appointment, or decline to keep the appointment active.</p>
             {#if cancellationRequests.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {#each cancellationRequests as appointment (appointment.id)}
@@ -507,9 +530,7 @@
                       <span>{appointment.patientName}</span>
                       <span class="text-xs font-normal text-gray-500">({appointment.patientAge !== 'N/A' ? `${appointment.patientAge} yrs` : 'Age: N/A'}, {appointment.patientGender})</span>
                     </div>
-                    {#if appointment.patientEmail}
-                      <div class="text-xs text-gray-500 break-all">{appointment.patientEmail}</div>
-                    {/if}
+                    <div class="text-xs text-gray-500 break-all">Member ID: {appointment.patientDisplayId || 'N/A'}</div>
                   {:else}
                     <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
                   {/if}
@@ -523,12 +544,12 @@
                    {#if appointment.cancellationReason}
                     <p class="text-xs text-gray-600 mt-1">Reason: <span class="italic">{appointment.cancellationReason}</span></p>
                   {/if}
-                  <div class="flex gap-2 mt-3 sm:mt-4 justify-end">
-                    <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Approve Cancellation" on:click={() => handleCancelApprove(appointment)}>
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Approve
+                  <div class="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4">
+                    <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-xs sm:text-sm rounded-md shadow-sm transition w-full sm:flex-1 font-semibold" title="Approve Cancellation" on:click={() => handleCancelApprove(appointment)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Approve Cancel
                     </button>
-                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition" title="Decline Cancellation" on:click={() => handleCancelDecline(appointment)}>
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Decline
+                    <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 text-xs sm:text-sm rounded-md shadow-sm transition w-full sm:flex-1 font-semibold" title="Decline Cancellation" on:click={() => handleCancelDecline(appointment)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Keep Appointment
                     </button>
                   </div>
                 </div>
@@ -540,28 +561,17 @@
           </section>
   
         {:else if currentTab === 3}
-          {@const completedAppointments = filterAndSort(appointments.filter(a => 
-            a.status === 'Accepted' || 
-            a.status === 'Decline' || 
-            a.status === 'Cancelled' || 
-            a.status === 'Completed' || 
-            a.status === 'Rescheduled'
-          ))}
+          {@const acceptedAppointments = filterAndSort(appointments.filter(a => a.status === 'Accepted'))}
           <section class="mt-6 sm:mt-8">
             <div>
                 <h2 class="text-lg sm:text-xl font-bold mb-4 text-green-700 flex items-center gap-2">
                   <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-green-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>
-                  Appointment History ({completedAppointments.length})
+                  Accepted / Ongoing Appointments ({acceptedAppointments.length})
                 </h2>
-                {#if completedAppointments.length > 0}
+                {#if acceptedAppointments.length > 0}
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {#each completedAppointments as appointment (appointment.id)}
-                {@const statusColor = 
-                  appointment.status === 'Accepted' ? 'green' : 
-                  appointment.status === 'Completed' ? 'blue' :
-                  appointment.status === 'Rescheduled' ? 'yellow' :
-                  appointment.status === 'Decline' ? 'red' : 
-                  appointment.status === 'Cancelled' ? 'gray' : 'gray'}
+              {#each acceptedAppointments as appointment (appointment.id)}
+                {@const statusColor = 'green'}
                 {@const borderClass = `border-${statusColor}-400`}
                 {@const badgeClass = `bg-${statusColor}-100 text-${statusColor}-700`}
                 <div class="bg-white border-l-4 {borderClass} border-opacity-60 rounded-lg shadow-lg hover:shadow-xl transition-all p-4 sm:p-5 flex flex-col gap-2 sm:gap-3">
@@ -570,9 +580,7 @@
                       <span>{appointment.patientName}</span>
                       <span class="text-xs font-normal text-gray-500">({appointment.patientAge !== 'N/A' ? `${appointment.patientAge} yrs` : 'Age: N/A'}, {appointment.patientGender})</span>
                     </div>
-                    {#if appointment.patientEmail}
-                      <div class="text-xs text-gray-500 break-all">{appointment.patientEmail}</div>
-                    {/if}
+                    <div class="text-xs text-gray-500 break-all">Member ID: {appointment.patientDisplayId || 'N/A'}</div>
                   {:else}
                     <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
                   {/if}
@@ -610,7 +618,7 @@
                     </div>
                   {/if}
                   <div class="flex gap-2 mt-3 justify-between">
-                    {#if appointment.status === 'Accepted' && !appointment.completionTime}
+                    {#if !appointment.completionTime}
                       <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs sm:text-sm rounded shadow-sm transition flex items-center gap-1" title="Mark as Completed" on:click={() => openCompletionModal(appointment)}>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Mark Complete
@@ -618,6 +626,103 @@
                     {:else}
                       <div></div>
                     {/if}
+                    <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1.5 rounded shadow-sm transition" title="Delete Appointment" aria-label="Delete Appointment" on:click={() => handleDelete(appointment)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
+                  {#if appointment.createdAt}
+                    <div class="text-xs text-gray-400 mt-2 border-t pt-2">
+                      Created: {(() => {
+                        try {
+                          // Handle Firestore Timestamp objects
+                          if (appointment.createdAt?.toDate) {
+                            return appointment.createdAt.toDate().toLocaleString();
+                          }
+                          // Handle ISO string or regular date
+                          const date = new Date(appointment.createdAt);
+                          return isNaN(date.getTime()) ? 'N/A' : date.toLocaleString();
+                        } catch (e) {
+                          return 'N/A';
+                        }
+                      })()}
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+            {:else}
+              <div class="text-gray-500 col-span-full text-center py-5">No accepted or ongoing appointments found.</div>
+            {/if}
+            </div>
+          </section>
+
+        {:else if currentTab === 4}
+          {@const historyAppointments = filterAndSort(appointments.filter(a => 
+            a.status === 'Decline' || 
+            a.status === 'Cancelled' || 
+            a.status === 'Completed' || 
+            a.status === 'Rescheduled'
+          ))}
+          <section class="mt-6 sm:mt-8">
+            <div>
+                <h2 class="text-lg sm:text-xl font-bold mb-4 text-blue-700 flex items-center gap-2">
+                  <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-blue-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>
+                  Appointment History ({historyAppointments.length})
+                </h2>
+                {#if historyAppointments.length > 0}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {#each historyAppointments as appointment (appointment.id)}
+                {@const statusColor = 
+                  appointment.status === 'Completed' ? 'blue' :
+                  appointment.status === 'Rescheduled' ? 'yellow' :
+                  appointment.status === 'Decline' ? 'red' : 
+                  appointment.status === 'Cancelled' ? 'gray' : 'gray'}
+                {@const borderClass = `border-${statusColor}-400`}
+                {@const badgeClass = `bg-${statusColor}-100 text-${statusColor}-700`}
+                <div class="bg-white border-l-4 {borderClass} border-opacity-60 rounded-lg shadow-lg hover:shadow-xl transition-all p-4 sm:p-5 flex flex-col gap-2 sm:gap-3">
+                  {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
+                    <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
+                      <span>{appointment.patientName}</span>
+                      <span class="text-xs font-normal text-gray-500">({appointment.patientAge !== 'N/A' ? `${appointment.patientAge} yrs` : 'Age: N/A'}, {appointment.patientGender})</span>
+                    </div>
+                    <div class="text-xs text-gray-500 break-all">Member ID: {appointment.patientDisplayId || 'N/A'}</div>
+                  {:else}
+                    <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
+                  {/if}
+                  <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-1 sm:mt-2">
+                    <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700 font-medium">{appointment.date} at {appointment.time}</span>
+                    <span class="inline-block px-2 py-1 rounded {badgeClass} font-semibold">
+                      {appointment.status}
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-600 mt-1">
+                    <span class="font-medium">Service:</span> {appointment.service}
+                    {#if appointment.subServices && Array.isArray(appointment.subServices) && appointment.subServices.length > 0 && appointment.subServices.join(', ').trim() !== ''}
+                      <div class="mt-1"><span class="font-medium">Selected:</span> {appointment.subServices.join(', ')}</div>
+                    {/if}
+                  </div>
+                  {#if appointment.reason}
+                    <div class="text-xs text-red-600 bg-red-50 p-2 rounded mt-2">
+                      <span class="font-medium">Decline Reason:</span> {appointment.reason}
+                    </div>
+                  {/if}
+                  {#if appointment.cancellationReason}
+                    <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded mt-2">
+                      <span class="font-medium">Cancellation Reason:</span> {appointment.cancellationReason}
+                    </div>
+                  {/if}
+                  {#if appointment.completionTime}
+                    <div class="text-xs text-green-600 bg-green-50 p-2 rounded mt-2 flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span class="font-medium">Completed on:</span> {new Date(appointment.completionTime).toLocaleString()}
+                    </div>
+                  {/if}
+                  {#if appointment.completionRemarks && appointment.completionRemarks.trim()}
+                    <div class="text-xs text-blue-600 bg-blue-50 p-2 rounded mt-2">
+                      <span class="font-medium">Remarks:</span> {appointment.completionRemarks}
+                    </div>
+                  {/if}
+                  <div class="flex gap-2 mt-3 justify-end">
                     <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1.5 rounded shadow-sm transition" title="Delete Appointment" aria-label="Delete Appointment" on:click={() => handleDelete(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
