@@ -415,3 +415,105 @@ export function subscribeToMemberChats(
   });
 }
 
+/**
+ * Sends an automatic appointment acceptance message to the patient's member chat
+ */
+export async function sendAppointmentAcceptanceMessage(
+  db: Firestore,
+  appointment: {
+    patientId: string;
+    patientName: string;
+    patientGender?: string;
+    service: string;
+    subServices?: string;
+    date: string;
+    time: string;
+  }
+) {
+  try {
+    const memberId = appointment.patientId;
+    
+    // Determine appropriate title (Ms./Mr./Mrs.)
+    const title = appointment.patientGender === 'Male' ? 'Mr.' : 'Ms.';
+    
+    // Format the date in a user-friendly way
+    const appointmentDate = new Date(appointment.date);
+    const options: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    const formattedDate = appointmentDate.toLocaleDateString('en-US', options);
+    
+    // Get the time
+    const appointmentTime = appointment.time;
+    
+    // Build service description
+    let serviceDescription = appointment.service;
+    if (appointment.subServices) {
+      serviceDescription += ` (${appointment.subServices})`;
+    }
+    
+    // Construct the message
+    const messageText = `Good Morning ${title} ${appointment.patientName}! Your scheduled appointment is accepted for ${serviceDescription}. And that is ${formattedDate} @ ${appointmentTime}. Let us know on what more you're requesting for so that we'll be ready immediately. Thank you very much! And see you soon.`;
+    
+    // Ensure the member chat document exists
+    const chatRef = doc(db, MEMBER_CHAT_COLLECTION, memberId);
+    const chatSnapshot = await getDoc(chatRef);
+    
+    if (!chatSnapshot.exists()) {
+      // Create the chat document if it doesn't exist
+      await setDoc(chatRef, {
+        memberId: memberId,
+        memberName: appointment.patientName,
+        createdAt: serverTimestamp(),
+        lastMessage: messageText,
+        lastMessageTime: serverTimestamp(),
+        unreadCount: 1
+      });
+    } else {
+      // Update existing chat document
+      await updateDoc(chatRef, {
+        lastMessage: messageText,
+        lastMessageTime: serverTimestamp(),
+        unreadCount: increment(1)
+      });
+    }
+    
+    // Add the message to the messages subcollection
+    const messagesRef = collection(db, MEMBER_CHAT_COLLECTION, memberId, CHAT_MESSAGES_SUBCOLLECTION);
+    await addDoc(messagesRef, {
+      senderId: 'system',
+      senderName: 'PHPDMAdmin',
+      senderRole: 'admin',
+      message: messageText,
+      timestamp: serverTimestamp(),
+      read: false
+    });
+    
+    // Create a notification for the patient
+    await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
+      userId: memberId,
+      type: 'chat',
+      message: messageText,
+      threadId: memberId,
+      chatType: 'member',
+      createdAt: serverTimestamp(),
+      read: false,
+      metadata: {
+        senderName: 'PHPDMAdmin',
+        senderId: 'system',
+        patientName: appointment.patientName,
+        appointmentDate: appointment.date,
+        appointmentTime: appointment.time,
+        service: serviceDescription
+      }
+    });
+    
+    console.log('Automatic appointment acceptance message sent successfully');
+  } catch (error) {
+    console.error('Error sending automatic appointment acceptance message:', error);
+    throw error;
+  }
+}
+

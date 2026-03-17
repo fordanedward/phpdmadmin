@@ -2220,7 +2220,7 @@ async function downloadExcelReportFromReport(
 				<div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
 					<div class="p-2.5 sm:p-3 rounded-xl" style="background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);">
 						<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 flex-shrink-0 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l9-9m0 0l9 9M5 10v10a1 1 0 001 1h3v-4a1 1 0 011-1h2a1 1 0 011 1v4h3a1 1 0 001-1V10" />
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
 						</svg>
 					</div>
 					<div>

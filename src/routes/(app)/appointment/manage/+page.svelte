@@ -4,6 +4,7 @@
     import { initializeApp } from 'firebase/app';
     import { firebaseConfig } from '$lib/firebaseConfig'; // Make sure this path is correct
     import { addPopupNotification } from '$lib/popupNotificationStore.js';
+    import { sendAppointmentAcceptanceMessage } from '$lib/chat/service';
     import Swal from 'sweetalert2';
   
     let db: ReturnType<typeof getFirestore>;
@@ -179,6 +180,22 @@
       });
       if (result.isConfirmed) {
         await updateStatus(appointment.id, { status: 'Accepted', cancellationStatus: '' });
+        
+        // Send automatic acceptance message to patient's chat
+        try {
+          await sendAppointmentAcceptanceMessage(db, {
+            patientId: appointment.patientId,
+            patientName: appointment.patientName,
+            patientGender: appointment.patientGender,
+            service: appointment.service,
+            subServices: appointment.subServices,
+            date: appointment.date,
+            time: appointment.time
+          });
+        } catch (e: any) {
+          console.error("Failed to send automatic chat message:", e);
+          // Don't show error to user as the appointment was still accepted successfully
+        }
       }
     }
   
