@@ -10,6 +10,7 @@
 	import Swal from 'sweetalert2';
     import { auth as firebaseAppAuth, db as firebaseAppDb } from '$lib/firebaseConfig.js';  
     import ChatDrawer from '$lib/components/ChatDrawer.svelte';
+	import RealtimePopupNotifications from '$lib/components/RealtimePopupNotifications.svelte';
     import Notification from '$lib/Notification.svelte';
     import PopupNotification from '$lib/PopupNotification.svelte';
     import { notification as notificationStore } from '$lib/notificationStore.js';
@@ -314,6 +315,7 @@
         <main class="content {isMobile ? 'mobile' : (layoutCurrentUser && isCollapsed ? 'collapsed' : 'desktop')} {layoutCurrentUser ? '' : 'no-sidebar'}">
             <slot />
         </main>
+		<RealtimePopupNotifications db={firebaseAppDb} currentUser={layoutCurrentUser} />
         <ChatDrawer db={firebaseAppDb} currentUser={layoutCurrentUser} />
         <Notification message={$notificationStore.message} type={$notificationStore.type} show={$notificationStore.show} />
         <PopupNotification />

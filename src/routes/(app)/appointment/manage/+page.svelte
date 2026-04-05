@@ -442,7 +442,7 @@
               <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 sm:h-6 sm:w-6 text-blue-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/></svg>
               Pending Appointments ({pendingAppointments.length})
             </h2>
-            <p class="text-xs sm:text-sm text-gray-500 mb-4">Review each request and choose <span class="font-semibold text-blue-700">Approve</span> to proceed or <span class="font-semibold text-red-600">Decline</span> to reject.</p>
+            <p class="text-xs sm:text-sm text-gray-500 mb-4">Review each request and choose <span class="font-semibold text-blue-700">Approve</span> to proceed or <span class="font-semibold text-red-600">Decline</span> to decline the member's appointment.</p>
             {#if pendingAppointments.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {#each pendingAppointments as appointment (appointment.id)}
