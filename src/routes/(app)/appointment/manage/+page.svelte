@@ -82,6 +82,16 @@
       }
       return filtered;
     }
+
+    function getCancellationReason(data: any) {
+      return (
+        data?.cancellationReason ||
+        data?.cancelReason ||
+        data?.cancellation_reason ||
+        data?.cancel_reason ||
+        ''
+      );
+    }
   
   async function fetchPatientProfiles() {
     // Fetch from both patientProfiles and users collections
@@ -120,9 +130,11 @@
     appointments = snapshot.docs.map(doc => {
       const data = doc.data();
       const patient = patientProfiles.find(p => p.id === data.patientId);
+      const normalizedCancellationReason = getCancellationReason(data);
       return {
         id: doc.id,
         ...data,
+        cancellationReason: normalizedCancellationReason,
         patientName: patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient',
         patientAge: patient?.age && patient.age > 0 ? patient.age : 'N/A',
         patientGender: patient?.gender && patient.gender.trim() ? patient.gender : 'N/A',

@@ -455,7 +455,7 @@ export async function sendAppointmentAcceptanceMessage(
     }
     
     // Construct the message
-    const messageText = `Good Morning ${title} ${appointment.patientName}! Your scheduled appointment is accepted for ${serviceDescription}. And that is ${formattedDate} @ ${appointmentTime}. Let us know on what more you're requesting for so that we'll be ready immediately. Thank you very much! And see you soon.`;
+    const messageText = `Good Day ${title} ${appointment.patientName}! Your scheduled appointment is accepted for ${serviceDescription}. And that is ${formattedDate} @ ${appointmentTime}. Let us know on what more you're requesting for so that we'll be ready immediately. Thank you very much! And see you soon.`;
     
     // Ensure the member chat document exists
     const chatRef = doc(db, MEMBER_CHAT_COLLECTION, memberId);
