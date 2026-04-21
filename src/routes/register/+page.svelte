@@ -1,12 +1,15 @@
 <script lang="ts">
     // @ts-nocheck
+    import Swal from 'sweetalert2';
     import { Label, Input, Toast, Button } from 'flowbite-svelte';
     import {
         CheckOutline,
         CloseOutline,
         ExclamationCircleOutline,
         InfoCircleOutline,
-        GoogleSolid
+        GoogleSolid,
+        EyeOutline,
+        EyeSlashOutline
     } from "flowbite-svelte-icons";
     import {
         createUserWithEmailAndPassword,
@@ -70,6 +73,8 @@
     let toastTimeoutId: number | null = null;
 
     let isGoogleSigningIn = false;
+    let showPassword = false;
+    let showConfirmPassword = false;
     let isPageLoaded = false; 
 
     function showToast(message: string, type: ToastType = 'info', duration: number = 3000) {
@@ -151,11 +156,22 @@
                 registrationDate: new Date().toISOString()
             });
 
-            showToast(`Registration successful! Your Admin ID: ${customAdminId}. Welcome, ${user.email}`, "success", 5000);
-            setTimeout(() => {
-                goto('/dashboard'); 
-                toastVisible = false;
-            }, 2500);
+            await Swal.fire({
+                icon: 'success',
+                title: 'Registration Successful!',
+                html: `
+                    <p class="text-gray-600 mb-3">Welcome, <strong>${user.email}</strong>!</p>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
+                        <p class="text-sm text-blue-600 font-medium mb-1">Your Admin ID</p>
+                        <p class="text-3xl font-bold text-blue-700 tracking-widest">${customAdminId}</p>
+                        <p class="text-xs text-blue-500 mt-1">Save this ID — you can use it to log in</p>
+                    </div>
+                `,
+                confirmButtonText: 'Go to Dashboard',
+                confirmButtonColor: '#3b82f6',
+                allowOutsideClick: false,
+            });
+            goto('/dashboard');
 
         } catch (error) {
             console.error('Admin Registration Error:', error);
@@ -198,8 +214,20 @@
                     firebaseUid: user.uid,
                     role: selectedRole,
                 }, { merge: true });
-                welcomeMessage = `Welcome back, ${user.displayName || user.email}! Your Admin ID: ${displayableCustomId}`;
-                showToast(welcomeMessage, "success", 3000);
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Welcome Back!',
+                    html: `
+                        <p class="text-gray-600 mb-3">Signed in as <strong>${user.displayName || user.email}</strong></p>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
+                            <p class="text-sm text-blue-600 font-medium mb-1">Your Admin ID</p>
+                            <p class="text-3xl font-bold text-blue-700 tracking-widest">${displayableCustomId}</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Go to Dashboard',
+                    confirmButtonColor: '#3b82f6',
+                    allowOutsideClick: false,
+                });
             } else {
                 const customAdminId = await generateUniqueCustomId();
 
@@ -229,14 +257,24 @@
                     lastLoginAt: new Date().toISOString()
                 };
                 await setDoc(userDocRef, newUser_Data);
-                welcomeMessage = `Successfully registered with Google! Your Admin ID: ${displayableCustomId}. Welcome, ${user.displayName || user.email}!`;
-                showToast(welcomeMessage, "success", 4000);
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Registration Successful!',
+                    html: `
+                        <p class="text-gray-600 mb-3">Welcome, <strong>${user.displayName || user.email}</strong>!</p>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
+                            <p class="text-sm text-blue-600 font-medium mb-1">Your Admin ID</p>
+                            <p class="text-3xl font-bold text-blue-700 tracking-widest">${displayableCustomId}</p>
+                            <p class="text-xs text-blue-500 mt-1">Save this ID — you can use it to log in</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Go to Dashboard',
+                    confirmButtonColor: '#3b82f6',
+                    allowOutsideClick: false,
+                });
             }
 
-            setTimeout(() => {
-                goto('/dashboard');
-                toastVisible = false;
-            }, 1500);
+            goto('/dashboard');
 
         } catch (err: any) {
             console.error("Google Sign-In Error:", err);
@@ -426,11 +464,29 @@
                 </div>
                 <div class="register-field {isPageLoaded ? 'loaded' : ''} mb-6">
                     <Label for="password" class="block mb-2">Password</Label>
-                    <Input type="password" id="password" placeholder="••••••••" class="border p-2 w-full" bind:value={password} required />
+                    <div class="relative">
+                        <Input type={showPassword ? 'text' : 'password'} id="password" placeholder="••••••••" class="border p-2 w-full pr-10" bind:value={password} required />
+                        <button type="button" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700" on:click={() => showPassword = !showPassword}>
+                            {#if showPassword}
+                                <EyeSlashOutline class="w-5 h-5" />
+                            {:else}
+                                <EyeOutline class="w-5 h-5" />
+                            {/if}
+                        </button>
+                    </div>
                 </div>
                 <div class="register-field {isPageLoaded ? 'loaded' : ''} mb-6">
                     <Label for="confirmPassword" class="block mb-2">Confirm Password</Label>
-                    <Input type="password" id="confirmPassword" placeholder="••••••••" class="border p-2 w-full" bind:value={confirmPassword} required />
+                    <div class="relative">
+                        <Input type={showConfirmPassword ? 'text' : 'password'} id="confirmPassword" placeholder="••••••••" class="border p-2 w-full pr-10" bind:value={confirmPassword} required />
+                        <button type="button" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700" on:click={() => showConfirmPassword = !showConfirmPassword}>
+                            {#if showConfirmPassword}
+                                <EyeSlashOutline class="w-5 h-5" />
+                            {:else}
+                                <EyeOutline class="w-5 h-5" />
+                            {/if}
+                        </button>
+                    </div>
                 </div>
                 <div class="register-button {isPageLoaded ? 'loaded' : ''} mb-4">
                     <Button type="submit" class="w-full p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">

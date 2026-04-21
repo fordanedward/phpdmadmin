@@ -135,6 +135,45 @@
             }, 2000); 
             return true;
 
+        } else if (providerId === 'google.com') {
+            // First-time Google sign-in: auto-create an admin profile
+            const customAdminId = await generateUniqueCustomId();
+            if (!customAdminId) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Registration Error',
+                    text: 'Could not generate a unique Admin ID. Please try again.',
+                    showConfirmButton: true
+                });
+                await auth.signOut();
+                return false;
+            }
+
+            await setDoc(userDocRef, {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName || user.email,
+                photoURL: user.photoURL || '',
+                role: 'userSecretary',
+                status: 'active',
+                customUserId: customAdminId,
+                createdAt: new Date().toISOString(),
+                lastLoginAt: new Date().toISOString(),
+            });
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Account Created & Logged In',
+                html: `Welcome, <b>${user.displayName || user.email}</b>!<br>Your Admin ID is: <b>${customAdminId}</b>`,
+                showConfirmButton: false,
+                timer: 3000,
+                customClass: { popup: 'swal-custom' }
+            });
+
+            setTimeout(() => {
+                goto('/dashboard');
+            }, 3000);
+            return true;
         } else {
             Swal.fire({
                 icon: 'error',
@@ -145,6 +184,27 @@
             await auth.signOut();
             return false; 
         }
+    }
+
+    function generateSixDigitId(): string {
+        const min = 10000;
+        const max = 99999;
+        return Math.floor(Math.random() * (max - min + 1) + min).toString();
+    }
+
+    async function isCustomIdTaken(id: string): Promise<boolean> {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("customUserId", "==", id));
+        const snap = await getDocs(q);
+        return !snap.empty;
+    }
+
+    async function generateUniqueCustomId(maxRetries = 10): Promise<string | null> {
+        for (let i = 0; i < maxRetries; i++) {
+            const id = generateSixDigitId();
+            if (!(await isCustomIdTaken(id))) return id;
+        }
+        return null;
     }
 
     async function handleLogin() { 
