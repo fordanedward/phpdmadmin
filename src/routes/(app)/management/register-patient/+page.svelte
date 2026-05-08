@@ -169,6 +169,9 @@
 	let showSuccessModal: boolean = false;
 	let registeredPatientName: string = '';
 	let registeredPatientId: string = '';
+	let registeredBirthday: string = '';
+	let registeredGender: string = '';
+	let registeredEmail: string = '';
 
 	function showToast(message: string, type: ToastType = 'info', duration: number = 3000) {
 		toastMessage = message;
@@ -464,6 +467,14 @@
 	// Show success modal with patient details
 	registeredPatientName = `${firstName} ${lastName}`;
 	registeredPatientId = customPatientId;
+	if (birthday) {
+		const [bYear, bMonth, bDay] = birthday.split('-');
+		registeredBirthday = `${bMonth}/${bDay}/${bYear}`;
+	} else {
+		registeredBirthday = '';
+	}
+	registeredGender = gender;
+	registeredEmail = email || '';
 	showSuccessModal = true;
 	
 	// Reset form after modal is shown
@@ -520,6 +531,9 @@
 		showSuccessModal = false;
 		registeredPatientName = '';
 		registeredPatientId = '';
+		registeredBirthday = '';
+		registeredGender = '';
+		registeredEmail = '';
 	}
 </script>
 
@@ -889,42 +903,67 @@
 <!-- Success Modal -->
 {#if showSuccessModal}
 	<div class="modal-overlay" on:click={closeSuccessModal} on:keydown={(e) => e.key === 'Escape' && closeSuccessModal()} role="button" tabindex="-1">
-		<div class="success-modal" on:click|stopPropagation on:keydown|stopPropagation role="button" tabindex="0">
-			<div class="modal-header">
-				<div class="success-icon-wrapper">
-					<div class="success-icon-circle">
-						<CheckOutline class="w-12 h-12 text-white" />
-					</div>
+		<div class="id-modal-wrapper" on:click|stopPropagation on:keydown|stopPropagation role="button" tabindex="0">
+
+			<!-- Banner -->
+			<div class="id-modal-banner">
+				<div class="id-modal-banner-icon">
+					<CheckOutline class="w-5 h-5 text-white" />
 				</div>
-				<h2 class="modal-title">Member Registration Successful!</h2>
-				<p class="modal-subtitle">New Member account has been created</p>
+				<div>
+					<p class="id-modal-banner-title">Member Registration Successful!</p>
+					<p class="id-modal-banner-sub">New Member account has been created</p>
+				</div>
 			</div>
 
-			<div class="modal-content">
-				<div class="patient-info-card">
-					<div class="info-row">
-						<span class="info-label">Member Name:</span>
-						<span class="info-value">{registeredPatientName}</span>
-					</div>
-					<div class="divider"></div>
-					<div class="info-row patient-id-row">
-						<span class="info-label">Member ID:</span>
-						<div class="patient-id-badge">
-							{registeredPatientId}
+			<!-- ID Card -->
+			<div class="id-card">
+				<!-- Card Header -->
+				<div class="id-card-header">
+					<div class="id-card-gold-stripe"></div>
+					<div class="id-card-header-inner">
+						<img src="/images/permanente health plan logo.png" alt="PHP Logo" class="id-card-logo" />
+						<div class="id-card-org-info">
+							<div class="id-card-org-name">THE PERMANENTE HEALTH PLAN CORP.</div>
+							<div class="id-card-plan-name">MULTI-SPECIALTY HEALTH PLAN</div>
+							<div class="id-card-address">Lot 19-23, Blk. 7 Mayumi Street, Sta. Rita, Olongapo City</div>
 						</div>
 					</div>
 				</div>
 
-				<div class="note-box">
-					<InfoCircleOutline class="w-5 h-5 text-blue-600" />
-					<p>Please note this Member ID is used for future reference and patient records.</p>
+				<!-- Card Body -->
+				<div class="id-card-body">
+					<div class="id-card-photo-area">
+						<div class="id-card-photo-placeholder">
+							<svg viewBox="0 0 64 80" fill="none" xmlns="http://www.w3.org/2000/svg" class="id-card-avatar-svg">
+								<circle cx="32" cy="22" r="16" fill="#b0bcd4"/>
+								<path d="M4 76c0-15.464 12.536-28 28-28s28 12.536 28 28" fill="#b0bcd4"/>
+							</svg>
+						</div>
+					</div>
+					<div class="id-card-details">
+						<div class="id-card-mrn">MRN: <span class="id-card-mrn-val">{registeredPatientId}</span></div>
+						<div class="id-card-member-name">{registeredPatientName}</div>
+						<div class="id-card-name-underline"></div>
+						<div class="id-card-name-label">Name</div>
+						<div class="id-card-fields">
+							{#if registeredBirthday}<div class="id-card-field"><span class="id-field-key">DOB:</span> {registeredBirthday}</div>{/if}
+							{#if registeredGender}<div class="id-card-field"><span class="id-field-key">Gender:</span> {registeredGender}</div>{/if}
+							{#if registeredEmail}<div class="id-card-field"><span class="id-field-key">Email:</span> {registeredEmail}</div>{/if}
+						</div>
+					</div>
 				</div>
 			</div>
 
-			<div class="modal-actions">
-				<button class="btn-modal-close" on:click={closeSuccessModal}>
-					Close
-				</button>
+			<!-- Note -->
+			<div class="id-modal-note">
+				<InfoCircleOutline class="w-4 h-4 text-blue-600 flex-shrink-0" />
+				<p>Please keep this Member ID for future reference and patient records.</p>
+			</div>
+
+			<!-- Actions -->
+			<div class="id-modal-actions">
+				<button class="btn-modal-close" on:click={closeSuccessModal}>Close</button>
 			</div>
 		</div>
 	</div>
@@ -1182,153 +1221,252 @@
 		backdrop-filter: blur(4px);
 	}
 
-	.success-modal {
+	.id-modal-wrapper {
 		background: white;
 		border-radius: 16px;
-		max-width: 500px;
-		width: 90%;
+		max-width: 640px;
+		width: 92%;
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 		animation: slideUp 0.3s ease-out;
 		overflow: hidden;
-	}
-
-	.modal-header {
-		text-align: center;
-		padding: 2.5rem 2rem 1.5rem;
-		background: linear-gradient(135deg, #1e3a66 0%, #2d5a8e 100%);
-		position: relative;
-	}
-
-	.success-icon-wrapper {
+		padding: 1.25rem;
 		display: flex;
-		justify-content: center;
-		margin-bottom: 1.25rem;
+		flex-direction: column;
+		gap: 0.875rem;
 	}
 
-	.success-icon-circle {
-		width: 80px;
-		height: 80px;
+	.id-modal-banner {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.875rem 1rem;
+		background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);
+		border-radius: 10px;
+	}
+
+	.id-modal-banner-icon {
+		width: 2rem;
+		height: 2rem;
 		border-radius: 50%;
 		background: rgba(255, 255, 255, 0.2);
+		border: 2px solid rgba(255, 255, 255, 0.35);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border: 3px solid rgba(255, 255, 255, 0.3);
+		flex-shrink: 0;
 		animation: scaleIn 0.4s ease-out 0.1s both;
 	}
 
-	.modal-title {
-		font-size: 1.75rem;
+	.id-modal-banner-title {
+		font-size: 1rem;
 		font-weight: 700;
 		color: white;
-		margin: 0 0 0.5rem 0;
+		margin: 0;
 		line-height: 1.2;
 	}
 
-	.modal-subtitle {
-		font-size: 1rem;
-		color: rgba(255, 255, 255, 0.9);
-		margin: 0;
-		font-weight: 400;
+	.id-modal-banner-sub {
+		font-size: 0.8125rem;
+		color: rgba(255, 255, 255, 0.85);
+		margin: 0.15rem 0 0;
 	}
 
-	.modal-content {
-		padding: 2rem;
-	}
-
-	.patient-info-card {
-		background: #f9fafb;
-		border: 2px solid #e5e7eb;
-		border-radius: 12px;
-		padding: 1.5rem;
-		margin-bottom: 1.25rem;
-	}
-
-	.info-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-	}
-
-	.info-label {
-		font-size: 0.9375rem;
-		color: #6b7280;
-		font-weight: 500;
-	}
-
-	.info-value {
-		font-size: 1.125rem;
-		color: #1f2937;
-		font-weight: 600;
-	}
-
-	.divider {
-		height: 1px;
-		background: #e5e7eb;
-		margin: 1rem 0;
-	}
-
-	.patient-id-row {
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.75rem;
-	}
-
-	.patient-id-badge {
-		font-size: 1.75rem;
-		font-weight: 700;
-		color: #1e3a66;
-		background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-		padding: 0.75rem 1.5rem;
+	/* ID Card */
+	.id-card {
 		border-radius: 10px;
-		letter-spacing: 0.05em;
-		border: 2px solid #93c5fd;
-		box-shadow: 0 2px 8px rgba(30, 58, 102, 0.1);
-		align-self: center;
-		width: 100%;
-		text-align: center;
+		overflow: hidden;
+		border: 2px solid #c9d3e8;
+		box-shadow: 0 4px 16px rgba(11, 45, 86, 0.15);
 	}
 
-	.note-box {
+	.id-card-header {
+		background: linear-gradient(100deg, #0b2d56 0%, #1a4d7a 100%);
+		position: relative;
+		overflow: hidden;
+	}
+
+	.id-card-gold-stripe {
+		position: absolute;
+		left: 0;
+		top: 0;
+		bottom: 0;
+		width: 7px;
+		background: linear-gradient(180deg, #b8881a 0%, #e8c84a 45%, #b8881a 100%);
+	}
+
+	.id-card-header-inner {
 		display: flex;
-		gap: 0.75rem;
+		align-items: center;
+		gap: 0.875rem;
+		padding: 0.75rem 1rem 0.75rem 1.25rem;
+	}
+
+	.id-card-logo {
+		width: 54px;
+		height: 54px;
+		object-fit: contain;
+		flex-shrink: 0;
+		filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+	}
+
+	.id-card-org-name {
+		font-size: 0.8125rem;
+		font-weight: 800;
+		color: white;
+		letter-spacing: 0.04em;
+		line-height: 1.2;
+	}
+
+	.id-card-plan-name {
+		font-size: 0.6875rem;
+		font-weight: 700;
+		color: #e8c84a;
+		letter-spacing: 0.07em;
+		margin-top: 0.1rem;
+	}
+
+	.id-card-address {
+		font-size: 0.625rem;
+		color: rgba(255, 255, 255, 0.72);
+		margin-top: 0.2rem;
+		line-height: 1.35;
+	}
+
+	.id-card-body {
+		background: #f5f7fb;
+		display: flex;
+		min-height: 130px;
+	}
+
+	.id-card-photo-area {
+		width: 96px;
+		flex-shrink: 0;
+		display: flex;
+		align-items: stretch;
+		border-right: 1.5px solid #c9d3e8;
+		background: #dce3f0;
+		position: relative;
+	}
+
+	.id-card-photo-area::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 7px;
+		height: 100%;
+		background: linear-gradient(180deg, #0b2d56 0%, #1a4d7a 100%);
+	}
+
+	.id-card-photo-placeholder {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.75rem 0.5rem 0.75rem 1.125rem;
+	}
+
+	.id-card-avatar-svg {
+		width: 58px;
+		height: 58px;
+	}
+
+	.id-card-details {
+		flex: 1;
+		padding: 0.875rem 1rem;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.id-card-mrn {
+		font-size: 0.8125rem;
+		font-weight: 700;
+		color: #0b2d56;
+		letter-spacing: 0.03em;
+		margin-bottom: 0.3rem;
+	}
+
+	.id-card-mrn-val {
+		font-size: 0.9375rem;
+	}
+
+	.id-card-member-name {
+		font-size: 1.0625rem;
+		font-weight: 700;
+		color: #111827;
+		line-height: 1.2;
+	}
+
+	.id-card-name-underline {
+		height: 1.5px;
+		background: #374151;
+		margin: 0.2rem 0 0.1rem;
+		width: 100%;
+	}
+
+	.id-card-name-label {
+		font-size: 0.5625rem;
+		color: #6b7280;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		margin-bottom: 0.5rem;
+	}
+
+	.id-card-fields {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	.id-card-field {
+		font-size: 0.8125rem;
+		color: #374151;
+		line-height: 1.4;
+	}
+
+	.id-field-key {
+		font-weight: 700;
+		color: #0b2d56;
+	}
+
+	.id-modal-note {
+		display: flex;
+		gap: 0.5rem;
 		align-items: flex-start;
 		background: #eff6ff;
 		border: 1px solid #bfdbfe;
 		border-radius: 8px;
-		padding: 1rem;
+		padding: 0.75rem;
 	}
 
-	.note-box p {
+	.id-modal-note p {
 		margin: 0;
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 		color: #1e40af;
 		line-height: 1.5;
 	}
 
-	.modal-actions {
+	.id-modal-actions {
 		display: flex;
 		justify-content: center;
-		padding: 0 2rem 2rem;
 	}
 
 	.btn-modal-close {
-		padding: 0.875rem 3rem;
+		padding: 0.75rem 2.5rem;
 		font-size: 0.9375rem;
 		font-weight: 600;
 		color: white;
-		background: linear-gradient(135deg, #1e3a66 0%, #2d5a8e 100%);
+		background: linear-gradient(135deg, #0b2d56 0%, #1a4d7a 100%);
 		border: none;
 		border-radius: 8px;
 		cursor: pointer;
 		transition: all 0.2s;
-		box-shadow: 0 2px 8px rgba(30, 58, 102, 0.2);
+		box-shadow: 0 2px 8px rgba(11, 45, 86, 0.2);
 	}
 
 	.btn-modal-close:hover {
 		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(30, 58, 102, 0.3);
+		box-shadow: 0 4px 12px rgba(11, 45, 86, 0.3);
 	}
 
 	@keyframes fadeIn {
@@ -1435,29 +1573,40 @@
 			width: 100%;
 		}
 
-		.success-modal {
+		.id-modal-wrapper {
 			width: 95%;
-			max-width: 95%;
+			padding: 1rem;
 		}
 
-		.modal-header {
-			padding: 2rem 1.5rem 1.25rem;
+		.id-card-header-inner {
+			gap: 0.625rem;
+			padding: 0.625rem 0.75rem 0.625rem 1rem;
 		}
 
-		.modal-title {
-			font-size: 1.5rem;
+		.id-card-logo {
+			width: 40px;
+			height: 40px;
 		}
 
-		.modal-content {
-			padding: 1.5rem;
+		.id-card-org-name {
+			font-size: 0.6875rem;
 		}
 
-		.patient-id-badge {
-			font-size: 1.5rem;
+		.id-card-plan-name {
+			font-size: 0.5625rem;
 		}
 
-		.modal-actions {
-			padding: 0 1.5rem 1.5rem;
+		.id-card-photo-area {
+			width: 72px;
+		}
+
+		.id-card-avatar-svg {
+			width: 44px;
+			height: 44px;
+		}
+
+		.id-card-member-name {
+			font-size: 0.9375rem;
 		}
 
 		.btn-modal-close {
