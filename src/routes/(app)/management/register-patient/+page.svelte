@@ -275,6 +275,48 @@
 		}
 	}
 
+	function generateStrongPassword(length: number = 12): string {
+		const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+		const lowercase = 'abcdefghijkmnopqrstuvwxyz';
+		const numbers = '23456789';
+		const symbols = '!@#*_-?';
+		const allCharacters = uppercase + lowercase + numbers + symbols;
+
+		const pickRandom = (characters: string): string => {
+			const randomIndex = Math.floor(Math.random() * characters.length);
+			return characters[randomIndex];
+		};
+
+		// Ensure at least one character from each required group.
+		const passwordCharacters = [
+			pickRandom(uppercase),
+			pickRandom(lowercase),
+			pickRandom(numbers),
+			pickRandom(symbols)
+		];
+
+		while (passwordCharacters.length < length) {
+			passwordCharacters.push(pickRandom(allCharacters));
+		}
+
+		for (let i = passwordCharacters.length - 1; i > 0; i--) {
+			const randomIndex = Math.floor(Math.random() * (i + 1));
+			[passwordCharacters[i], passwordCharacters[randomIndex]] = [
+				passwordCharacters[randomIndex],
+				passwordCharacters[i]
+			];
+		}
+
+		return passwordCharacters.join('');
+	}
+
+	function handleGeneratePassword() {
+		const generatedPassword = generateStrongPassword(12);
+		password = generatedPassword;
+		confirmPassword = generatedPassword;
+		showToast('Strong password generated and applied.', 'success', 2500);
+	}
+
 	function getPatientRegistrationErrorMessage(error: any): string {
 		const code = error?.code as string | undefined;
 
@@ -501,7 +543,19 @@
 			<form on:submit|preventDefault={handlePatientRegistration} class="form-content">
 		<!-- Account Credentials Section -->
 		<div class="form-section">
-			<h2 class="section-title">Account Credentials</h2>
+			<div class="section-header">
+				<div>
+					<h2 class="section-title">Account Credentials</h2>
+					<p class="section-subtitle">Set secure login details for this member account.</p>
+				</div>
+				<button
+					type="button"
+					class="btn-generate-password"
+					on:click={handleGeneratePassword}
+				>
+					Generate Password
+				</button>
+			</div>
 			<div class="form-grid">
 				<div class="form-group">
 					<Label for="email" class="form-label">Email Address</Label>
@@ -583,7 +637,12 @@
 
 		<!-- Personal Information Section -->
 		<div class="form-section">
-			<h2 class="section-title">Personal Information</h2>
+			<div class="section-header">
+				<div>
+					<h2 class="section-title">Personal Information</h2>
+					<p class="section-subtitle">Basic identity and contact details of the member.</p>
+				</div>
+			</div>
 			<div class="form-grid-4">
 				<div class="form-group">
 					<Label for="firstName" class="form-label">First Name *</Label>
@@ -642,7 +701,12 @@
 
 		<!-- Medical Information Section -->
 		<div class="form-section">
-			<h2 class="section-title">Medical Information</h2>
+			<div class="section-header">
+				<div>
+					<h2 class="section-title">Medical Information</h2>
+					<p class="section-subtitle">Health background and history for treatment reference.</p>
+				</div>
+			</div>
 
 			<div class="form-grid">
 				<div class="form-group">
@@ -889,13 +953,60 @@
 		border: 1px solid #e5e7eb;
 	}
 
+	.section-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 1rem;
+		margin-bottom: 1.25rem;
+		padding-bottom: 0.85rem;
+		border-bottom: 1px solid #e2e8f0;
+	}
+
 	.section-title {
 		font-size: 1.125rem;
-		font-weight: 600;
+		font-weight: 700;
 		color: #1e3a66;
-		margin: 0 0 1.5rem 0;
-		padding-bottom: 0;
-		border-bottom: none;
+		margin: 0;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.section-title::before {
+		content: '';
+		display: inline-block;
+		width: 0.35rem;
+		height: 1.1rem;
+		border-radius: 999px;
+		background: linear-gradient(180deg, #1e3a66 0%, #2d5a8e 100%);
+	}
+
+	.section-subtitle {
+		font-size: 0.875rem;
+		line-height: 1.4;
+		color: #64748b;
+		margin: 0.4rem 0 0;
+	}
+
+	.btn-generate-password {
+		padding: 0.5rem 0.85rem;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		line-height: 1;
+		color: #1e3a66;
+		background: #eff6ff;
+		border: 1px solid #bfdbfe;
+		border-radius: 0.5rem;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		white-space: nowrap;
+	}
+
+	.btn-generate-password:hover {
+		background: #dbeafe;
+		border-color: #93c5fd;
+		transform: translateY(-1px);
 	}
 
 	.form-grid {
@@ -1270,6 +1381,16 @@
 		.page-container {
 			padding: 1rem;
 			padding-bottom: 6rem;
+		}
+
+		.section-header {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.75rem;
+		}
+
+		.btn-generate-password {
+			width: 100%;
 		}
 
 
