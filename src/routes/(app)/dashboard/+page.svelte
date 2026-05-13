@@ -40,6 +40,67 @@
 const WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; // For indexing
 const REPORT_DATE_LABEL = 'Report Generated Date';
 const REPORT_DATE_DESCRIPTION = 'Indicates when this export was created.';
+const MEDICAL_CONDITION_OPTIONS = [
+	'Anemia',
+	'Anxiety',
+	'Arthritis',
+	'Asthma',
+	'Blood transfusion',
+	'Cancer',
+	'Clotting disorder',
+	'Congestive Heart Failure',
+	'Depression',
+	'Diabetes Mellitus',
+	'Emphysema/COPD',
+	'Gastro esophageal reflux (GERD)',
+	'Glaucoma',
+	'Heart murmur',
+	'HIV/AIDS',
+	'High Cholesterol',
+	'Hypertension/high blood pressure'
+];
+const SURGICAL_HISTORY_OPTIONS = [
+	'Appendectomy',
+	'Brain surgery',
+	'Breast surgery',
+	'CABG',
+	'Cholecystectomy',
+	'Colon surgery',
+	'Tonsillectomy',
+	'Thyroid surgery',
+	'Lung surgery',
+	'C-section',
+	'Eye surgery',
+	'Fracture surgery',
+	'Hernia repair',
+	'Hysterectomy',
+	'Joint surgery',
+	'Pancreatomy',
+	'Varicose vein surgery',
+	'Prostate surgery',
+	'Weight reduction surgery'
+];
+const FAMILY_HISTORY_CONDITIONS = [
+	'Alcohol abuse',
+	'Breast cancer',
+	'Ovarian cancer',
+	'Prostate cancer',
+	'Other cancer',
+	'Diabetes',
+	'Heart Disease',
+	'High cholesterol',
+	'Hypertension',
+	'Mental illness'
+];
+const FAMILY_MEMBERS = [
+	'Mother',
+	'Father',
+	'Sister',
+	'Brother',
+	'Daughter',
+	'Son',
+	'Other relative (specify)'
+];
 
 	// --- Firebase Initialization ---
 	let app: FirebaseApp;
@@ -78,8 +139,12 @@ interface Patient {
 	currentMedications?: string;
 	medicalConditions?: any;
 	surgicalHistory?: any;
+	surgicalHistoryItems?: string[];
 	familyHistory?: any;
+	familyHistoryTable?: { [member: string]: string[] };
 	otherMedicalConditions?: string;
+	otherSurgicalHistory?: string;
+	otherRelativeSpecify?: string;
 	otherFamilyHistory?: string;
 	bloodTransfusionHistory?: string;
 	bloodTransfusionDate?: string;
@@ -252,40 +317,104 @@ let filteredMonthlyAppointments: Appointment[] = [];
 		}
 	}
 
+	function normalizeMedicalKey(value: string): string {
+		return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+	}
+
+	function toSelectionArray(source: any, options: string[]): string[] {
+		if (!source) return [];
+		if (Array.isArray(source)) {
+			const selectedSet = new Set(source.map((item) => String(item).trim()).filter(Boolean));
+			return options.filter((option) => selectedSet.has(option));
+		}
+
+		if (typeof source !== 'object') return [];
+
+		const selectedKeys = new Set(
+			Object.entries(source)
+				.filter(([, value]) => value === true)
+				.map(([key]) => normalizeMedicalKey(key))
+		);
+
+		return options.filter((option) => selectedKeys.has(normalizeMedicalKey(option)));
+	}
+
+	function toBooleanRecordFromSelections(selectedItems: string[], options: string[]): Record<string, boolean> {
+		const selectedSet = new Set(selectedItems.map((item) => normalizeMedicalKey(item)));
+		return options.reduce((acc, option) => {
+			acc[normalizeMedicalKey(option)] = selectedSet.has(normalizeMedicalKey(option));
+			return acc;
+		}, {} as Record<string, boolean>);
+	}
+
+	function resolveFamilyHistoryTable(patient: Patient): { [member: string]: string[] } {
+		if (patient.familyHistoryTable && typeof patient.familyHistoryTable === 'object' && !Array.isArray(patient.familyHistoryTable)) {
+			const table: { [member: string]: string[] } = {};
+			FAMILY_MEMBERS.forEach((member) => {
+				const values = patient.familyHistoryTable?.[member];
+				table[member] = Array.isArray(values) ? values.filter(Boolean) : [];
+			});
+			return table;
+		}
+
+		const legacy = patient.familyHistory;
+		if (!legacy || typeof legacy !== 'object' || Array.isArray(legacy)) {
+			return FAMILY_MEMBERS.reduce((acc, member) => {
+				acc[member] = [];
+				return acc;
+			}, {} as { [member: string]: string[] });
+		}
+
+		return FAMILY_MEMBERS.reduce((acc, member) => {
+			const legacyKey = normalizeMedicalKey(member);
+			const matchingEntry = Object.entries(legacy).find(([key]) => normalizeMedicalKey(key) === legacyKey);
+			if (!matchingEntry) {
+				acc[member] = [];
+				return acc;
+			}
+
+			const conditions = matchingEntry[1];
+			if (Array.isArray(conditions)) {
+				acc[member] = conditions.filter(Boolean);
+				return acc;
+			}
+
+			if (!conditions || typeof conditions !== 'object') {
+				acc[member] = [];
+				return acc;
+			}
+
+			const conditionKeys = new Set(
+				Object.entries(conditions)
+					.filter(([, value]) => value === true)
+					.map(([key]) => normalizeMedicalKey(key))
+			);
+
+			acc[member] = FAMILY_HISTORY_CONDITIONS.filter((condition) => conditionKeys.has(normalizeMedicalKey(condition)));
+			return acc;
+		}, {} as { [member: string]: string[] });
+	}
+
 	function getCheckedConditionsDisplay(conditions: any): string[] {
-		if (!conditions || typeof conditions !== 'object') return [];
+		if (!conditions) return [];
+		if (Array.isArray(conditions)) {
+			return conditions.map((item) => String(item)).filter(Boolean);
+		}
+		if (typeof conditions !== 'object') return [];
 		return Object.entries(conditions)
 			.filter(([_, value]) => value === true)
 			.map(([key]) => key.replace(/([A-Z])/g, ' $1').trim())
 			.map(str => str.charAt(0).toUpperCase() + str.slice(1));
 	}
 
-	function getFamilyHistoryDisplay(familyHistory: any): Array<{relative: string, conditions: string[]}> {
-		if (!familyHistory || typeof familyHistory !== 'object') return [];
-		
-		const relativeLabels: {[key: string]: string} = {
-			mother: 'Mother',
-			father: 'Father',
-			sister: 'Sister',
-			brother: 'Brother',
-			daughter: 'Daughter',
-			son: 'Son',
-			otherRelative: 'Other Relative'
-		};
-		
-		return Object.entries(familyHistory)
-			.map(([relative, conditions]: [string, any]) => {
-				const checkedConditions = Object.entries(conditions || {})
-					.filter(([_, value]) => value === true)
-					.map(([key]) => key.replace(/([A-Z])/g, ' $1').trim())
-					.map(str => str.charAt(0).toUpperCase() + str.slice(1));
-				
-				return {
-					relative: relativeLabels[relative] || relative,
-					conditions: checkedConditions
-				};
-			})
-			.filter(item => item.conditions.length > 0);
+	function getFamilyHistoryDisplay(patient: Patient): Array<{relative: string, conditions: string[]}> {
+		const table = resolveFamilyHistoryTable(patient);
+		return FAMILY_MEMBERS
+			.map((member) => ({
+				relative: member,
+				conditions: table[member] || []
+			}))
+			.filter((item) => item.conditions.length > 0);
 	}
 
 function getPatientInitials(patient?: Patient | null): string {
@@ -591,6 +720,285 @@ async function editMemberRegistrationDate(patient: Patient): Promise<void> {
 		await Swal.fire({
 			title: 'Update Failed',
 			text: error instanceof Error ? error.message : 'Unable to save registration date. Please try again.',
+			icon: 'error'
+		});
+	}
+}
+
+async function editMemberMedicalInfo(patient: Patient): Promise<void> {
+	const bloodTypeOptions = ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+	const selectedMedicalConditions = toSelectionArray(patient.medicalConditions, MEDICAL_CONDITION_OPTIONS);
+	const selectedSurgicalHistory = toSelectionArray(patient.surgicalHistoryItems || patient.surgicalHistory, SURGICAL_HISTORY_OPTIONS);
+	const familyHistoryTable = resolveFamilyHistoryTable(patient);
+
+	const promptResult = await Swal.fire({
+		title: 'Edit Medical Information',
+		html: `
+			<style>
+				#swal-medical-root {
+					font-size: 14px;
+					color: #374151;
+				}
+				#swal-medical-root .section-title {
+					font-size: 14px;
+					font-weight: 700;
+					color: #1f2937;
+				}
+				#swal-medical-root .field-label {
+					font-size: 13px;
+					font-weight: 600;
+					line-height: 1.3;
+					color: #374151;
+				}
+				#swal-medical-root .check-grid label {
+					font-size: 13px;
+				}
+				#swal-medical-root .family-table {
+					font-size: 12px;
+				}
+				#swal-medical-root .family-table th {
+					font-size: 12px;
+					font-weight: 700;
+				}
+				#swal-medical-root .family-table td:first-child {
+					font-size: 12px;
+					font-weight: 600;
+				}
+				#swal-medical-root .swal2-input,
+				#swal-medical-root .swal2-textarea {
+					font-size: 15px;
+				}
+				@media (max-width: 900px) {
+					#swal-medical-grid {
+						display: block !important;
+					}
+					#swal-medical-grid > div {
+						margin-bottom: 12px;
+					}
+					#swal-medical-grid .swal-col3 {
+						grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+					}
+				}
+			</style>
+			<div id="swal-medical-root" style="text-align:left; width:100%; box-sizing:border-box; max-height:67vh; overflow:auto; padding:4px 2px 2px;">
+				<div style="margin-bottom:12px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px;">
+					<strong>Member:</strong> ${(patient.name || '')} ${(patient.lastName || '')}
+				</div>
+
+				<div id="swal-medical-grid" style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; align-items:start;">
+					<div style="border:1px solid #e5e7eb; border-radius:10px; padding:10px; background:#fff;">
+						<div class="section-title" style="margin-bottom:8px;">Core Medical Details</div>
+						<label for="swal-blood-type" class="field-label" style="display:block; margin-bottom:6px;">Blood Type</label>
+						<select id="swal-blood-type" class="swal2-input" style="margin:0; width:100%; height:42px; border-radius:8px; box-sizing:border-box;">
+							${bloodTypeOptions
+								.map((option) => `<option value="${option}" ${option === (patient.bloodType || '') ? 'selected' : ''}>${option || 'Not specified'}</option>`)
+								.join('')}
+						</select>
+
+						<label for="swal-allergies" class="field-label" style="display:block; margin:10px 0 6px;">Allergies</label>
+						<input id="swal-allergies" class="swal2-input" style="margin:0; width:100%; height:42px; border-radius:8px; box-sizing:border-box;" value="${(patient.allergies || '').replace(/"/g, '&quot;')}" placeholder="e.g., Penicillin, Peanuts" />
+
+						<label for="swal-current-medications" class="field-label" style="display:block; margin:10px 0 6px;">Current Medications</label>
+						<textarea id="swal-current-medications" class="swal2-textarea" style="margin:0; width:100%; border-radius:8px; min-height:74px; box-sizing:border-box; resize:vertical;" placeholder="List current medications and dosages">${patient.currentMedications || ''}</textarea>
+
+						<label for="swal-other-medical-conditions" class="field-label" style="display:block; margin:10px 0 6px;">Other Medical Conditions</label>
+						<textarea id="swal-other-medical-conditions" class="swal2-textarea" style="margin:0; width:100%; border-radius:8px; min-height:68px; box-sizing:border-box; resize:vertical;" placeholder="Additional medical conditions">${patient.otherMedicalConditions || ''}</textarea>
+					</div>
+
+					<div style="border:1px solid #e5e7eb; border-radius:10px; padding:10px; background:#fff;">
+						<div class="section-title" style="margin-bottom:8px;">Transfusion And Notes</div>
+						<label for="swal-blood-transfusion-history" class="field-label" style="display:block; margin-bottom:6px;">Blood Transfusion History</label>
+						<select id="swal-blood-transfusion-history" class="swal2-input" style="margin:0; width:100%; height:42px; border-radius:8px; box-sizing:border-box;">
+							<option value="" ${(patient.bloodTransfusionHistory || '') === '' ? 'selected' : ''}>Not specified</option>
+							<option value="Yes" ${(patient.bloodTransfusionHistory || '') === 'Yes' ? 'selected' : ''}>Yes</option>
+							<option value="No" ${(patient.bloodTransfusionHistory || '') === 'No' ? 'selected' : ''}>No</option>
+						</select>
+
+						<label for="swal-blood-transfusion-date" class="field-label" style="display:block; margin:10px 0 6px;">Blood Transfusion Date</label>
+						<input id="swal-blood-transfusion-date" type="date" class="swal2-input" style="margin:0; width:100%; height:42px; border-radius:8px; box-sizing:border-box;" value="${(patient.bloodTransfusionDate || '').substring(0, 10)}" />
+
+						<label for="swal-other-surgical-history" class="field-label" style="display:block; margin:10px 0 6px;">Other Surgeries (specify)</label>
+						<textarea id="swal-other-surgical-history" class="swal2-textarea" style="margin:0; width:100%; border-radius:8px; min-height:68px; box-sizing:border-box; resize:vertical;" placeholder="Other surgeries and dates">${patient.otherSurgicalHistory || ''}</textarea>
+
+						<label for="swal-other-relative-specify" class="field-label" style="display:block; margin:10px 0 6px;">Specify other relative and conditions</label>
+						<textarea id="swal-other-relative-specify" class="swal2-textarea" style="margin:0; width:100%; border-radius:8px; min-height:68px; box-sizing:border-box; resize:vertical;" placeholder="If applicable">${patient.otherRelativeSpecify || ''}</textarea>
+					</div>
+
+					<div style="grid-column:1 / -1; border:1px solid #e5e7eb; border-radius:10px; padding:10px; background:#fff;">
+						<div class="section-title" style="display:block; margin-bottom:8px;">Medical Conditions (check all that apply)</div>
+						<div class="swal-col3 check-grid" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px 10px; padding:10px; border:1px solid #d1d5db; border-radius:8px; max-height:150px; overflow:auto;">
+							${MEDICAL_CONDITION_OPTIONS.map((condition, idx) => `
+								<label style="display:flex; gap:8px; align-items:flex-start; font-size:12px; color:#374151;">
+									<input type="checkbox" id="swal-medical-${idx}" value="${condition}" ${selectedMedicalConditions.includes(condition) ? 'checked' : ''} style="margin-top:2px;" />
+									<span>${condition}</span>
+								</label>
+							`).join('')}
+						</div>
+					</div>
+
+					<div style="grid-column:1 / -1; border:1px solid #e5e7eb; border-radius:10px; padding:10px; background:#fff;">
+						<div class="section-title" style="display:block; margin-bottom:8px;">Surgical History (check all that apply)</div>
+						<div class="swal-col3 check-grid" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px 10px; padding:10px; border:1px solid #d1d5db; border-radius:8px; max-height:150px; overflow:auto;">
+							${SURGICAL_HISTORY_OPTIONS.map((surgery, idx) => `
+								<label style="display:flex; gap:8px; align-items:flex-start; font-size:12px; color:#374151;">
+									<input type="checkbox" id="swal-surgery-${idx}" value="${surgery}" ${selectedSurgicalHistory.includes(surgery) ? 'checked' : ''} style="margin-top:2px;" />
+									<span>${surgery}</span>
+								</label>
+							`).join('')}
+						</div>
+					</div>
+
+					<div style="grid-column:1 / -1; border:1px solid #e5e7eb; border-radius:10px; padding:10px; background:#fff;">
+						<div class="section-title" style="margin-bottom:8px;">Family History (check all that apply)</div>
+						<div style="border:1px solid #d1d5db; border-radius:8px; overflow:auto; max-height:240px;">
+							<table class="family-table" style="width:100%; border-collapse:collapse; min-width:900px;">
+								<thead style="background:#f8fafc; position:sticky; top:0; z-index:1;">
+									<tr>
+										<th style="text-align:left; border-bottom:1px solid #e5e7eb; padding:6px; position:sticky; left:0; background:#f8fafc; min-width:150px;">Member</th>
+										${FAMILY_HISTORY_CONDITIONS.map((condition) => `<th style="text-align:center; border-bottom:1px solid #e5e7eb; padding:6px; white-space:nowrap;">${condition}</th>`).join('')}
+									</tr>
+								</thead>
+								<tbody>
+									${FAMILY_MEMBERS.map((member, memberIdx) => `
+										<tr>
+											<td style="border-top:1px solid #f1f5f9; padding:6px; position:sticky; left:0; background:#fff; font-weight:600;">${member}</td>
+											${FAMILY_HISTORY_CONDITIONS.map((condition, conditionIdx) => `
+												<td style="border-top:1px solid #f1f5f9; text-align:center; padding:6px;">
+													<input type="checkbox" id="swal-family-${memberIdx}-${conditionIdx}" ${familyHistoryTable[member]?.includes(condition) ? 'checked' : ''} />
+												</td>
+											`).join('')}
+										</tr>
+									`).join('')}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		`,
+		width: 'min(1080px, 94vw)',
+		padding: '1rem 1.1rem 0.85rem',
+		showCancelButton: true,
+		confirmButtonText: 'Save Changes',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#1e3a66',
+		focusConfirm: false,
+		preConfirm: () => {
+			const bloodTypeEl = document.getElementById('swal-blood-type') as HTMLSelectElement | null;
+			const allergiesEl = document.getElementById('swal-allergies') as HTMLInputElement | null;
+			const currentMedicationsEl = document.getElementById('swal-current-medications') as HTMLTextAreaElement | null;
+			const otherMedicalConditionsEl = document.getElementById('swal-other-medical-conditions') as HTMLTextAreaElement | null;
+			const otherSurgicalHistoryEl = document.getElementById('swal-other-surgical-history') as HTMLTextAreaElement | null;
+			const otherRelativeSpecifyEl = document.getElementById('swal-other-relative-specify') as HTMLTextAreaElement | null;
+			const bloodTransfusionHistoryEl = document.getElementById('swal-blood-transfusion-history') as HTMLSelectElement | null;
+			const bloodTransfusionDateEl = document.getElementById('swal-blood-transfusion-date') as HTMLInputElement | null;
+
+			if (!bloodTypeEl || !allergiesEl || !currentMedicationsEl || !otherMedicalConditionsEl || !otherSurgicalHistoryEl || !otherRelativeSpecifyEl || !bloodTransfusionHistoryEl || !bloodTransfusionDateEl) {
+				Swal.showValidationMessage('Unable to read form fields. Please try again.');
+				return;
+			}
+
+			const selectedMedical = MEDICAL_CONDITION_OPTIONS.filter((_, idx) => {
+				const node = document.getElementById(`swal-medical-${idx}`) as HTMLInputElement | null;
+				return Boolean(node?.checked);
+			});
+
+			const selectedSurgery = SURGICAL_HISTORY_OPTIONS.filter((_, idx) => {
+				const node = document.getElementById(`swal-surgery-${idx}`) as HTMLInputElement | null;
+				return Boolean(node?.checked);
+			});
+
+			const selectedFamilyTable = FAMILY_MEMBERS.reduce((acc, member, memberIdx) => {
+				const selectedConditions = FAMILY_HISTORY_CONDITIONS.filter((_, conditionIdx) => {
+					const node = document.getElementById(`swal-family-${memberIdx}-${conditionIdx}`) as HTMLInputElement | null;
+					return Boolean(node?.checked);
+				});
+				acc[member] = selectedConditions;
+				return acc;
+			}, {} as { [member: string]: string[] });
+
+			return {
+				bloodType: bloodTypeEl.value.trim(),
+				allergies: allergiesEl.value.trim(),
+				currentMedications: currentMedicationsEl.value.trim(),
+				medicalConditionsList: selectedMedical,
+				otherMedicalConditions: otherMedicalConditionsEl.value.trim(),
+				surgicalHistoryItems: selectedSurgery,
+				otherSurgicalHistory: otherSurgicalHistoryEl.value.trim(),
+				familyHistoryTable: selectedFamilyTable,
+				otherRelativeSpecify: otherRelativeSpecifyEl.value.trim(),
+				bloodTransfusionHistory: bloodTransfusionHistoryEl.value.trim(),
+				bloodTransfusionDate: bloodTransfusionDateEl.value.trim()
+			};
+		}
+	});
+
+	if (!promptResult.isConfirmed || !promptResult.value) return;
+
+	const payload = promptResult.value as {
+		bloodType: string;
+		allergies: string;
+		currentMedications: string;
+		medicalConditionsList: string[];
+		otherMedicalConditions: string;
+		surgicalHistoryItems: string[];
+		otherSurgicalHistory: string;
+		familyHistoryTable: { [member: string]: string[] };
+		otherRelativeSpecify: string;
+		bloodTransfusionHistory: string;
+		bloodTransfusionDate: string;
+	};
+
+	const medicalConditionsLegacy = toBooleanRecordFromSelections(payload.medicalConditionsList, MEDICAL_CONDITION_OPTIONS);
+	const surgicalHistoryLegacy = toBooleanRecordFromSelections(payload.surgicalHistoryItems, SURGICAL_HISTORY_OPTIONS);
+	const familyHistoryLegacy = FAMILY_MEMBERS.reduce((acc, member) => {
+		acc[normalizeMedicalKey(member)] = toBooleanRecordFromSelections(payload.familyHistoryTable[member] || [], FAMILY_HISTORY_CONDITIONS);
+		return acc;
+	}, {} as Record<string, Record<string, boolean>>);
+
+	const updatePayload = {
+		bloodType: payload.bloodType,
+		allergies: payload.allergies,
+		currentMedications: payload.currentMedications,
+		medicalConditions: medicalConditionsLegacy,
+		medicalConditionsList: payload.medicalConditionsList,
+		otherMedicalConditions: payload.otherMedicalConditions,
+		surgicalHistory: surgicalHistoryLegacy,
+		surgicalHistoryItems: payload.surgicalHistoryItems,
+		otherSurgicalHistory: payload.otherSurgicalHistory,
+		familyHistory: familyHistoryLegacy,
+		familyHistoryTable: payload.familyHistoryTable,
+		otherRelativeSpecify: payload.otherRelativeSpecify,
+		bloodTransfusionHistory: payload.bloodTransfusionHistory,
+		bloodTransfusionDate: payload.bloodTransfusionDate,
+		lastModified: new Date().toISOString()
+	};
+
+	try {
+		await updateDoc(doc(db, FIRESTORE_COLLECTIONS.PATIENTS, patient.id), updatePayload);
+
+		syncPatientState(patient.id, updatePayload as Partial<Patient>);
+
+		await Swal.fire({
+			title: 'Medical Information Updated',
+			html: `
+				<div style="text-align:left; line-height:1.7;">
+					<p><strong>Name:</strong> ${(patient.name || '')} ${(patient.lastName || '')}</p>
+					<p><strong>Blood Type:</strong> ${payload.bloodType || 'Not specified'}</p>
+					<p><strong>Medical Conditions:</strong> ${payload.medicalConditionsList.length}</p>
+					<p><strong>Surgical History:</strong> ${payload.surgicalHistoryItems.length}</p>
+					<p style="margin-top:10px; color:#6b7280; font-size:12px;">Saved: ${new Date().toLocaleString()}</p>
+				</div>
+			`,
+			icon: 'success',
+			confirmButtonText: 'Close',
+			confirmButtonColor: '#1e3a66'
+		});
+	} catch (error) {
+		console.error('Failed to update medical information:', error);
+		await Swal.fire({
+			title: 'Update Failed',
+			text: error instanceof Error ? error.message : 'Unable to save medical information. Please try again.',
 			icon: 'error'
 		});
 	}
@@ -1142,10 +1550,14 @@ async function fetchAllPatients(): Promise<Patient[]> {
 					bloodType: data.bloodType || '',
 					allergies: data.allergies || '',
 					currentMedications: data.currentMedications || '',
-					medicalConditions: data.medicalConditions || {},
+					medicalConditions: data.medicalConditions || data.medicalConditionsList || [],
 					surgicalHistory: data.surgicalHistory || {},
+					surgicalHistoryItems: data.surgicalHistoryItems || [],
 					familyHistory: data.familyHistory || {},
+					familyHistoryTable: data.familyHistoryTable || {},
 					otherMedicalConditions: data.otherMedicalConditions || '',
+					otherSurgicalHistory: data.otherSurgicalHistory || '',
+					otherRelativeSpecify: data.otherRelativeSpecify || '',
 					otherFamilyHistory: data.otherFamilyHistory || '',
 					bloodTransfusionHistory: data.bloodTransfusionHistory || '',
 					bloodTransfusionDate: data.bloodTransfusionDate || ''
@@ -3073,38 +3485,34 @@ async function downloadExcelReportFromReport(
 			{/if}
 
 			<!-- Surgical History -->
-			{#if selectedPatient.surgicalHistory && Object.keys(selectedPatient.surgicalHistory).length > 0}
-				{@const surgeries = getCheckedConditionsDisplay(selectedPatient.surgicalHistory)}
-				{#if surgeries.length > 0}
-					<div class="mb-6">
-						<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100 section-title-animated">Surgical History</h4>
-						<div class="flex flex-wrap gap-2">
-							{#each surgeries as surgery}
-								<span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium badge-animated">{surgery}</span>
-							{/each}
-						</div>
+			{#if getCheckedConditionsDisplay((selectedPatient.surgicalHistoryItems && selectedPatient.surgicalHistoryItems.length > 0) ? selectedPatient.surgicalHistoryItems : selectedPatient.surgicalHistory).length > 0}
+				<div class="mb-6">
+					<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100 section-title-animated">Surgical History</h4>
+					<div class="flex flex-wrap gap-2">
+						{#each getCheckedConditionsDisplay((selectedPatient.surgicalHistoryItems && selectedPatient.surgicalHistoryItems.length > 0) ? selectedPatient.surgicalHistoryItems : selectedPatient.surgicalHistory) as surgery}
+							<span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium badge-animated">{surgery}</span>
+						{/each}
 					</div>
-				{/if}
-			{/if}				<!-- Family History -->
-				{#if selectedPatient.familyHistory && Object.keys(selectedPatient.familyHistory).length > 0}
-					{@const familyItems = getFamilyHistoryDisplay(selectedPatient.familyHistory)}
-					{#if familyItems.length > 0}
-						<div class="mb-6">
-							<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100">Family History</h4>
-							<div class="space-y-2">
-								{#each familyItems as item}
-									<div class="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
-										<strong class="text-gray-800">{item.relative}:</strong>
-										<span class="text-gray-700 ml-2">{item.conditions.join(', ')}</span>
-									</div>
-								{/each}
+				</div>
+			{/if}
+
+			<!-- Family History -->
+			{#if getFamilyHistoryDisplay(selectedPatient).length > 0}
+				<div class="mb-6">
+					<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100">Family History</h4>
+					<div class="space-y-2">
+						{#each getFamilyHistoryDisplay(selectedPatient) as item}
+							<div class="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+								<strong class="text-gray-800">{item.relative}:</strong>
+								<span class="text-gray-700 ml-2">{item.conditions.join(', ')}</span>
 							</div>
-						</div>
-					{/if}
-				{/if}
+						{/each}
+					</div>
+				</div>
+			{/if}
 
 				<!-- Additional Medical Information -->
-				{#if selectedPatient.otherMedicalConditions || selectedPatient.otherFamilyHistory || selectedPatient.bloodTransfusionHistory}
+				{#if selectedPatient.otherMedicalConditions || selectedPatient.otherSurgicalHistory || selectedPatient.otherRelativeSpecify || selectedPatient.otherFamilyHistory || selectedPatient.bloodTransfusionHistory}
 					<div class="mb-6">
 						<h4 class="text-lg font-bold text-blue-900 mb-3 pb-2 border-b-2 border-blue-100">Additional Medical Information</h4>
 						<div class="space-y-3">
@@ -3118,6 +3526,18 @@ async function downloadExcelReportFromReport(
 								<div class="info-item-dash">
 									<span class="info-label-dash">Other Family History:</span>
 									<span class="info-value-dash">{selectedPatient.otherFamilyHistory}</span>
+								</div>
+							{/if}
+							{#if selectedPatient.otherSurgicalHistory}
+								<div class="info-item-dash">
+									<span class="info-label-dash">Other Surgeries:</span>
+									<span class="info-value-dash">{selectedPatient.otherSurgicalHistory}</span>
+								</div>
+							{/if}
+							{#if selectedPatient.otherRelativeSpecify}
+								<div class="info-item-dash">
+									<span class="info-label-dash">Other Relative Notes:</span>
+									<span class="info-value-dash">{selectedPatient.otherRelativeSpecify}</span>
 								</div>
 							{/if}
 							{#if selectedPatient.bloodTransfusionHistory}
@@ -3138,6 +3558,12 @@ async function downloadExcelReportFromReport(
 
 				<!-- Action Buttons -->
 				<div class="flex justify-end gap-3 pt-4 border-t-2 border-gray-100">
+					<button 
+						class="px-5 py-2 rounded-lg border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50 transition-colors"
+						on:click={() => editMemberMedicalInfo(selectedPatient)}
+					>
+						Edit Medical Info
+					</button>
 					<button 
 						class="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
 						on:click={() => { openTable = 'appointments'; closePatientDetailsModal(); }}
