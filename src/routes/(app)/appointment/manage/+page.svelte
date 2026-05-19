@@ -92,6 +92,16 @@
         ''
       );
     }
+
+    function getRescheduleReason(data: any) {
+      return (
+        data?.rescheduleReason ||
+        data?.rescheduleRequestReason ||
+        data?.reasonForReschedule ||
+        data?.reason ||
+        ''
+      );
+    }
   
   async function fetchPatientProfiles() {
     // Fetch from both patientProfiles and users collections
@@ -131,10 +141,12 @@
       const data = doc.data();
       const patient = patientProfiles.find(p => p.id === data.patientId);
       const normalizedCancellationReason = getCancellationReason(data);
+      const normalizedRescheduleReason = getRescheduleReason(data);
       return {
         id: doc.id,
         ...data,
         cancellationReason: normalizedCancellationReason,
+        rescheduleReason: normalizedRescheduleReason,
         patientName: patient ? `${patient.name} ${patient.lastName}`.trim() : 'Unknown Patient',
         patientAge: patient?.age && patient.age > 0 ? patient.age : 'N/A',
         patientGender: patient?.gender && patient.gender.trim() ? patient.gender : 'N/A',
@@ -237,7 +249,7 @@
         cancelButtonColor: '#6B7280',
       });
       if (result.isConfirmed) {
-        await updateStatus(appointment.id, { status: 'Rescheduled' });
+        await updateStatus(appointment.id, { status: 'Accepted' });
       }
     }
   
@@ -526,6 +538,9 @@
                       <span class="inline-block px-2 py-1 rounded bg-gray-50 text-gray-700">Selected: {appointment.subServices.join(', ')}</span>
                     {/if}
                   </div>
+                  {#if appointment.rescheduleReason && appointment.rescheduleReason.trim()}
+                    <p class="text-xs text-gray-600 mt-1">Reason: <span class="italic">{appointment.rescheduleReason}</span></p>
+                  {/if}
                   <div class="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4">
                     <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-xs sm:text-sm rounded-md shadow-sm transition w-full sm:flex-1 font-semibold" title="Approve Reschedule" on:click={() => handleRescheduleAccept(appointment)}>
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Approve New Time
