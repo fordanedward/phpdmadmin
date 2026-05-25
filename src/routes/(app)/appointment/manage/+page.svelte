@@ -249,7 +249,18 @@
         cancelButtonColor: '#6B7280',
       });
       if (result.isConfirmed) {
-        await updateStatus(appointment.id, { status: 'Accepted' });
+        const nextDate = appointment.requestedDate || appointment.date;
+        const nextTime = appointment.requestedTime || appointment.time;
+
+        await updateStatus(appointment.id, {
+          status: 'Accepted',
+          date: nextDate,
+          time: nextTime,
+          requestedDate: null,
+          requestedTime: null,
+          rescheduleReason: '',
+          rescheduleRequestReason: ''
+        });
       }
     }
   
@@ -516,6 +527,10 @@
             {#if rescheduleRequests.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {#each rescheduleRequests as appointment (appointment.id)}
+                {@const requestedDate = appointment.requestedDate || appointment.date}
+                {@const requestedTime = appointment.requestedTime || appointment.time}
+                {@const originalDate = appointment.originalDate || (appointment.requestedDate ? appointment.date : null)}
+                {@const originalTime = appointment.originalTime || (appointment.requestedTime ? appointment.time : null)}
                 <div class="bg-white border-l-4 border-yellow-400 border-opacity-60 rounded-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all p-4 sm:p-5 flex flex-col gap-2 sm:gap-3">
                   {#if appointment.patientName && appointment.patientName !== 'Unknown Patient'}
                     <div class="font-bold text-md sm:text-lg text-gray-800 flex items-center gap-2">
@@ -527,10 +542,10 @@
                     <div class="font-semibold text-sm sm:text-base text-gray-800 italic">Patient ID: {appointment.patientId} <span class="text-xs text-gray-500">(Profile missing)</span></div>
                   {/if}
                   <div class="flex flex-col gap-1 text-xs sm:text-sm mt-1 sm:mt-2">
-                    {#if appointment.originalDate && appointment.originalTime}
-                      <span class="text-gray-600">Original: <span class="font-medium">{appointment.originalDate} at {appointment.originalTime}</span></span>
+                    {#if originalDate && originalTime}
+                      <span class="text-gray-600">Original: <span class="font-medium">{originalDate} at {originalTime}</span></span>
                     {/if}
-                    <span class="inline-block px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-medium">Requests to: {appointment.date} at {appointment.time}</span>
+                    <span class="inline-block px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-medium">Requests to: {requestedDate} at {requestedTime}</span>
                   </div>
                   <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm mt-2">
                     <span class="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700">Service: {appointment.service}</span>

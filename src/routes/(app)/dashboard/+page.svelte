@@ -37,6 +37,27 @@
 		'January', 'February', 'March', 'April', 'May', 'June',
 		'July', 'August', 'September', 'October', 'November', 'December'
 	];
+	const SCHEDULE_HOURS_CARDS = [
+		{
+			title: 'Pharmacy & Clinic Hours',
+			days: 'Monday to Saturday',
+			time: '8:00 AM - 9:00 PM',
+			icon: 'clock'
+		},
+		{
+			title: 'Laboratory Hours',
+			days: 'Monday to Saturday',
+			time: '8:00 AM - 5:00 PM',
+			icon: 'document'
+		},
+		{
+			title: 'Consultation Schedule',
+			days: 'Monday to Friday',
+			time: '8:00 AM - 5:00 PM',
+			icon: 'phone'
+		}
+	] as const;
+	const TOTAL_SCHEDULE_CARDS = SCHEDULE_HOURS_CARDS.length;
 const WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; // For indexing
 const REPORT_DATE_LABEL = 'Report Generated Date';
 const REPORT_DATE_DESCRIPTION = 'Indicates when this export was created.';
@@ -221,6 +242,8 @@ interface Prescription {
 	let exportType: 'excel' | 'pdf' = 'excel';
 	let selectedYear = CURRENT_YEAR;
 	let selectedMonth = new Date().getMonth() + 1;
+	let scheduleCarouselEl: HTMLDivElement | null = null;
+	let activeScheduleIndex = 0;
 
 	// Reports modal state
 	let showReportsModal = false;
@@ -2621,6 +2644,46 @@ async function downloadExcelReportFromReport(
 	 	appointmentViewMode = mode;
 	 }
  }
+
+	function syncScheduleIndexFromScroll(): void {
+		if (!scheduleCarouselEl) return;
+
+		const cards = Array.from(scheduleCarouselEl.querySelectorAll<HTMLElement>('[data-schedule-card]'));
+		if (!cards.length) return;
+
+		const currentScrollLeft = scheduleCarouselEl.scrollLeft;
+		let nearestIndex = 0;
+		let nearestDistance = Number.POSITIVE_INFINITY;
+
+		cards.forEach((card, index) => {
+			const distance = Math.abs(card.offsetLeft - currentScrollLeft);
+			if (distance < nearestDistance) {
+				nearestDistance = distance;
+				nearestIndex = index;
+			}
+		});
+
+		activeScheduleIndex = nearestIndex;
+	}
+
+	function goToScheduleCard(index: number): void {
+		if (!scheduleCarouselEl) return;
+
+		const cards = Array.from(scheduleCarouselEl.querySelectorAll<HTMLElement>('[data-schedule-card]'));
+		if (!cards.length) return;
+
+		const clampedIndex = Math.max(0, Math.min(index, cards.length - 1));
+		cards[clampedIndex]?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+		activeScheduleIndex = clampedIndex;
+	}
+
+	function goToPreviousScheduleCard(): void {
+		goToScheduleCard(activeScheduleIndex - 1);
+	}
+
+	function goToNextScheduleCard(): void {
+		goToScheduleCard(activeScheduleIndex + 1);
+	}
 </script>
 
 
@@ -2653,6 +2716,54 @@ async function downloadExcelReportFromReport(
 						</button>
 					</div>
 			</div>
+
+			<!-- Schedule & Hours -->
+			<section class="mb-4 sm:mb-8 lg:mb-10 bg-white/80 border border-blue-100 rounded-2xl shadow-md p-3 sm:p-6">
+				<div class="h-1.5 rounded-full mb-3 sm:mb-4" style="background: linear-gradient(90deg, #eab308 0%, #0b2d56 100%);"></div>
+				<div class="flex items-center justify-between gap-3 mb-3 sm:mb-4">
+					<h2 class="text-lg sm:text-2xl font-bold" style="color: #0b2d56;">Schedule &amp; Hours</h2>
+				</div>
+				<div
+					class="schedule-hours-carousel flex gap-0 overflow-x-auto snap-x snap-mandatory pb-1 lg:pb-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:gap-4"
+					bind:this={scheduleCarouselEl}
+					on:scroll={syncScheduleIndexFromScroll}
+				>
+					{#each SCHEDULE_HOURS_CARDS as card}
+						<article data-schedule-card class="bg-white border border-blue-100 rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow min-w-full max-w-full snap-start lg:min-w-0 lg:max-w-none">
+							<div class="flex items-center gap-2 mb-2">
+								<span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-50 text-yellow-600 border border-yellow-200">
+									{#if card.icon === 'clock'}
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+										</svg>
+									{:else if card.icon === 'document'}
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+										</svg>
+									{:else}
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+										</svg>
+									{/if}
+								</span>
+								<h3 class="text-sm sm:text-lg font-bold text-blue-900 leading-tight">{card.title}</h3>
+							</div>
+							<p class="text-xs sm:text-sm font-semibold text-slate-800">{card.days}</p>
+							<p class="text-xs sm:text-sm text-blue-900">{card.time}</p>
+						</article>
+					{/each}
+				</div>
+				<div class="mt-3 flex items-center justify-center gap-1.5 lg:hidden">
+					{#each SCHEDULE_HOURS_CARDS as _, index}
+						<button
+							type="button"
+							on:click={() => goToScheduleCard(index)}
+							class="h-2.5 rounded-full transition-all {activeScheduleIndex === index ? 'w-5 bg-blue-700' : 'w-2.5 bg-blue-200'}"
+							aria-label={`Go to schedule card ${index + 1}`}
+						></button>
+					{/each}
+				</div>
+			</section>
 
 			<!-- Stats Cards -->
 			<div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 mb-6 sm:mb-8 lg:mb-10">
@@ -3960,6 +4071,15 @@ async function downloadExcelReportFromReport(
 {/if}
 
 <style>
+	.schedule-hours-carousel {
+		scrollbar-width: none;
+		-ms-overflow-style: none;
+	}
+
+	.schedule-hours-carousel::-webkit-scrollbar {
+		display: none;
+	}
+
 	.member-cell {
 		display: flex;
 		align-items: center;
