@@ -63,6 +63,18 @@
       return `${year}-${month}-${day}`;
   }
 
+  function parseDateKey(dateKey: string): Date {
+      const [year, month, day] = dateKey.split('-').map(Number);
+      return new Date(year, month - 1, day);
+  }
+
+  function formatDateKey(date: Date): string {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+  }
+
   let selectedDate: string = getTodayInPhilippines();
   let isLoadingSchedule: boolean = false; 
   let isLoadingDefaults: boolean = true; 
@@ -70,11 +82,86 @@
   let isSavingSchedule: boolean = false;
   let currentSlots: string[] = [];
   let isWorkingDay: boolean = true;
-  let defaultWorkingDays: number[] = [1, 2, 3, 4, 5]; 
+  let defaultWorkingDays: number[] = [1, 2, 3, 4, 5, 6]; 
   let initialLoadComplete: boolean = false;
   let hasDefaultChanges: boolean = false;
   let userHasModifiedSlots: boolean = false;
   let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+  let calendarMonth: Date = new Date(parseDateKey(selectedDate).getFullYear(), parseDateKey(selectedDate).getMonth(), 1);
+
+  const CALENDAR_DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  type CalendarDay = {
+      dateKey: string;
+      dayNumber: number;
+      isCurrentMonth: boolean;
+      isSelected: boolean;
+      isDisabled: boolean;
+      isSunday: boolean;
+      isPlaceholder: boolean;
+  };
+
+  function getMonthLabel(date: Date): string {
+      return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  function buildCalendarDays(monthDate: Date, minDate: string): CalendarDay[] {
+      const year = monthDate.getFullYear();
+      const month = monthDate.getMonth();
+      const firstDayOfMonth = new Date(year, month, 1);
+      const startOffset = firstDayOfMonth.getDay();
+      const gridStartDate = new Date(year, month, 1 - startOffset);
+      const days: CalendarDay[] = [];
+
+      for (let i = 0; i < 42; i++) {
+          const currentDate = new Date(gridStartDate.getFullYear(), gridStartDate.getMonth(), gridStartDate.getDate() + i);
+          const dateKey = formatDateKey(currentDate);
+          const isCurrentMonth = currentDate.getMonth() === month;
+          const isSunday = currentDate.getDay() === 0;
+          const isPastDate = dateKey < minDate;
+          const isPlaceholder = !isCurrentMonth;
+
+          days.push({
+              dateKey,
+              dayNumber: isPlaceholder ? 0 : currentDate.getDate(),
+              isCurrentMonth,
+              isSelected: dateKey === selectedDate,
+              isDisabled: isPlaceholder || isPastDate || isSunday,
+              isSunday,
+              isPlaceholder
+          });
+      }
+
+      return days;
+  }
+
+  function goToPreviousMonth() {
+      const minDate = parseDateKey(getTodayInPhilippines());
+      const minMonthStart = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      const previousMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+      if (previousMonth < minMonthStart) return;
+      calendarMonth = previousMonth;
+  }
+
+  function goToNextMonth() {
+      calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+  }
+
+  function selectCalendarDate(day: CalendarDay) {
+      if (day.isDisabled) return;
+      selectedDate = day.dateKey;
+      calendarMonth = new Date(parseDateKey(selectedDate).getFullYear(), parseDateKey(selectedDate).getMonth(), 1);
+  }
+
+  $: minSelectableDate = getTodayInPhilippines();
+  $: calendarDays = buildCalendarDays(calendarMonth, minSelectableDate);
+  $: calendarMonthLabel = getMonthLabel(calendarMonth);
+  $: canGoToPreviousMonth = (() => {
+      const minDate = parseDateKey(minSelectableDate);
+      const minMonthStart = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      const previousMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+      return previousMonth >= minMonthStart;
+  })();
 
 
   function sortTimeSlots(slots: string[]): string[] {
@@ -137,18 +224,18 @@
                   defaultWorkingDays = data.defaultWorkingDays;
                   console.log("Loaded default working days:", defaultWorkingDays);
               } else {
-                  console.warn("Firestore 'scheduleDefaults' doc exists but 'defaultWorkingDays' is missing or invalid. Using code default [1,2,3,4,5].");
-                  defaultWorkingDays = [1, 2, 3, 4, 5]; 
+                  console.warn("Firestore 'scheduleDefaults' doc exists but 'defaultWorkingDays' is missing or invalid. Using code default [1,2,3,4,5,6].");
+                  defaultWorkingDays = [1, 2, 3, 4, 5, 6]; 
               }
           } else {
-              console.log("No default settings found in Firestore. Using code default [1,2,3,4,5] and attempting initial save.");
-              defaultWorkingDays = [1, 2, 3, 4, 5]; 
+              console.log("No default settings found in Firestore. Using code default [1,2,3,4,5,6] and attempting initial save.");
+              defaultWorkingDays = [1, 2, 3, 4, 5, 6]; 
               await saveDefaultSettings(true);
           }
       } catch (error) {
           console.error("Error loading default settings:", error);
-          Swal.fire('Warning', 'Could not load default working day settings. Using defaults (Mon-Fri).', 'warning');
-           defaultWorkingDays = [1, 2, 3, 4, 5]; 
+          Swal.fire('Warning', 'Could not load default working day settings. Using defaults (Mon-Sat).', 'warning');
+           defaultWorkingDays = [1, 2, 3, 4, 5, 6]; 
       } finally {
           isLoadingDefaults = false;
           initialLoadComplete = true; 
@@ -360,16 +447,60 @@
             </div>
 
             <div class="mb-6 sm:mb-7">
-                <label for="scheduleDate" class="block text-sm sm:text-base font-semibold text-gray-700 mb-2.5" style="color: #0b2d56;">Select a Date:</label>
-                <input
-                    type="date"
-                    id="scheduleDate"
-                    bind:value={selectedDate}
-                    min={getTodayInPhilippines()}
-                    class="w-full sm:max-w-sm border-2 border-gray-200 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus:border-blue-400 hover:border-gray-300"
-                    style="--input-focus-color: #0b2d56;"
-                    disabled={isLoadingSchedule || isLoadingDefaults || isSavingSchedule || isSavingDefaults}
-                />
+                <label class="block text-sm sm:text-base font-semibold text-gray-700 mb-2.5" style="color: #0b2d56;">Select a Date:</label>
+                <div class="calendar-wrapper border-2 border-gray-200 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-slate-50 to-white">
+                    <div class="flex items-center justify-between gap-2 mb-4">
+                        <button
+                            type="button"
+                            class="calendar-nav-btn"
+                            on:click={goToPreviousMonth}
+                            disabled={!canGoToPreviousMonth || isLoadingSchedule || isLoadingDefaults || isSavingSchedule || isSavingDefaults}
+                            aria-label="Go to previous month"
+                        >
+                            &#x2039;
+                        </button>
+                        <h4 class="calendar-month-label">{calendarMonthLabel}</h4>
+                        <button
+                            type="button"
+                            class="calendar-nav-btn"
+                            on:click={goToNextMonth}
+                            disabled={isLoadingSchedule || isLoadingDefaults || isSavingSchedule || isSavingDefaults}
+                            aria-label="Go to next month"
+                        >
+                            &#x203A;
+                        </button>
+                    </div>
+
+                    <div class="calendar-grid-header">
+                        {#each CALENDAR_DAY_HEADERS as dayHeader}
+                            <div class="calendar-day-header" class:calendar-day-header--sunday={dayHeader === 'Sun'}>{dayHeader}</div>
+                        {/each}
+                    </div>
+
+                    <div class="calendar-grid-body">
+                        {#each calendarDays as day (day.dateKey)}
+                            <button
+                                type="button"
+                                class="calendar-day-cell"
+                                class:calendar-day-cell--placeholder={ day.isPlaceholder }
+                                class:calendar-day-cell--selected={ day.isSelected }
+                                class:calendar-day-cell--disabled={ day.isDisabled }
+                                class:calendar-day-cell--sunday={ day.isSunday }
+                                on:click={() => selectCalendarDate(day)}
+                                disabled={day.isDisabled || isLoadingSchedule || isLoadingDefaults || isSavingSchedule || isSavingDefaults}
+                                aria-label={`Select ${day.dateKey}`}
+                            >
+                                {#if !day.isPlaceholder}
+                                    {day.dayNumber}
+                                {/if}
+                            </button>
+                        {/each}
+                    </div>
+
+                    <p class="calendar-note mt-3 text-xs sm:text-sm text-gray-600">
+                        Sundays are closed and cannot be selected.
+                    </p>
+                </div>
             </div>
 
             {#if isLoadingSchedule || isLoadingDefaults}
@@ -714,6 +845,100 @@
     .select-all-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+    }
+
+    .calendar-wrapper {
+        width: 100%;
+    }
+    .calendar-month-label {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0b2d56;
+    }
+    @media (min-width: 640px) {
+        .calendar-month-label {
+            font-size: 1.1rem;
+        }
+    }
+    .calendar-nav-btn {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 9999px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #0b2d56;
+        font-size: 1.25rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    .calendar-nav-btn:hover:not(:disabled) {
+        border-color: #0b2d56;
+        box-shadow: 0 2px 6px rgba(11, 45, 86, 0.12);
+    }
+    .calendar-nav-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+    .calendar-grid-header,
+    .calendar-grid-body {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 0.4rem;
+    }
+    .calendar-day-header {
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #334155;
+        padding: 0.2rem 0;
+    }
+    .calendar-day-header--sunday {
+        color: #b45309;
+    }
+    .calendar-day-cell {
+        border: 1px solid #dbe3ef;
+        border-radius: 0.6rem;
+        background: #fff;
+        color: #0f172a;
+        width: 100%;
+        min-height: 2.2rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        transition: all 0.15s ease;
+    }
+    .calendar-day-cell:hover:not(:disabled) {
+        border-color: #0b2d56;
+        box-shadow: 0 2px 6px rgba(11, 45, 86, 0.12);
+    }
+    .calendar-day-cell--placeholder {
+        border-color: #e5e7eb;
+        background: #f8fafc;
+        box-shadow: none;
+        pointer-events: none;
+        opacity: 0.8;
+    }
+    .calendar-day-cell--sunday {
+        background: #fff7ed;
+        border-color: #fed7aa;
+    }
+    .calendar-day-cell--disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+    .calendar-day-cell--selected {
+        background: linear-gradient(135deg, #0b2d56, #1a4d7a);
+        border-color: #0b2d56;
+        color: #fff;
+        box-shadow: 0 3px 10px rgba(11, 45, 86, 0.25);
+    }
+    @media (min-width: 640px) {
+        .calendar-day-cell {
+            min-height: 2.35rem;
+            font-size: 0.9rem;
+        }
     }
 
     /* Responsive container padding */
