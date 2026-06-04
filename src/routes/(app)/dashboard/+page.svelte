@@ -14,6 +14,7 @@
 		updateDoc,
 		doc,
 		getDoc,
+		deleteDoc,
 		type DocumentData,
 		type QuerySnapshot
 	} from 'firebase/firestore';
@@ -593,6 +594,216 @@ function syncPatientState(patientId: string, updatedFields: Partial<Patient>): v
 
 	if (selectedPatient?.id === patientId) {
 		selectedPatient = { ...selectedPatient, ...updatedFields };
+	}
+}
+
+function buildMemberFullName(name: string, middleName: string, lastName: string, suffix: string): string {
+	return [name, middleName, lastName, suffix].map((part) => part.trim()).filter(Boolean).join(' ');
+}
+
+function escapeHtmlForAttr(value: string): string {
+	return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function editMemberName(patient: Patient): Promise<void> {
+	const promptResult = await Swal.fire({
+		title: 'Edit Member Name',
+		html: `
+			<div style="text-align:left; margin-top:8px; width:100%; box-sizing:border-box;">
+				<div style="margin-bottom:12px; color:#374151; font-size:13px;">
+					<strong>Member ID:</strong> ${patient.displayId || patient.id}
+				</div>
+				<label for="swal-member-first-name" style="display:block; font-size:12px; color:#4b5563; margin-bottom:6px; font-weight:600;">First Name</label>
+				<input id="swal-member-first-name" class="swal2-input" style="margin:0; width:100%; height:44px; border-radius:10px; box-sizing:border-box;" value="${escapeHtmlForAttr(patient.name || '')}" placeholder="Enter first name" />
+
+				<label for="swal-member-middle-name" style="display:block; font-size:12px; color:#4b5563; margin:10px 0 6px; font-weight:600;">Middle Name (optional)</label>
+				<input id="swal-member-middle-name" class="swal2-input" style="margin:0; width:100%; height:44px; border-radius:10px; box-sizing:border-box;" value="${escapeHtmlForAttr(patient.middleName || '')}" placeholder="Enter middle name" />
+
+				<label for="swal-member-last-name" style="display:block; font-size:12px; color:#4b5563; margin:10px 0 6px; font-weight:600;">Last Name</label>
+				<input id="swal-member-last-name" class="swal2-input" style="margin:0; width:100%; height:44px; border-radius:10px; box-sizing:border-box;" value="${escapeHtmlForAttr(patient.lastName || '')}" placeholder="Enter last name" />
+
+				<label for="swal-member-suffix" style="display:block; font-size:12px; color:#4b5563; margin:10px 0 6px; font-weight:600;">Suffix (optional)</label>
+				<input id="swal-member-suffix" class="swal2-input" style="margin:0; width:100%; height:44px; border-radius:10px; box-sizing:border-box;" value="${escapeHtmlForAttr(patient.suffix || '')}" placeholder="e.g., Jr., Sr., III" />
+			</div>
+		`,
+		width: '500px',
+		padding: '1.4rem',
+		showCancelButton: true,
+		confirmButtonText: 'Save Name',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#1e3a66',
+		focusConfirm: false,
+		preConfirm: () => {
+			const firstNameInput = document.getElementById('swal-member-first-name') as HTMLInputElement | null;
+			const middleNameInput = document.getElementById('swal-member-middle-name') as HTMLInputElement | null;
+			const lastNameInput = document.getElementById('swal-member-last-name') as HTMLInputElement | null;
+			const suffixInput = document.getElementById('swal-member-suffix') as HTMLInputElement | null;
+
+			const nextFirstName = firstNameInput?.value?.trim() || '';
+			const nextMiddleName = middleNameInput?.value?.trim() || '';
+			const nextLastName = lastNameInput?.value?.trim() || '';
+			const nextSuffix = suffixInput?.value?.trim() || '';
+
+			if (!nextFirstName) {
+				Swal.showValidationMessage('First name is required.');
+				return;
+			}
+
+			if (!nextLastName) {
+				Swal.showValidationMessage('Last name is required.');
+				return;
+			}
+
+			return { nextFirstName, nextMiddleName, nextLastName, nextSuffix };
+		}
+	});
+
+	if (!promptResult.isConfirmed || !promptResult.value) return;
+
+	const { nextFirstName, nextMiddleName, nextLastName, nextSuffix } = promptResult.value as {
+		nextFirstName: string;
+		nextMiddleName: string;
+		nextLastName: string;
+		nextSuffix: string;
+	};
+
+	const nextDisplayName = buildMemberFullName(nextFirstName, nextMiddleName, nextLastName, nextSuffix);
+
+	try {
+		await updateDoc(doc(db, FIRESTORE_COLLECTIONS.PATIENTS, patient.id), {
+			name: nextFirstName,
+			middleName: nextMiddleName,
+			lastName: nextLastName,
+			suffix: nextSuffix,
+			lastModified: new Date().toISOString()
+		});
+
+		await updateDoc(doc(db, 'users', patient.id), {
+			displayName: nextDisplayName,
+			lastModified: new Date().toISOString(),
+			modifiedBy: 'admin'
+		});
+
+		syncPatientState(patient.id, {
+			name: nextFirstName,
+			middleName: nextMiddleName,
+			lastName: nextLastName,
+			suffix: nextSuffix
+		});
+
+		allAppointments = allAppointments.map((appointment) =>
+			appointment.patientId === patient.id
+				? { ...appointment, patientName: nextDisplayName }
+				: appointment
+		);
+
+		await Swal.fire({
+			title: 'Member Name Updated',
+			html: `
+				<div style="text-align:left; line-height:1.7;">
+					<p><strong>Member ID:</strong> ${patient.displayId || patient.id}</p>
+					<p><strong>Name:</strong> ${nextDisplayName}</p>
+					<p style="margin-top:10px; color:#6b7280; font-size:12px;">Saved: ${new Date().toLocaleString()}</p>
+				</div>
+			`,
+			icon: 'success',
+			confirmButtonText: 'Close',
+			confirmButtonColor: '#1e3a66'
+		});
+	} catch (error) {
+		console.error('Failed to update member name:', error);
+		await Swal.fire({
+			title: 'Update Failed',
+			text: error instanceof Error ? error.message : 'Unable to save member name. Please try again.',
+			icon: 'error'
+		});
+	}
+}
+
+async function deleteMember(patient: Patient): Promise<void> {
+	const memberName = `${patient.name || ''} ${patient.lastName || ''}`.trim();
+	const memberDisplayId = patient.displayId || patient.id;
+
+	// First confirmation
+	const firstConfirm = await Swal.fire({
+		title: 'Delete Member?',
+		html: `
+			<div style="text-align:left; line-height:1.7;">
+				<p>You are about to permanently delete:</p>
+				<p style="margin:8px 0;"><strong>Name:</strong> ${memberName}</p>
+				<p style="margin:8px 0;"><strong>Member ID:</strong> ${memberDisplayId}</p>
+				<p style="margin-top:12px; color:#ef4444; font-weight:600;">⚠ This will delete all profile data and cannot be undone.</p>
+			</div>
+		`,
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, delete',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#ef4444',
+		cancelButtonColor: '#6b7280'
+	});
+
+	if (!firstConfirm.isConfirmed) return;
+
+	// Second confirmation — type name to confirm
+	const secondConfirm = await Swal.fire({
+		title: 'Confirm Permanent Deletion',
+		html: `
+			<div style="text-align:left; margin-top:8px; width:100%; box-sizing:border-box;">
+				<p style="color:#374151; font-size:13px; margin-bottom:10px;">Type <strong>${memberName}</strong> to confirm deletion:</p>
+				<input id="swal-delete-confirm" class="swal2-input" style="margin:0; width:100%; height:44px; border-radius:10px; box-sizing:border-box;" placeholder="Type member name to confirm" />
+			</div>
+		`,
+		showCancelButton: true,
+		confirmButtonText: 'Delete Permanently',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#ef4444',
+		cancelButtonColor: '#6b7280',
+		focusConfirm: false,
+		preConfirm: () => {
+			const input = document.getElementById('swal-delete-confirm') as HTMLInputElement | null;
+			if (!input || input.value.trim() !== memberName) {
+				Swal.showValidationMessage(`Name does not match. Expected: "${memberName}"`);
+				return false;
+			}
+			return true;
+		}
+	});
+
+	if (!secondConfirm.isConfirmed) return;
+
+	try {
+		await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.PATIENTS, patient.id));
+		await deleteDoc(doc(db, 'users', patient.id));
+
+		allPatients = allPatients.filter((p) => p.id !== patient.id);
+		patientMap.delete(patient.id);
+		allAppointments = allAppointments.filter((a) => a.patientId !== patient.id);
+
+		if (selectedPatient?.id === patient.id) {
+			closePatientDetailsModal();
+		}
+
+		await Swal.fire({
+			title: 'Member Deleted',
+			html: `
+				<div style="text-align:left; line-height:1.7;">
+					<p><strong>Name:</strong> ${memberName}</p>
+					<p><strong>Member ID:</strong> ${memberDisplayId}</p>
+					<p style="margin-top:10px; color:#6b7280; font-size:12px;">Deleted: ${new Date().toLocaleString()}</p>
+				</div>
+			`,
+			icon: 'success',
+			confirmButtonText: 'Close',
+			confirmButtonColor: '#1e3a66'
+		});
+	} catch (error) {
+		console.error('Failed to delete member:', error);
+		await Swal.fire({
+			title: 'Deletion Failed',
+			text: error instanceof Error ? error.message : 'Unable to delete member. Please try again.',
+			icon: 'error'
+		});
 	}
 }
 
@@ -3280,6 +3491,7 @@ async function downloadExcelReportFromReport(
                                 <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Phone</th>
                                 <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Reg. Date</th>
 								<th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+								<th class="px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
@@ -3287,7 +3499,20 @@ async function downloadExcelReportFromReport(
                             {#each filteredPatients as patient}
 								<tr class="hover:bg-gray-50">
 									<td class="px-2 py-2 text-xs text-gray-900 whitespace-nowrap">
-										<button class="text-left text-blue-600 hover:underline member-name-clickable text-xs" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
+										<div class="flex items-center gap-2">
+											<button class="text-left text-blue-600 hover:underline member-name-clickable text-xs" on:click={() => viewPatientDetails(patient.id)}>{patient.name} {patient.lastName}</button>
+											<button
+												type="button"
+												on:click={() => editMemberName(patient)}
+												class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-blue-200 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+												title="Edit Member Name"
+												aria-label="Edit Member Name"
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16.586 3.586a2 2 0 112.828 2.828L12 13.828 8 15l1.172-4 7.414-7.414z" />
+												</svg>
+											</button>
+										</div>
 									</td>
 									<td class="px-2 py-2 text-xs text-gray-700 whitespace-nowrap">
 										<div class="flex items-center gap-2">
@@ -3335,11 +3560,37 @@ async function downloadExcelReportFromReport(
 											<option value="inactive">Inactive</option>
 										</select>
 									</td>
+									<td class="px-2 py-2 text-xs whitespace-nowrap">
+										<div class="flex items-center justify-center gap-1">
+											<button
+												type="button"
+												on:click={() => updateMemberStatus(patient.id, patient.status === 'inactive' ? 'active' : 'inactive')}
+												class={`inline-flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${patient.status === 'inactive' ? 'border-emerald-300 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700' : 'border-amber-300 text-amber-600 hover:bg-amber-50 hover:text-amber-700'}`}
+												title={patient.status === 'inactive' ? 'Unarchive member' : 'Archive member'}
+												aria-label={patient.status === 'inactive' ? 'Unarchive member' : 'Archive member'}
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+												</svg>
+											</button>
+											<button
+												type="button"
+												on:click={() => deleteMember(patient)}
+												class="inline-flex items-center justify-center w-7 h-7 rounded-full border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors"
+												title="Permanently delete member"
+												aria-label="Permanently delete member"
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+												</svg>
+											</button>
+										</div>
+									</td>
                                 </tr>
                             {/each}
                             {:else}
                                 <tr>
-                                    <td colspan="7" class="px-2 py-4 text-center text-xs text-gray-500">No members match the current filters.</td>
+                                    <td colspan="8" class="px-2 py-4 text-center text-xs text-gray-500">No members match the current filters.</td>
                                 </tr>
                             {/if}
                         </tbody>
@@ -3668,25 +3919,33 @@ async function downloadExcelReportFromReport(
 				{/if}
 
 				<!-- Action Buttons -->
-				<div class="flex justify-end gap-3 pt-4 border-t-2 border-gray-100">
-					<button 
-						class="px-5 py-2 rounded-lg border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50 transition-colors"
-						on:click={() => editMemberMedicalInfo(selectedPatient)}
-					>
-						Edit Medical Info
-					</button>
-					<button 
-						class="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
-						on:click={() => { openTable = 'appointments'; closePatientDetailsModal(); }}
-					>
-						View Appointments
-					</button>
-					<button 
-						class="px-5 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
-						on:click={closePatientDetailsModal}
-					>
-						Close
-					</button>
+				<div class="flex flex-wrap justify-between gap-3 pt-4 border-t-2 border-gray-100">
+					<div class="flex gap-2 ml-auto">
+						<button 
+							class="px-4 py-2 rounded-lg border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50 transition-colors text-sm"
+							on:click={() => editMemberName(selectedPatient)}
+						>
+							Edit Name
+						</button>
+						<button 
+							class="px-4 py-2 rounded-lg border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50 transition-colors text-sm"
+							on:click={() => editMemberMedicalInfo(selectedPatient)}
+						>
+							Edit Medical Info
+						</button>
+						<button 
+							class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors text-sm"
+							on:click={() => { openTable = 'appointments'; closePatientDetailsModal(); }}
+						>
+							View Appointments
+						</button>
+						<button 
+							class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors text-sm"
+							on:click={closePatientDetailsModal}
+						>
+							Close
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>
