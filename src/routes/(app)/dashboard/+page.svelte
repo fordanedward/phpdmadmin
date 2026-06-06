@@ -123,6 +123,35 @@ const FAMILY_MEMBERS = [
 	'Son',
 	'Other relative (specify)'
 ];
+const APPOINTMENT_SUBSERVICES = [
+	'X-ray',
+	'ECG',
+	'Ultrasound',
+	'FBS',
+	'CBC',
+	'SGPT',
+	'SGOT',
+	'HBSAG',
+	'Cholesterol',
+	'Lipid Profile',
+	'Fecalysis',
+	'Creatinine',
+	'Adult Non-Urgent Cases',
+	'Travel Clearance',
+	'New Prescription',
+	'Fit to Work Certification',
+	'Medical Certification',
+	'Prescription Refills',
+	'Routine Wellness Check Up',
+	'Laboratory Request',
+	'Tumor Marker (CEA/PSA)',
+	'Imaging Request',
+	'Thyroid Function (FT3, FT4, TSH)',
+	'ECG/EKG/X-Ray/Ultrasound',
+	'Troponin I',
+	'Lab Result Interpretation',
+	'HbA1c'
+];
 
 	// --- Firebase Initialization ---
 	let app: FirebaseApp;
@@ -221,6 +250,7 @@ interface Prescription {
 		completedAppointments: number;
 		statusBreakdown: Record<string, number>;
 		serviceBreakdown: Record<string, number>;
+		subserviceBreakdown: Record<string, number>;
 		dailyBreakdown: Record<string, number>;
 		avgPerDay: string;
 		mostCommonService: string;
@@ -1303,6 +1333,33 @@ function normalizeForSearch(s: string | undefined | null): string {
 	}
 }
 
+function normalizeSubserviceValues(subServices: unknown): string[] {
+	if (Array.isArray(subServices)) {
+		return subServices
+			.map(subservice => (typeof subservice === 'string' ? subservice.trim() : ''))
+			.filter(Boolean);
+	}
+
+	if (typeof subServices === 'string') {
+		return subServices
+			.split(/[\n,;]+/)
+			.map(subservice => subservice.trim())
+			.filter(Boolean);
+	}
+
+	return [];
+}
+
+function getSubserviceLabelList(appointment: Appointment): string[] {
+	const extractedSubservices = normalizeSubserviceValues(appointment.subServices);
+	if (extractedSubservices.length > 0) {
+		return extractedSubservices;
+	}
+
+	const serviceValue = (appointment.service || '').trim();
+	return APPOINTMENT_SUBSERVICES.includes(serviceValue) ? [serviceValue] : [];
+}
+
 function matchesAppointmentStatus(appointment: Appointment, filter: AppointmentStatusFilter): boolean {
 	if (filter === 'all') return true;
 	const debug = typeof window !== 'undefined' && localStorage.getItem('apptFilterDebug') === '1';
@@ -1638,6 +1695,15 @@ $: filteredPatients = (() => {
 				serviceCounts[service] = (serviceCounts[service] || 0) + 1;
 			});
 
+			// Subservice breakdown
+			const subserviceCounts: Record<string, number> = {};
+			filteredAppointments.forEach(apt => {
+				const subservices = getSubserviceLabelList(apt);
+				subservices.forEach(subservice => {
+					subserviceCounts[subservice] = (subserviceCounts[subservice] || 0) + 1;
+				});
+			});
+
 			// Daily breakdown
 			const dailyCounts: Record<string, number> = {};
 			filteredAppointments.forEach(apt => {
@@ -1661,6 +1727,7 @@ $: filteredPatients = (() => {
 				completedAppointments,
 				statusBreakdown: statusCounts,
 				serviceBreakdown: serviceCounts,
+				subserviceBreakdown: subserviceCounts,
 				dailyBreakdown: dailyCounts,
 				avgPerDay: avgPerDay.toFixed(2),
 				mostCommonService,
@@ -1703,7 +1770,10 @@ $: filteredPatients = (() => {
 			]),
 			[''],
 			['SERVICE BREAKDOWN'],
-			...Object.entries(reportData.serviceBreakdown).map(([service, count]) => [service, count])
+			...Object.entries(reportData.serviceBreakdown).map(([service, count]) => [service, count]),
+			[''],
+			['SUBSERVICE BREAKDOWN'],
+			...Object.entries(reportData.subserviceBreakdown).map(([subservice, count]) => [subservice, count])
 		];
 		summarySheet.addRows(summaryData);
 
@@ -1714,6 +1784,7 @@ $: filteredPatients = (() => {
 			'Time': apt.time || 'N/A',
 			'Patient': apt.patientName || 'Unknown',
 			'Service': apt.service || 'N/A',
+			'Subservice': getSubserviceLabelList(apt).join(', ') || 'N/A',
 			'Status': apt.status,
 			'Created On': apt.createdAt ? new Date(apt.createdAt).toLocaleString() : 'N/A',
 			'Completed On': apt.completionTime ? new Date(apt.completionTime).toLocaleString() : 'N/A'
@@ -2276,7 +2347,7 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
 					appt.date || 'N/A',
                 appt.time || 'N/A',
                 appt.service || 'N/A',
-                appt.subServices?.join(', ') || 'N/A',
+				getSubserviceLabelList(appt).join(', ') || 'N/A',
                 appt.status || 'N/A'
             ]),
             startY: currentY,
@@ -2344,7 +2415,13 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
     console.log(`PDF Report Saved as ${filename}`);
 }
 
-function downloadPdfReportWithBreakdown(appointmentsData: Appointment[], patientsData: Patient[], statusBreakdown: Record<string, number>, serviceBreakdown: Record<string, number>): void {
+function downloadPdfReportWithBreakdown(
+	appointmentsData: Appointment[],
+	patientsData: Patient[],
+	statusBreakdown: Record<string, number>,
+	serviceBreakdown: Record<string, number>,
+	subserviceBreakdown: Record<string, number>
+): void {
     console.log('Generating PDF Report from Appointment Reports...');
     const pdfDoc = new jsPDF();
     const reportDate = getTodayString();
@@ -2462,6 +2539,46 @@ function downloadPdfReportWithBreakdown(appointmentsData: Appointment[], patient
         currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
     }
 
+	// --- Subservice Breakdown ---
+	if (Object.keys(subserviceBreakdown).length > 0) {
+		if (currentY > pageHeight - 50) {
+			pdfDoc.addPage();
+			currentY = 20;
+		}
+
+		pdfDoc.setFontSize(12);
+		pdfDoc.setFont('helvetica', 'bold');
+		pdfDoc.setTextColor(0, 0, 0);
+		pdfDoc.text('Subservice Breakdown', 10, currentY);
+		currentY += 7;
+
+		const subserviceData = Object.entries(subserviceBreakdown).map(([subservice, count]) => [
+			subservice,
+			count.toString()
+		]);
+
+		(pdfDoc as any).autoTable({
+			head: [['Subservice', 'Count']],
+			body: subserviceData,
+			startY: currentY,
+			theme: 'grid',
+			headStyles: {
+				fillColor: [79, 70, 229],
+				textColor: [255, 255, 255],
+				fontStyle: 'bold',
+				fontSize: 10
+			},
+			bodyStyles: {
+				textColor: [0, 0, 0],
+				fontSize: 9
+			},
+			alternateRowStyles: {
+				fillColor: [240, 245, 250]
+			}
+		});
+		currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
+	}
+
     // --- Appointments Section ---
     if (appointmentsData.length > 0) {
         if (currentY > pageHeight - 40) {
@@ -2475,13 +2592,14 @@ function downloadPdfReportWithBreakdown(appointmentsData: Appointment[], patient
         pdfDoc.text('Appointments', 10, currentY);
         currentY += 7;
 
-        (pdfDoc as any).autoTable({
-            head: [['Patient Name', 'Appointment Date', 'Time', 'Service', 'Status']],
+		(pdfDoc as any).autoTable({
+			head: [['Patient Name', 'Appointment Date', 'Time', 'Service', 'Subservice', 'Status']],
             body: appointmentsData.map(appt => [
                 appt.patientName || 'Unknown',
                 appt.date || 'N/A',
                 appt.time || 'N/A',
                 appt.service || 'N/A',
+				getSubserviceLabelList(appt).join(', ') || 'N/A',
                 appt.status || 'N/A'
             ]),
             startY: currentY,
@@ -2600,7 +2718,7 @@ async function downloadExcelReport(
 			'Appointment Date': appt.date || 'N/A',
 			'Time': appt.time || 'N/A',
 			'Service': appt.service || 'N/A',
-			'Subservice': appt.subServices?.join(', ') || 'N/A',
+			'Subservice': getSubserviceLabelList(appt).join(', ') || 'N/A',
 			'Status': appt.status || 'N/A',
 		}));
 
@@ -2673,7 +2791,8 @@ async function downloadExcelReportFromReport(
 	appointmentsData: Appointment[],
 	patientsData: Patient[],
 	statusBreakdown?: Record<string, number>,
-	serviceBreakdown?: Record<string, number>
+	serviceBreakdown?: Record<string, number>,
+	subserviceBreakdown?: Record<string, number>
 ): Promise<void> {
   console.log('Generating Excel Report from Appointment Reports...');
   const workbook = new ExcelJS.Workbook();
@@ -2725,6 +2844,18 @@ async function downloadExcelReportFromReport(
     setColumnWidths(ws, serviceData);
   }
 
+	// Subservice Breakdown sheet
+	if (subserviceBreakdown && Object.keys(subserviceBreakdown).length > 0) {
+		const subserviceData = Object.entries(subserviceBreakdown).map(([subservice, count]) => ({
+			'Subservice': subservice,
+			'Count': count
+		}));
+		const ws = workbook.addWorksheet('Subservice Breakdown');
+		ws.columns = [{ header: 'Subservice', key: 'Subservice', width: 28 }, { header: 'Count', key: 'Count', width: 10 }];
+		ws.addRows(subserviceData);
+		setColumnWidths(ws, subserviceData);
+	}
+
   // Appointments sheet
   if (appointmentsData.length > 0) {
     const appointmentSheetData = appointmentsData.map(appt => ({
@@ -2732,7 +2863,7 @@ async function downloadExcelReportFromReport(
       'Appointment Date': appt.date || 'N/A',
       'Time': appt.time || 'N/A',
       'Service': appt.service || 'N/A',
-      'Subservice': appt.subServices?.join(', ') || 'N/A',
+			'Subservice': getSubserviceLabelList(appt).join(', ') || 'N/A',
       'Status': appt.status || 'N/A',
     }));
     const ws = workbook.addWorksheet('Appointments');
@@ -4135,9 +4266,9 @@ async function downloadExcelReportFromReport(
 								on:click={() => {
 									if (reportData) {
 										if (exportType === 'pdf') {
-											downloadPdfReportWithBreakdown(reportData.appointments, allPatients, reportData.statusBreakdown, reportData.serviceBreakdown);
+											downloadPdfReportWithBreakdown(reportData.appointments, allPatients, reportData.statusBreakdown, reportData.serviceBreakdown, reportData.subserviceBreakdown);
 										} else {
-											downloadExcelReportFromReport(reportData.appointments, allPatients, reportData.statusBreakdown, reportData.serviceBreakdown);
+											downloadExcelReportFromReport(reportData.appointments, allPatients, reportData.statusBreakdown, reportData.serviceBreakdown, reportData.subserviceBreakdown);
 										}
 									}
 								}}
@@ -4156,7 +4287,8 @@ async function downloadExcelReportFromReport(
 									<li>Report generation date and timestamp</li>
 									<li>Status Breakdown table</li>
 									<li>Service Breakdown table</li>
-									<li>Filtered appointments data (Patient Name, Date, Time, Service, Status)</li>
+									<li>Subservice Breakdown table</li>
+									<li>Filtered appointments data (Patient Name, Date, Time, Service, Subservice, Status)</li>
 									<li>Member information (Name, Age, Birthday, Gender, Phone, Registration Date)</li>
 									<li>Professional formatting with color-coded tables</li>
 								</ul>
@@ -4166,7 +4298,8 @@ async function downloadExcelReportFromReport(
 									<li><strong>Report Info Sheet:</strong> Generation date and metadata</li>
 									<li><strong>Status Breakdown Sheet:</strong> Count of appointments by status</li>
 									<li><strong>Service Breakdown Sheet:</strong> Count of appointments by service</li>
-									<li><strong>Appointments Sheet:</strong> Filtered appointments within your date range</li>
+									<li><strong>Subservice Breakdown Sheet:</strong> Count of appointments by subservice</li>
+									<li><strong>Appointments Sheet:</strong> Filtered appointments within your date range (including subservices)</li>
 									<li><strong>Patients Sheet:</strong> Patient details (Name, Age, Gender, Phone, ID, Registration Date)</li>
 									<li>Auto-sized columns for easy reading</li>
 								</ul>
@@ -4246,7 +4379,7 @@ async function downloadExcelReportFromReport(
 							</h3>
 							<div class="space-y-2 sm:space-y-3">
 								{#each Object.entries(reportData.statusBreakdown).sort((a, b) => b[1] - a[1]) as [status, count]}
-									<div class="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-2">
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-2 sm:gap-3">
 										<div class="flex items-center gap-2 min-w-0">
 											<span class="px-2.5 sm:px-3 py-0.5 sm:py-1 text-xs font-medium rounded-full whitespace-nowrap
 												{status.includes('completed') ? 'bg-green-100 text-green-800' :
@@ -4260,8 +4393,8 @@ async function downloadExcelReportFromReport(
 												{status.charAt(0).toUpperCase() + status.slice(1)}
 											</span>
 										</div>
-										<div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-											<div class="flex-1 sm:w-24 bg-gray-200 rounded-full h-2">
+										<div class="flex items-center gap-2 sm:gap-3 w-full sm:w-36 sm:flex-shrink-0">
+											<div class="flex-1 min-w-0 bg-gray-200 rounded-full h-2">
 												<div class="bg-gradient-to-r from-purple-600 to-violet-600 h-2 rounded-full transition-all" style="width: {(count / reportData.totalAppointments * 100).toFixed(1)}%"></div>
 											</div>
 											<span class="text-xs sm:text-sm font-bold text-gray-700 w-8 sm:w-12 text-right flex-shrink-0">{count}</span>
@@ -4281,10 +4414,10 @@ async function downloadExcelReportFromReport(
 							</h3>
 							<div class="space-y-2 sm:space-y-3 max-h-64 sm:max-h-80 overflow-y-auto">
 								{#each Object.entries(reportData.serviceBreakdown).sort((a, b) => b[1] - a[1]) as [service, count]}
-									<div class="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-2">
-										<span class="text-xs sm:text-sm font-medium text-gray-700 truncate flex-1" title={service}>{service}</span>
-										<div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-											<div class="flex-1 sm:w-20 bg-gray-200 rounded-full h-2">
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-2 sm:gap-3">
+										<span class="text-xs sm:text-sm font-medium text-gray-700 truncate flex-1 min-w-0 sm:max-w-[58%]" title={service}>{service}</span>
+										<div class="flex items-center gap-2 sm:gap-3 w-full sm:w-32 sm:flex-shrink-0">
+											<div class="flex-1 min-w-0 bg-gray-200 rounded-full h-2">
 												<div class="bg-gradient-to-r from-indigo-600 to-purple-600 h-2 rounded-full transition-all" style="width: {(count / reportData.totalAppointments * 100).toFixed(1)}%"></div>
 											</div>
 											<span class="text-xs sm:text-sm font-bold text-gray-700 w-8 text-right flex-shrink-0">{count}</span>
@@ -4292,6 +4425,33 @@ async function downloadExcelReportFromReport(
 									</div>
 								{/each}
 							</div>
+						</div>
+
+						<!-- Subservice Breakdown -->
+						<div class="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100 lg:col-span-2">
+							<h3 class="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 pb-2 border-b-2 border-indigo-100 flex items-center gap-2">
+								<svg class="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h8m-8 4h6M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+								</svg>
+								<span class="truncate">Subservice Breakdown</span>
+							</h3>
+							{#if Object.keys(reportData.subserviceBreakdown).length > 0}
+								<div class="space-y-2 sm:space-y-3 max-h-64 sm:max-h-80 overflow-y-auto">
+									{#each Object.entries(reportData.subserviceBreakdown).sort((a, b) => b[1] - a[1]) as [subservice, count]}
+										<div class="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-2 sm:gap-3">
+											<span class="text-xs sm:text-sm font-medium text-gray-700 truncate flex-1 min-w-0 sm:max-w-[58%]" title={subservice}>{subservice}</span>
+											<div class="flex items-center gap-2 sm:gap-3 w-full sm:w-32 sm:flex-shrink-0">
+												<div class="flex-1 min-w-0 bg-gray-200 rounded-full h-2">
+													<div class="bg-gradient-to-r from-blue-600 to-indigo-600 h-2 rounded-full transition-all" style="width: {(count / (reportData.totalAppointments || 1) * 100).toFixed(1)}%"></div>
+												</div>
+												<span class="text-xs sm:text-sm font-bold text-gray-700 w-8 text-right flex-shrink-0">{count}</span>
+											</div>
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<p class="text-sm text-gray-500">No subservices recorded in this date range.</p>
+							{/if}
 						</div>
 					</div>
 
