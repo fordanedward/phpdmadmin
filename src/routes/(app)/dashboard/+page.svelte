@@ -2200,7 +2200,7 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 		firstDayOfWeek.setDate(today.getDate() - (currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1));
 		firstDayOfWeek.setHours(0, 0, 0, 0);
 		const lastDayOfWeek = new Date(firstDayOfWeek);
-		lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+		lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 5);
 		lastDayOfWeek.setHours(23, 59, 59, 999);
 
 		// Set the date range display
@@ -2212,13 +2212,13 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 		weekEndDate = `${endMM}/${endDD}`;
 
 		const counts = Array(7).fill(0);
-		allAppointments.forEach(a => { try { const appDate = new Date(a.date); if (appDate >= firstDayOfWeek && appDate <= lastDayOfWeek) { counts[appDate.getDay()]++; } } catch (e) {} });
+		allAppointments.forEach(a => { try { const appDate = new Date(a.date); if (appDate >= firstDayOfWeek && appDate <= lastDayOfWeek && appDate.getDay() !== 0) { counts[appDate.getDay()]++; } } catch (e) {} });
 
 
 		// Build labels that include the weekday short name and specific date (MM/DD)
-		const weekdayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+		const weekdayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 		const labelsWithDates: string[] = [];
-		for (let i = 0; i < 7; i++) {
+		for (let i = 0; i < 6; i++) {
 			const d = new Date(firstDayOfWeek);
 			d.setDate(firstDayOfWeek.getDate() + i);
 			const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -2226,7 +2226,7 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
 			labelsWithDates.push(`${weekdayShort[i]} ${mm}/${dd}`);
 		}
 		const displayLabels = labelsWithDates;
-		const displayData = [counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], counts[0]];
+		const displayData = [counts[1], counts[2], counts[3], counts[4], counts[5], counts[6]];
 
 		const barData = { labels: displayLabels, datasets: [{ label: 'Appointments This Week', data: displayData, backgroundColor: '#4caf50' }] };
 
