@@ -3564,17 +3564,6 @@ async function downloadExcelReportFromReport(
 										<div class="flex items-center justify-center gap-1">
 											<button
 												type="button"
-												on:click={() => updateMemberStatus(patient.id, patient.status === 'inactive' ? 'active' : 'inactive')}
-												class={`inline-flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${patient.status === 'inactive' ? 'border-emerald-300 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700' : 'border-amber-300 text-amber-600 hover:bg-amber-50 hover:text-amber-700'}`}
-												title={patient.status === 'inactive' ? 'Unarchive member' : 'Archive member'}
-												aria-label={patient.status === 'inactive' ? 'Unarchive member' : 'Archive member'}
-											>
-												<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-												</svg>
-											</button>
-											<button
-												type="button"
 												on:click={() => deleteMember(patient)}
 												class="inline-flex items-center justify-center w-7 h-7 rounded-full border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors"
 												title="Permanently delete member"

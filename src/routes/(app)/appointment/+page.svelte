@@ -1307,7 +1307,7 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
         class="fixed inset-0 w-full h-full bg-transparent cursor-default"
         on:click={hideAppointmentModal}
       ></button>
-       <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-auto relative" role="document" on:click|stopPropagation>
+       <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-auto relative" role="document">
         {#if selectedAppointment}
          <h3 class="text-xl font-semibold mb-5 text-center">
             Add Follow-up for
@@ -1385,7 +1385,7 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
 
   {#if isPrescriptionModalOpen}
   <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 p-4">
-    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-auto relative max-h-[90vh] overflow-y-auto hide-scrollbar" role="dialog" aria-modal="true" aria-labelledby="prescription-title" on:click|stopPropagation>
+      <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-auto relative max-h-[90vh] overflow-y-auto hide-scrollbar" role="dialog" aria-modal="true" aria-labelledby="prescription-title" tabindex="-1">
       <button type="button" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold" on:click={closePrescriptionModal} aria-label="Close Modal">×</button>
       {#if selectedAppointment}
         <h2 id="prescription-title" class="text-xl font-bold mb-5">
@@ -1400,7 +1400,7 @@ const filterAppointments = (view: 'today' | 'week' | 'month'): Appointment[] => 
 
           <!-- Section: Medicine -->
           <div class="mb-2">
-            <label class="block text-sm font-semibold text-gray-700 mb-1">Medicine <span class="text-red-500">*</span></label>
+            <p class="block text-sm font-semibold text-gray-700 mb-1">Medicine <span class="text-red-500">*</span></p>
             <div class="flex gap-2">
               <select id="availableMedicine" bind:value={selectedMedicine} class="flex-1 border border-gray-300 rounded p-2 focus:ring-green-500 focus:border-green-500" aria-label="Select Medicine from Stock" on:change={() => { if(selectedMedicine) medication = ''; }}>
     <option value={null}>-- Select Medicine --</option>
