@@ -371,6 +371,14 @@ let filteredMonthlyAppointments: Appointment[] = [];
 		}
 	}
 
+	function formatGenderDisplay(gender: string | undefined): string {
+		const normalizedGender = (gender || '').trim().toLowerCase();
+		if (!normalizedGender) return 'N/A';
+		if (normalizedGender === 'male') return 'Male';
+		if (normalizedGender === 'female') return 'Female';
+		return normalizedGender.charAt(0).toUpperCase() + normalizedGender.slice(1);
+	}
+
 	function normalizeMedicalKey(value: string): string {
 		return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 	}
@@ -476,6 +484,23 @@ function getPatientInitials(patient?: Patient | null): string {
 	const first = patient.name?.charAt(0)?.toUpperCase() ?? '';
 	const last = patient.lastName?.charAt(0)?.toUpperCase() ?? '';
 	return (first + last || first || last || 'U').slice(0, 2);
+}
+
+function getFiveDigitMemberId(patient: Patient): string {
+	const idSource = String(patient.displayId || patient.id || '').trim();
+	const digits = idSource.replace(/\D/g, '');
+
+	if (digits.length > 0) {
+		return digits.slice(-5).padStart(5, '0');
+	}
+
+	// Keep export IDs numeric and stable even when source IDs are alphanumeric.
+	let hash = 0;
+	for (let i = 0; i < idSource.length; i += 1) {
+		hash = (hash * 31 + idSource.charCodeAt(i)) % 100000;
+	}
+
+	return String(hash).padStart(5, '0');
 }
 
 async function updateMemberStatus(patientId:  string, newStatus: MemberStatus): Promise<void> {
@@ -2382,17 +2407,21 @@ function downloadPdfReport(appointmentsData: Appointment[], patientsData: Patien
         pdfDoc.text('Members', 10, currentY);
         currentY += 7;
 		(pdfDoc as any).autoTable({
-			head: [['Name', 'Age', 'Birthday', 'Gender', 'Phone', 'Registration Date']],
+			head: [['Member ID', 'Name', 'Age', 'Birthday', 'Gender', 'Phone', 'Registration Date']],
 			body: patientsData.map(p => [
+				getFiveDigitMemberId(p),
 				`${p.name} ${p.lastName}`.trim(),
 				p.age ?? 'N/A',
 				p.birthday || 'N/A',
-				p.gender || 'N/A',
+				formatGenderDisplay(p.gender),
 				p.phone || 'N/A',
 				p.registrationDate || 'N/A'
 			]),
 			startY: currentY,
 			theme: 'grid',
+			columnStyles: {
+				2: { halign: 'left' }
+			},
 			headStyles: { 
                 fillColor: [16, 71, 138], // #10478a - Permanente blue
                 textColor: [255, 255, 255], // White text
@@ -2635,17 +2664,21 @@ function downloadPdfReportWithBreakdown(
         currentY += 7;
 
         (pdfDoc as any).autoTable({
-            head: [['Name', 'Age', 'Birthday', 'Gender', 'Phone', 'Registration Date']],
+			head: [['Member ID', 'Name', 'Age', 'Birthday', 'Gender', 'Phone', 'Registration Date']],
             body: patientsData.map(p => [
+				getFiveDigitMemberId(p),
                 `${p.name} ${p.lastName}`.trim(),
                 p.age ?? 'N/A',
                 p.birthday || 'N/A',
-                p.gender || 'N/A',
+				formatGenderDisplay(p.gender),
                 p.phone || 'N/A',
                 p.registrationDate || 'N/A'
             ]),
             startY: currentY,
             theme: 'grid',
+			columnStyles: {
+				2: { halign: 'left' }
+			},
             headStyles: {
                 fillColor: [16, 71, 138],
                 textColor: [255, 255, 255],
@@ -2753,15 +2786,19 @@ async function downloadExcelReport(
       'Last Name': p.lastName || 'N/A',
       'Age': p.age ?? 'N/A',
       'Birthday': p.birthday || 'N/A',
-      'Gender': p.gender || 'N/A',
+			'Gender': formatGenderDisplay(p.gender),
       'Phone Number': p.phone || 'N/A',
       'Registration Date': p.registrationDate || 'N/A',
-      'Patient ID': p.id,
+			'Member ID': getFiveDigitMemberId(p),
     }));
     const ws = workbook.addWorksheet(`Patients_${monthYear}`);
     if (sheetData.length > 0) {
       ws.columns = Object.keys(sheetData[0]).map(key => ({ header: key, key, width: 15 }));
       ws.addRows(sheetData);
+			const ageColumnIndex = Object.keys(sheetData[0]).findIndex((key) => key === 'Age') + 1;
+			if (ageColumnIndex > 0) {
+				ws.getColumn(ageColumnIndex).alignment = { horizontal: 'left' };
+			}
       setColumnWidths(ws, sheetData);
     }
   });
@@ -2880,14 +2917,18 @@ async function downloadExcelReportFromReport(
       'Last Name': p.lastName || 'N/A',
       'Age': p.age ?? 'N/A',
       'Birthday': p.birthday || 'N/A',
-      'Gender': p.gender || 'N/A',
+			'Gender': formatGenderDisplay(p.gender),
       'Phone Number': p.phone || 'N/A',
       'Registration Date': p.registrationDate || 'N/A',
-      'Patient ID': p.id,
+			'Member ID': getFiveDigitMemberId(p),
     }));
     const ws = workbook.addWorksheet('Patients');
     ws.columns = Object.keys(patientSheetData[0]).map(key => ({ header: key, key, width: 15 }));
     ws.addRows(patientSheetData);
+		const ageColumnIndex = Object.keys(patientSheetData[0]).findIndex((key) => key === 'Age') + 1;
+		if (ageColumnIndex > 0) {
+			ws.getColumn(ageColumnIndex).alignment = { horizontal: 'left' };
+		}
     setColumnWidths(ws, patientSheetData);
   }
 
@@ -3662,7 +3703,7 @@ async function downloadExcelReportFromReport(
 										</div>
 									</td>
                                     <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.age && patient.age > 0 ? patient.age : 'N/A'}</td>
-                                    <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.gender && patient.gender.trim() ? patient.gender : 'N/A'}</td>
+									<td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{formatGenderDisplay(patient.gender)}</td>
                                     <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">{patient.phone}</td>
 		                                    <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">
 												<div class="flex items-center gap-2">
@@ -3898,7 +3939,7 @@ async function downloadExcelReportFromReport(
 						</div>
 						<div class="info-item-dash">
 							<span class="info-label-dash">Gender:</span>
-							<span class="info-value-dash">{selectedPatient.gender || 'N/A'}</span>
+							<span class="info-value-dash">{formatGenderDisplay(selectedPatient.gender)}</span>
 						</div>
 						<div class="info-item-dash">
 							<span class="info-label-dash">Phone:</span>
