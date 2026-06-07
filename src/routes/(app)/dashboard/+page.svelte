@@ -2070,58 +2070,41 @@ async function fetchAllUsers(): Promise<{ [key: string]: any }> {
         }
     }
 
-    // Initialize status counts, including 'accepted' and 'declined'
     const statusCounts = {
         completed: 0,
         pending: 0,
-        accepted: 0, // Added accepted counter
-        missed: 0,
-        declined: 0,
-        other: 0
+        accepted: 0,
+        declined: 0
     };
 
-    // Iterate through appointments and count statuses
     allAppointments.forEach(a => {
-        // Ensure 'a' and 'a.status' exist before accessing toLowerCase
-        const status = (a && a.status) ? a.status.toLowerCase() : ''; // Safer handling
+        const status = (a && a.status) ? a.status.toLowerCase() : '';
 
         if (status === 'completed') {
             statusCounts.completed++;
         } else if (status === 'pending') {
             statusCounts.pending++;
-        } else if (status === 'accepted') { // Specifically count 'accepted'
+        } else if (status === 'accepted') {
             statusCounts.accepted++;
-        } else if (status === 'missed') {
-            statusCounts.missed++;
         } else if (status === 'decline') {
             statusCounts.declined++;
-        } else if (status !== '') { // Only count non-empty statuses as 'other'
-            statusCounts.other++;
         }
-        // Appointments with empty or null status are implicitly ignored now,
-        // unless you want to count them under 'other' or a specific category.
     });
 
-    // Prepare data for the pie chart
     const pieData = {
-        // Added 'Accepted' label
-        labels: ['Completed', 'Pending', 'Accepted', 'Missed', 'Declined', 'Other'],
+        labels: ['Completed', 'Pending', 'Accepted', 'Declined'],
         datasets: [{
             data: [
                 statusCounts.completed,
                 statusCounts.pending,
-                statusCounts.accepted, // Added accepted count data
-                statusCounts.missed,
-                statusCounts.declined,
-                statusCounts.other
+                statusCounts.accepted,
+                statusCounts.declined
             ],
             backgroundColor: [
                 '#4caf50', // Completed (Green)
                 '#ff9800', // Pending (Orange)
-                '#8bc34a', // Accepted (Light Green - added new color)
-                '#f44336', // Missed (Red)
-                '#2196f3', // Declined (Blue)
-                '#9e9e9e'  // Other (Grey)
+                '#8bc34a', // Accepted (Light Green)
+                '#2196f3'  // Declined (Blue)
             ]
         }]
     };

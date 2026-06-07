@@ -138,6 +138,16 @@
         height: auto;
         transition: transform 0.3s ease; 
     }
+    .sidebar-header .circle-background.has-user-photo {
+        background-color: transparent;
+    }
+    .sidebar-header .circle-background img.user-photo {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        object-fit: cover;
+        object-position: center;
+    }
 	.sidebar.collapsed .circle-background {
 		width: 50px; 
 		height: 50px; 
@@ -325,8 +335,12 @@
 -->
 <div class="sidebar {isCollapsed ? 'collapsed' : ''}">
     <div class="sidebar-header">
-        <div class="circle-background" in:fade>
-            <img src={userPhotoURL || '/images/phpdgmpadmin.png'} alt="User or Logo" />
+        <div class="circle-background" class:has-user-photo={!!userPhotoURL} in:fade>
+            <img
+                src={userPhotoURL || '/images/phpdgmpadmin.png'}
+                alt="User or Logo"
+                class:user-photo={!!userPhotoURL}
+            />
         </div>
         {#if !isCollapsed && userName}
             <div class="name-container" in:fade out:fade>

@@ -259,8 +259,12 @@
                     {#if isMobile && isSidebarOpen} 
                         <button on:click={closeSidebarMobile} class="close-sidebar-btn" aria-label="Close Menu">×</button>
                     {/if}
-                    <div class="circle-background">
-                        <img src={layoutCurrentUser.photoURL || '/images/phpdgmpadmin.png'} alt="User or Logo" />
+                    <div class="circle-background" class:has-user-photo={!!layoutCurrentUser.photoURL}>
+                        <img
+                            src={layoutCurrentUser.photoURL || '/images/phpdgmpadmin.png'}
+                            alt="User or Logo"
+                            class:user-photo={!!layoutCurrentUser.photoURL}
+                        />
                     </div>
 
                     {#if (!isMobile && !isCollapsed) || (isMobile && isSidebarOpen)}
@@ -408,6 +412,12 @@
 	}
 	.sidebar-header .circle-background img {
 		display: block; width: 75%; height: 75%; object-fit: contain;
+	}
+	.sidebar-header .circle-background.has-user-photo {
+		background-color: transparent;
+	}
+	.sidebar-header .circle-background img.user-photo {
+		width: 100%; height: 100%; object-fit: cover; object-position: center;
 	}
 	.name-container {
 		margin-top: 12px; display: flex; flex-direction: column; align-items: center;
