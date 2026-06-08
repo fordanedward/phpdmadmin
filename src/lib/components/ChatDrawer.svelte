@@ -34,6 +34,7 @@
   let messageInput = '';
   let isLoading = false;
   let initKey: string | null = null;
+  let activeInitRequestKey: string | null = null;
   let messagesUnsubscribe: (() => void) | null = null;
   let messagesContainer: HTMLElement | null = null;
 
@@ -43,7 +44,12 @@
     const newKey = getContextKey(context);
     if (drawerOpen && newKey && newKey !== initKey) {
       initKey = newKey;
-      initializeThread();
+      // Clear previous selection immediately to avoid stale header/message flashes.
+      messagesUnsubscribe?.();
+      messagesUnsubscribe = null;
+      thread = null;
+      messages = [];
+      initializeThread(newKey);
     }
     if (!drawerOpen) {
       teardown();
@@ -64,8 +70,10 @@
     return `${ctx.threadId ?? ''}|${ctx.appointmentId ?? ''}|${ctx.patientId ?? ''}`;
   }
 
-  async function initializeThread() {
+  async function initializeThread(requestKey?: string) {
     if (!drawerOpen || !db || !currentUser || !context) return;
+    const currentRequestKey = requestKey ?? getContextKey(context);
+    activeInitRequestKey = currentRequestKey;
     isLoading = true;
     try {
       const sender: ChatSenderInfo = {
@@ -75,6 +83,7 @@
         role: (currentUser.role as any) ?? 'userSecretary'
       };
       const ensuredThread = await ensureThread(db, context, sender);
+      if (activeInitRequestKey !== currentRequestKey) return;
       thread = ensuredThread;
       subscribeToThreadMessages();
       const chatType = ensuredThread.chatType ?? context.chatType ?? 'appointment';
@@ -139,6 +148,7 @@
   function teardown() {
     messagesUnsubscribe?.();
     messagesUnsubscribe = null;
+    activeInitRequestKey = null;
     messages = [];
     thread = null;
     initKey = null;
@@ -163,7 +173,7 @@
     if (thread.chatType === 'member') {
       return {
         id: thread.memberId || thread.id,
-        name: thread.memberName || context?.patientName || context?.recipientName || 'Member'
+        name: context?.patientName || context?.recipientName || thread.memberName || 'Member'
       };
     }
     

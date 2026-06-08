@@ -52,19 +52,24 @@ export async function ensureThread(
       throw new Error('Member chat requires patientId or recipientId.');
     }
     const memberId = context.patientId || context.recipientId!;
+    const memberNameFromContext = context.patientName || context.recipientName || 'Member';
     const chatRef = doc(db, MEMBER_CHAT_COLLECTION, memberId);
     const snapshot = await getDoc(chatRef);
 
     if (!snapshot.exists()) {
-      const memberName = context.patientName || context.recipientName || 'Member';
       await setDoc(chatRef, {
         memberId: memberId,
-        memberName: memberName,
+        memberName: memberNameFromContext,
         createdAt: serverTimestamp(),
         lastMessage: '',
         lastMessageTime: serverTimestamp(),
         unreadCount: 0
       });
+    } else {
+      const existingName = snapshot.data()?.memberName;
+      if (memberNameFromContext && existingName !== memberNameFromContext) {
+        await updateDoc(chatRef, { memberName: memberNameFromContext });
+      }
     }
 
     const chatData = (await getDoc(chatRef)).data() ?? {};
@@ -72,12 +77,12 @@ export async function ensureThread(
       id: memberId,
       chatType: 'member',
       memberId: memberId,
-      memberName: chatData.memberName || context.patientName || context.recipientName || 'Member',
+      memberName: chatData.memberName || memberNameFromContext,
       participants: [memberId, sender.uid],
       participantProfiles: {
         [memberId]: {
           id: memberId,
-          name: chatData.memberName || context.patientName || context.recipientName || 'Member',
+          name: chatData.memberName || memberNameFromContext,
           email: context.patientEmail ?? null,
           role: 'userPatient'
         },
