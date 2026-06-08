@@ -241,6 +241,23 @@ export function subscribeToNotifications(
   });
 }
 
+const STAFF_SENDER_ROLES = new Set(['admin', 'userSecretary', 'userDentist', 'userAdmin']);
+
+/** Unread messages for the admin panel (member → admin). */
+export function getAdminUnreadCount(chatData?: {
+  adminUnreadCount?: number;
+  unreadCount?: number;
+  lastSenderRole?: string;
+}): number {
+  if (!chatData) return 0;
+  if (typeof chatData.adminUnreadCount === 'number') return chatData.adminUnreadCount;
+  const count = chatData.unreadCount || 0;
+  if (count === 0) return 0;
+  // unreadCount is also used for member-facing unread when staff sent last
+  if (STAFF_SENDER_ROLES.has(chatData.lastSenderRole ?? '')) return 0;
+  return count;
+}
+
 export async function markThreadRead(
   db: Firestore,
   threadId: string,
@@ -248,23 +265,27 @@ export async function markThreadRead(
   chatType: 'appointment' | 'member' = 'appointment'
 ) {
   if (chatType === 'member') {
-    // For member chats, mark admin messages as read
-    const messagesRef = collection(db, MEMBER_CHAT_COLLECTION, threadId, CHAT_MESSAGES_SUBCOLLECTION);
-    const unreadQuery = query(
-      messagesRef,
-      where('senderRole', '==', 'admin'),
-      where('read', '==', false),
-      orderBy('timestamp', 'desc')
-    );
-    const snapshot = await getDocs(unreadQuery);
-    const updates = snapshot.docs.map((docSnap) =>
-      updateDoc(docSnap.ref, { read: true })
-    );
-    await Promise.all(updates);
-
-    // Reset unread count
     const chatRef = doc(db, MEMBER_CHAT_COLLECTION, threadId);
-    await updateDoc(chatRef, { unreadCount: 0 });
+    // Persist cleared badge first so a failed message query cannot leave stale unread state.
+    await updateDoc(chatRef, {
+      unreadCount: 0,
+      adminUnreadCount: 0
+    });
+
+    try {
+      const messagesRef = collection(db, MEMBER_CHAT_COLLECTION, threadId, CHAT_MESSAGES_SUBCOLLECTION);
+      const snapshot = await getDocs(messagesRef);
+      const updates = snapshot.docs
+        .filter((docSnap) => {
+          const data = docSnap.data();
+          if (STAFF_SENDER_ROLES.has(data.senderRole)) return false;
+          return data.read !== true;
+        })
+        .map((docSnap) => updateDoc(docSnap.ref, { read: true }));
+      await Promise.all(updates);
+    } catch (error) {
+      console.warn('Failed to mark member chat messages as read:', error);
+    }
   } else {
     const threadRef = getThreadRef(db, threadId);
     await updateDoc(threadRef, {
@@ -303,7 +324,8 @@ export async function sendChatMessage(
     await updateDoc(chatRef, {
       lastMessage: trimmed,
       lastMessageTime: serverTimestamp(),
-      unreadCount: increment(1) // Increment for member
+      lastSenderRole: 'admin',
+      unreadCount: increment(1)
     });
 
     // Create notification for member
@@ -474,6 +496,7 @@ export async function sendAppointmentAcceptanceMessage(
         createdAt: serverTimestamp(),
         lastMessage: messageText,
         lastMessageTime: serverTimestamp(),
+        lastSenderRole: 'admin',
         unreadCount: 1
       });
     } else {
@@ -481,6 +504,7 @@ export async function sendAppointmentAcceptanceMessage(
       await updateDoc(chatRef, {
         lastMessage: messageText,
         lastMessageTime: serverTimestamp(),
+        lastSenderRole: 'admin',
         unreadCount: increment(1)
       });
     }

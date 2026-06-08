@@ -15,6 +15,8 @@
     ChatSenderInfo,
     ChatThreadMetadata
   } from '$lib/chat/types.js';
+  import MemberInformationModal from '$lib/components/MemberInformationModal.svelte';
+  import { fetchMemberPatientById, type MemberPatient } from '$lib/patientProfile.js';
 
   interface CurrentUserLite {
     uid: string;
@@ -37,6 +39,13 @@
   let activeInitRequestKey: string | null = null;
   let messagesUnsubscribe: (() => void) | null = null;
   let messagesContainer: HTMLElement | null = null;
+  let selectedMember: MemberPatient | null = null;
+  let showMemberInfoModal = false;
+  let loadingMemberInfo = false;
+
+  $: if (!showMemberInfoModal) {
+    selectedMember = null;
+  }
 
   const unsubscribeDrawer = chatDrawerState.subscribe((state: ChatDrawerState) => {
     drawerOpen = state.open;
@@ -153,6 +162,33 @@
     thread = null;
     initKey = null;
     messageInput = '';
+    showMemberInfoModal = false;
+    selectedMember = null;
+    loadingMemberInfo = false;
+  }
+
+  function getPartnerInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'M';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+  }
+
+  async function handleViewMemberInfo() {
+    if (!db || !partner?.id || loadingMemberInfo) return;
+
+    loadingMemberInfo = true;
+    try {
+      const profile = await fetchMemberPatientById(db, partner.id);
+      if (profile) {
+        selectedMember = profile;
+        showMemberInfoModal = true;
+      }
+    } catch (error) {
+      console.error('Failed to load member information:', error);
+    } finally {
+      loadingMemberInfo = false;
+    }
   }
 
   function formatTimestamp(value: ChatMessage['sentAt']) {
@@ -193,17 +229,41 @@
   <div class="chat-overlay" role="dialog" aria-label="Appointment chat drawer">
     <div class="chat-panel">
       <header>
-        <div>
+        <div class="header-main">
           <p class="label">Chatting with</p>
-          <h2>{partner?.name ?? 'Member'}</h2>
-          {#if thread?.chatType === 'member'}
-            <p class="meta">General Support Chat</p>
-          {:else if thread?.appointmentMeta}
-            <p class="meta">
-              Appointment {thread.appointmentMeta.date ?? context?.appointmentDate ?? ''} ·
-              {thread.appointmentMeta.time ?? context?.appointmentTime ?? ''}
-            </p>
-          {/if}
+          <div class="partner-row">
+            <button
+              type="button"
+              class="partner-avatar-btn"
+              title="View member information"
+              aria-label="View member information"
+              disabled={!partner?.id || loadingMemberInfo}
+              on:click={handleViewMemberInfo}
+            >
+              <span class="partner-avatar">
+                {getPartnerInitials(partner?.name ?? 'Member')}
+              </span>
+            </button>
+            <div class="partner-details">
+              <button
+                type="button"
+                class="partner-name-btn"
+                title="View member information"
+                disabled={!partner?.id || loadingMemberInfo}
+                on:click={handleViewMemberInfo}
+              >
+                {partner?.name ?? 'Member'}
+              </button>
+              {#if thread?.chatType === 'member'}
+                <p class="meta">General Support Chat</p>
+              {:else if thread?.appointmentMeta}
+                <p class="meta">
+                  Appointment {thread.appointmentMeta.date ?? context?.appointmentDate ?? ''} ·
+                  {thread.appointmentMeta.time ?? context?.appointmentTime ?? ''}
+                </p>
+              {/if}
+            </div>
+          </div>
         </div>
         <button class="close-btn" on:click={closeChatDrawer} aria-label="Close chat drawer">
           ×
@@ -264,6 +324,8 @@
   </div>
 {/if}
 
+<MemberInformationModal patient={selectedMember} bind:open={showMemberInfoModal} />
+
 <style>
   .chat-overlay {
     position: fixed;
@@ -294,11 +356,87 @@
     color: white;
   }
 
-  header h2 {
+  .header-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .partner-row {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    margin-top: 0.15rem;
+  }
+
+  .partner-avatar-btn,
+  .partner-name-btn {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .partner-avatar-btn:disabled,
+  .partner-name-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+
+  .partner-avatar-btn:not(:disabled):hover,
+  .partner-name-btn:not(:disabled):hover {
+    opacity: 0.9;
+  }
+
+  .partner-avatar-btn:focus-visible,
+  .partner-name-btn:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.85);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+
+  .partner-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .partner-avatar-btn:not(:disabled):hover .partner-avatar {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.55);
+  }
+
+  .partner-details {
+    min-width: 0;
+  }
+
+  .partner-name-btn {
+    display: block;
+    max-width: 100%;
     font-size: 1.35rem;
     font-weight: 700;
     color: white;
-    margin: 0.15rem 0 0 0;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+  }
+
+  .partner-name-btn:not(:disabled):hover {
+    text-decoration-color: rgba(255, 255, 255, 0.85);
   }
 
   header .label {

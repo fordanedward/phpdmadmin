@@ -3,6 +3,9 @@
   import type { Firestore } from 'firebase/firestore';
   import { collection, getDocs, onSnapshot, query, orderBy } from 'firebase/firestore';
   import { openChatDrawer } from '$lib/chat/store.js';
+  import { getAdminUnreadCount, markThreadRead } from '$lib/chat/service.js';
+  import MemberInformationModal from '$lib/components/MemberInformationModal.svelte';
+  import { fetchMemberPatientById, type MemberPatient } from '$lib/patientProfile.js';
 
   interface CurrentUserLite {
     uid: string;
@@ -49,6 +52,13 @@
   let patientProfiles: PatientProfile[] = [];
   let chatDataMap: Map<string, MemberChatData> = new Map();
   let lastMessageTimestamps: Map<string, number> = new Map();
+  let selectedMember: MemberPatient | null = null;
+  let showMemberInfoModal = false;
+  let loadingMemberInfo = false;
+
+  $: if (!showMemberInfoModal) {
+    selectedMember = null;
+  }
 
   onMount(() => {
     if (db) {
@@ -108,7 +118,7 @@
           chatDataMap.set(memberId, {
             lastMessage: data.lastMessage || '',
             lastMessageTime: data.lastMessageTime,
-            unreadCount: data.unreadCount || 0
+            unreadCount: getAdminUnreadCount(data)
           });
         });
         mergeData();
@@ -118,6 +128,19 @@
       console.error('Error loading member data:', error);
       isLoading = false;
     }
+  }
+
+  function getMessageTimeMs(member: MemberDisplay): number {
+    if (member.lastMessageTime) {
+      if (typeof member.lastMessageTime.toMillis === 'function') {
+        return member.lastMessageTime.toMillis();
+      }
+      if (typeof member.lastMessageTime.toDate === 'function') {
+        return member.lastMessageTime.toDate().getTime();
+      }
+      return new Date(member.lastMessageTime).getTime();
+    }
+    return lastMessageTimestamps.get(member.memberId) ?? 0;
   }
 
   function mergeData() {
@@ -142,20 +165,10 @@
       };
     });
 
-    // Sort: unread first, then by last message time, then alphabetically
+    // Sort by most recent message first, then alphabetically
     merged.sort((a, b) => {
-      if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
-      if (a.unreadCount === 0 && b.unreadCount > 0) return 1;
-      
-      if (a.lastMessageTime && b.lastMessageTime) {
-        const timeA = a.lastMessageTime.toDate?.() ?? new Date(a.lastMessageTime);
-        const timeB = b.lastMessageTime.toDate?.() ?? new Date(b.lastMessageTime);
-        return timeB.getTime() - timeA.getTime();
-      }
-      
-      if (a.lastMessageTime && !b.lastMessageTime) return -1;
-      if (!a.lastMessageTime && b.lastMessageTime) return 1;
-      
+      const timeDiff = getMessageTimeMs(b) - getMessageTimeMs(a);
+      if (timeDiff !== 0) return timeDiff;
       return a.memberName.localeCompare(b.memberName);
     });
 
@@ -163,8 +176,41 @@
     isLoading = false;
   }
 
-  function handleOpenChat(member: MemberDisplay) {
+  async function handleViewMemberInfo(member: MemberDisplay, event: MouseEvent) {
+    event.stopPropagation();
+    if (!db || loadingMemberInfo) return;
+
+    loadingMemberInfo = true;
+    try {
+      const profile = await fetchMemberPatientById(db, member.memberId);
+      if (profile) {
+        selectedMember = profile;
+        showMemberInfoModal = true;
+      }
+    } catch (error) {
+      console.error('Failed to load member information:', error);
+    } finally {
+      loadingMemberInfo = false;
+    }
+  }
+
+  async function handleOpenChat(member: MemberDisplay) {
     if (!member.memberId) return;
+
+    const existing = chatDataMap.get(member.memberId);
+    if (existing && existing.unreadCount > 0) {
+      chatDataMap.set(member.memberId, { ...existing, unreadCount: 0 });
+      mergeData();
+    }
+
+    if (db && currentUser) {
+      try {
+        await markThreadRead(db, member.memberId, currentUser.uid, 'member');
+      } catch (error) {
+        console.warn('Unable to mark chat as read', error);
+      }
+    }
+
     openChatDrawer({
       chatType: 'member',
       patientId: member.memberId,
@@ -248,13 +294,21 @@
     {:else}
       <div class="chats-list">
         {#each filteredMembers as member (member.id)}
-          <button
-            type="button"
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
             class="chat-item"
             class:unread={member.unreadCount > 0}
             class:no-chat={!member.hasChat}
             class:admin-chat={member.isAdmin}
+            role="button"
+            tabindex="0"
             on:click={() => handleOpenChat(member)}
+            on:keydown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleOpenChat(member);
+              }
+            }}
           >
             <div class="member-avatar">
               <div class="avatar-circle" class:admin-avatar={member.isAdmin}>
@@ -267,7 +321,14 @@
             <div class="chat-content">
               <div class="chat-header-row">
                 <div class="name-badge-row">
-                  <h3 class="member-name">{member.memberName}</h3>
+                  <button
+                    type="button"
+                    class="member-name"
+                    title="View member information"
+                    on:click={(event) => handleViewMemberInfo(member, event)}
+                  >
+                    {member.memberName}
+                  </button>
                   {#if member.isAdmin}
                     <span class="role-badge admin-badge">Admin</span>
                   {/if}
@@ -294,11 +355,13 @@
                 </div>
               </div>
             </div>
-          </button>
+          </div>
         {/each}
       </div>
     {/if}
   </div>
+
+  <MemberInformationModal patient={selectedMember} bind:open={showMemberInfoModal} />
 {/if}
 
 <style>
@@ -572,11 +635,28 @@
   .member-name {
     font-size: 1rem;
     font-weight: 600;
-    color: #111827;
+    color: #2563eb;
     margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-align: left;
+    transition: color 0.15s;
+  }
+
+  .member-name:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+  }
+
+  .member-name:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+    border-radius: 0.25rem;
   }
 
   .role-badge {
