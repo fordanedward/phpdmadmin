@@ -258,6 +258,208 @@ interface Prescription {
 		appointments: Appointment[];
 	}
 
+	function getAppointmentCompletionRemarks(appointment: Appointment): string {
+		const completionRemarks = appointment['completionRemarks'];
+		const remarks = appointment['remarks'];
+		if (typeof completionRemarks === 'string' && completionRemarks.trim()) {
+			return completionRemarks.trim();
+		}
+		if (typeof remarks === 'string' && remarks.trim()) {
+			return remarks.trim();
+		}
+		return 'N/A';
+	}
+
+	function styleKeyValueSheet(worksheet: ExcelJS.Worksheet): void {
+		if (worksheet.rowCount < 1) return;
+		const headerRow = worksheet.getRow(1);
+		headerRow.eachCell((cell) => {
+			cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+			cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10478A' } };
+			cell.alignment = { vertical: 'middle', horizontal: 'center' };
+			cell.border = {
+				top: { style: 'thin', color: { argb: 'FFD9E2F3' } },
+				left: { style: 'thin', color: { argb: 'FFD9E2F3' } },
+				bottom: { style: 'thin', color: { argb: 'FFD9E2F3' } },
+				right: { style: 'thin', color: { argb: 'FFD9E2F3' } }
+			};
+		});
+
+		for (let rowIndex = 2; rowIndex <= worksheet.rowCount; rowIndex++) {
+			const row = worksheet.getRow(rowIndex);
+			row.eachCell((cell, colNumber) => {
+				if (colNumber === 1) {
+					cell.font = { bold: true, color: { argb: 'FF0B2D56' } };
+					cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F7FF' } };
+				}
+				cell.border = {
+					top: { style: 'thin', color: { argb: 'FFE8EEF8' } },
+					left: { style: 'thin', color: { argb: 'FFE8EEF8' } },
+					bottom: { style: 'thin', color: { argb: 'FFE8EEF8' } },
+					right: { style: 'thin', color: { argb: 'FFE8EEF8' } }
+				};
+				cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+			});
+		}
+	}
+
+	function styleTableSheet(
+		worksheet: ExcelJS.Worksheet,
+		headerRowNumber: number,
+		dataStartRow: number,
+		dataEndRow: number
+	): void {
+		if (worksheet.columnCount === 0) return;
+
+		const headerRow = worksheet.getRow(headerRowNumber);
+		headerRow.height = 22;
+		headerRow.eachCell((cell) => {
+			cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+			cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B2D56' } };
+			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+			cell.border = {
+				top: { style: 'thin', color: { argb: 'FF9CB6D9' } },
+				left: { style: 'thin', color: { argb: 'FF9CB6D9' } },
+				bottom: { style: 'thin', color: { argb: 'FF9CB6D9' } },
+				right: { style: 'thin', color: { argb: 'FF9CB6D9' } }
+			};
+		});
+
+		worksheet.autoFilter = {
+			from: { row: headerRowNumber, column: 1 },
+			to: { row: headerRowNumber, column: worksheet.columnCount }
+		};
+		worksheet.views = [{ state: 'frozen', ySplit: headerRowNumber }];
+
+		for (let rowIndex = dataStartRow; rowIndex <= dataEndRow; rowIndex++) {
+			const row = worksheet.getRow(rowIndex);
+			row.eachCell((cell) => {
+				cell.border = {
+					top: { style: 'thin', color: { argb: 'FFE6EEF9' } },
+					left: { style: 'thin', color: { argb: 'FFE6EEF9' } },
+					bottom: { style: 'thin', color: { argb: 'FFE6EEF9' } },
+					right: { style: 'thin', color: { argb: 'FFE6EEF9' } }
+				};
+				cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+			});
+			if (rowIndex % 2 === 0) {
+				row.eachCell((cell) => {
+					cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FBFF' } };
+				});
+			}
+		}
+	}
+
+	function styleSectionHeadingRow(worksheet: ExcelJS.Worksheet, rowNumber: number): void {
+		const row = worksheet.getRow(rowNumber);
+		row.eachCell((cell) => {
+			cell.font = { bold: true, color: { argb: 'FF0B2D56' } };
+			cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF5FF' } };
+			cell.alignment = { vertical: 'middle', horizontal: 'left' };
+		});
+	}
+
+	function addAppointmentAnalysisSheet(
+		workbook: ExcelJS.Workbook,
+		appointmentsData: Appointment[],
+		statusBreakdown: Record<string, number> = {},
+		serviceBreakdown: Record<string, number> = {},
+		subserviceBreakdown: Record<string, number> = {}
+	): void {
+		const analysisSheet = workbook.addWorksheet('Analysis');
+		const total = appointmentsData.length;
+		const completed = appointmentsData.filter((apt) => {
+			const normalized = (apt.status || '').toLowerCase();
+			return normalized === 'completed' || normalized === 'completed: need follow-up';
+		}).length;
+		const withRemarks = appointmentsData.filter((apt) => getAppointmentCompletionRemarks(apt) !== 'N/A').length;
+		const completionRate = total ? ((completed / total) * 100).toFixed(2) : '0.00';
+		const remarksRate = total ? ((withRemarks / total) * 100).toFixed(2) : '0.00';
+		const statusRows = Object.entries(statusBreakdown)
+			.sort((a, b) => b[1] - a[1])
+			.map(([status, count]) => [status.charAt(0).toUpperCase() + status.slice(1), count]);
+		const serviceRows = Object.entries(serviceBreakdown)
+			.sort((a, b) => b[1] - a[1])
+			.map(([service, count]) => [service, count]);
+		const subserviceRows = Object.entries(subserviceBreakdown)
+			.sort((a, b) => b[1] - a[1])
+			.slice(0, 10)
+			.map(([subservice, count]) => [subservice, count]);
+
+		analysisSheet.addRows([
+			['APPOINTMENT ANALYSIS'],
+			['Total Appointments', total],
+			['Completed Appointments', completed],
+			['Appointments With Remarks', withRemarks],
+			['Completion Rate (%)', Number(completionRate)],
+			['Remarks Coverage (%)', Number(remarksRate)],
+			[''],
+			['STATUS DISTRIBUTION (Chart-Ready)'],
+			['Status', 'Count'],
+			...statusRows,
+			[''],
+			['SERVICE DISTRIBUTION (Chart-Ready)'],
+			['Service', 'Count'],
+			...serviceRows,
+			[''],
+			['TOP SUBSERVICES (Chart-Ready)'],
+			['Subservice', 'Count'],
+			...subserviceRows
+		]);
+
+		analysisSheet.getColumn(1).width = 40;
+		analysisSheet.getColumn(2).width = 18;
+		analysisSheet.mergeCells('A1:B1');
+		const titleCell = analysisSheet.getCell('A1');
+		titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+		titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B2D56' } };
+		titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+		for (let rowIndex = 2; rowIndex <= 6; rowIndex++) {
+			const row = analysisSheet.getRow(rowIndex);
+			row.eachCell((cell, colNumber) => {
+				cell.border = {
+					top: { style: 'thin', color: { argb: 'FFE3EBF8' } },
+					left: { style: 'thin', color: { argb: 'FFE3EBF8' } },
+					bottom: { style: 'thin', color: { argb: 'FFE3EBF8' } },
+					right: { style: 'thin', color: { argb: 'FFE3EBF8' } }
+				};
+				if (colNumber === 1) {
+					cell.font = { bold: true, color: { argb: 'FF0B2D56' } };
+					cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F7FF' } };
+				} else {
+					cell.font = { bold: true, color: { argb: 'FF1D4D8E' } };
+					cell.alignment = { horizontal: 'right', vertical: 'middle' };
+				}
+			});
+		}
+
+		const statusSectionRow = 8;
+		const statusHeaderRow = 9;
+		const statusDataStartRow = 10;
+		const statusDataEndRow = statusDataStartRow + Math.max(statusRows.length - 1, 0);
+		const serviceSectionRow = statusDataEndRow + 2;
+		const serviceHeaderRow = serviceSectionRow + 1;
+		const serviceDataStartRow = serviceHeaderRow + 1;
+		const serviceDataEndRow = serviceDataStartRow + Math.max(serviceRows.length - 1, 0);
+		const subserviceSectionRow = serviceDataEndRow + 2;
+		const subserviceHeaderRow = subserviceSectionRow + 1;
+		const subserviceDataStartRow = subserviceHeaderRow + 1;
+		const subserviceDataEndRow = subserviceDataStartRow + Math.max(subserviceRows.length - 1, 0);
+
+		styleSectionHeadingRow(analysisSheet, statusSectionRow);
+		styleSectionHeadingRow(analysisSheet, serviceSectionRow);
+		styleSectionHeadingRow(analysisSheet, subserviceSectionRow);
+		styleTableSheet(analysisSheet, statusHeaderRow, statusDataStartRow, Math.max(statusDataStartRow, statusDataEndRow));
+		styleTableSheet(analysisSheet, serviceHeaderRow, serviceDataStartRow, Math.max(serviceDataStartRow, serviceDataEndRow));
+		styleTableSheet(
+			analysisSheet,
+			subserviceHeaderRow,
+			subserviceDataStartRow,
+			Math.max(subserviceDataStartRow, subserviceDataEndRow)
+		);
+	}
+
 	let isCollapsed = false;
 	let stats: Stats = {
 		newAppointments: 0, totalPatients: 0, todaysPatients: 0, todaysAppointments: 0,
@@ -1801,6 +2003,35 @@ $: filteredPatients = (() => {
 			...Object.entries(reportData.subserviceBreakdown).map(([subservice, count]) => [subservice, count])
 		];
 		summarySheet.addRows(summaryData);
+		summarySheet.getColumn(1).width = 34;
+		summarySheet.getColumn(2).width = 26;
+		summarySheet.mergeCells('A1:B1');
+		const summaryTitle = summarySheet.getCell('A1');
+		summaryTitle.font = { bold: true, size: 15, color: { argb: 'FFFFFFFF' } };
+		summaryTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B2D56' } };
+		summaryTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+
+		for (let rowIndex = 2; rowIndex <= summarySheet.rowCount; rowIndex++) {
+			const row = summarySheet.getRow(rowIndex);
+			const firstCellValue = (row.getCell(1).value || '').toString().trim();
+			if (!firstCellValue) continue;
+			if (/^[A-Z\s\-()]+$/.test(firstCellValue) && !row.getCell(2).value) {
+				styleSectionHeadingRow(summarySheet, rowIndex);
+			} else {
+				row.eachCell((cell, colNumber) => {
+					if (colNumber === 1) {
+						cell.font = { bold: true, color: { argb: 'FF0B2D56' } };
+					}
+					cell.border = {
+						top: { style: 'thin', color: { argb: 'FFE7EEF9' } },
+						left: { style: 'thin', color: { argb: 'FFE7EEF9' } },
+						bottom: { style: 'thin', color: { argb: 'FFE7EEF9' } },
+						right: { style: 'thin', color: { argb: 'FFE7EEF9' } }
+					};
+					cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+				});
+			}
+		}
 
 		// Detailed Appointments Sheet
 		const appointmentsSheet = workbook.addWorksheet('Appointments');
@@ -1811,6 +2042,7 @@ $: filteredPatients = (() => {
 			'Service': apt.service || 'N/A',
 			'Subservice': getSubserviceLabelList(apt).join(', ') || 'N/A',
 			'Status': apt.status,
+			'Remarks': getAppointmentCompletionRemarks(apt),
 			'Created On': apt.createdAt ? new Date(apt.createdAt).toLocaleString() : 'N/A',
 			'Completed On': apt.completionTime ? new Date(apt.completionTime).toLocaleString() : 'N/A'
 		}));
@@ -1818,6 +2050,7 @@ $: filteredPatients = (() => {
 		if (appointmentData.length > 0) {
 			appointmentsSheet.columns = Object.keys(appointmentData[0]).map(key => ({ header: key, key, width: 20 }));
 			appointmentsSheet.addRows(appointmentData);
+			styleTableSheet(appointmentsSheet, 1, 2, appointmentsSheet.rowCount);
 		}
 
 		// Daily Breakdown Sheet
@@ -1832,7 +2065,16 @@ $: filteredPatients = (() => {
 				{ header: 'Appointments', key: 'Appointments', width: 15 }
 			];
 			dailySheet.addRows(dailyData);
+			styleTableSheet(dailySheet, 1, 2, dailySheet.rowCount);
 		}
+
+		addAppointmentAnalysisSheet(
+			workbook,
+			reportData.appointments,
+			reportData.statusBreakdown,
+			reportData.serviceBreakdown,
+			reportData.subserviceBreakdown
+		);
 
 		// Save file
 		const filename = `Appointment_Report_${reportData.dateRange.start}_to_${reportData.dateRange.end}.xlsx`;
@@ -2700,6 +2942,7 @@ async function downloadExcelReport(
   ]);
   metadataSheet.getColumn(1).width = 20;
   metadataSheet.getColumn(2).width = Math.max(25, REPORT_DATE_DESCRIPTION.length);
+	styleKeyValueSheet(metadataSheet);
 
     // Helper function to set column widths
   const setColumnWidths = (worksheet: ExcelJS.Worksheet, data: any[]) => {
@@ -2736,6 +2979,7 @@ async function downloadExcelReport(
 			'Service': appt.service || 'N/A',
 			'Subservice': getSubserviceLabelList(appt).join(', ') || 'N/A',
 			'Status': appt.status || 'N/A',
+			'Remarks': getAppointmentCompletionRemarks(appt),
 		}));
 
     const ws = workbook.addWorksheet(`Appointments_${monthYear}`);
@@ -2743,6 +2987,7 @@ async function downloadExcelReport(
       ws.columns = Object.keys(sheetData[0]).map(key => ({ header: key, key, width: 15 }));
       ws.addRows(sheetData);
       setColumnWidths(ws, sheetData);
+			styleTableSheet(ws, 1, 2, ws.rowCount);
     }
   });
 
@@ -2783,10 +3028,38 @@ async function downloadExcelReport(
 				ws.getColumn(ageColumnIndex).alignment = { horizontal: 'left' };
 			}
       setColumnWidths(ws, sheetData);
+			styleTableSheet(ws, 1, 2, ws.rowCount);
     }
   });
 
 	// Prescriptions removed from Excel report - focusing on Appointments and Patients only
+
+	const monthlyStatusBreakdown = appointmentsData.reduce((acc, appt) => {
+		const status = (appt.status || 'unknown').toLowerCase();
+		acc[status] = (acc[status] || 0) + 1;
+		return acc;
+	}, {} as Record<string, number>);
+
+	const monthlyServiceBreakdown = appointmentsData.reduce((acc, appt) => {
+		const service = appt.service || 'Unknown Service';
+		acc[service] = (acc[service] || 0) + 1;
+		return acc;
+	}, {} as Record<string, number>);
+
+	const monthlySubserviceBreakdown: Record<string, number> = {};
+	appointmentsData.forEach((appt) => {
+		getSubserviceLabelList(appt).forEach((subservice) => {
+			monthlySubserviceBreakdown[subservice] = (monthlySubserviceBreakdown[subservice] || 0) + 1;
+		});
+	});
+
+	addAppointmentAnalysisSheet(
+		workbook,
+		appointmentsData,
+		monthlyStatusBreakdown,
+		monthlyServiceBreakdown,
+		monthlySubserviceBreakdown
+	);
 
   // Save the Excel Workbook
    if (workbook.worksheets.length > 0) {
@@ -2827,6 +3100,7 @@ async function downloadExcelReportFromReport(
   ]);
   metadataSheet.getColumn(1).width = 20;
   metadataSheet.getColumn(2).width = Math.max(25, REPORT_DATE_DESCRIPTION.length);
+	styleKeyValueSheet(metadataSheet);
 
   const setColumnWidths = (worksheet: ExcelJS.Worksheet, data: any[]) => {
     if (data.length === 0) return;
@@ -2850,6 +3124,7 @@ async function downloadExcelReportFromReport(
     ws.columns = [{ header: 'Status', key: 'Status', width: 15 }, { header: 'Count', key: 'Count', width: 10 }];
     ws.addRows(statusData);
     setColumnWidths(ws, statusData);
+		styleTableSheet(ws, 1, 2, ws.rowCount);
   }
 
   // Service Breakdown sheet
@@ -2862,6 +3137,7 @@ async function downloadExcelReportFromReport(
     ws.columns = [{ header: 'Service', key: 'Service', width: 20 }, { header: 'Count', key: 'Count', width: 10 }];
     ws.addRows(serviceData);
     setColumnWidths(ws, serviceData);
+		styleTableSheet(ws, 1, 2, ws.rowCount);
   }
 
 	// Subservice Breakdown sheet
@@ -2874,6 +3150,7 @@ async function downloadExcelReportFromReport(
 		ws.columns = [{ header: 'Subservice', key: 'Subservice', width: 28 }, { header: 'Count', key: 'Count', width: 10 }];
 		ws.addRows(subserviceData);
 		setColumnWidths(ws, subserviceData);
+		styleTableSheet(ws, 1, 2, ws.rowCount);
 	}
 
   // Appointments sheet
@@ -2885,12 +3162,22 @@ async function downloadExcelReportFromReport(
       'Service': appt.service || 'N/A',
 			'Subservice': getSubserviceLabelList(appt).join(', ') || 'N/A',
       'Status': appt.status || 'N/A',
+			'Remarks': getAppointmentCompletionRemarks(appt),
     }));
     const ws = workbook.addWorksheet('Appointments');
     ws.columns = Object.keys(appointmentSheetData[0]).map(key => ({ header: key, key, width: 15 }));
     ws.addRows(appointmentSheetData);
     setColumnWidths(ws, appointmentSheetData);
+		styleTableSheet(ws, 1, 2, ws.rowCount);
   }
+
+	addAppointmentAnalysisSheet(
+		workbook,
+		appointmentsData,
+		statusBreakdown || {},
+		serviceBreakdown || {},
+		subserviceBreakdown || {}
+	);
 
   // Patients sheet
   if (patientsData.length > 0) {
@@ -2913,6 +3200,7 @@ async function downloadExcelReportFromReport(
 			ws.getColumn(ageColumnIndex).alignment = { horizontal: 'left' };
 		}
     setColumnWidths(ws, patientSheetData);
+		styleTableSheet(ws, 1, 2, ws.rowCount);
   }
 
   if (workbook.worksheets.length > 1) {
